@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# PATH-prepended shim for the `hermes` CLI in interactive sandbox shells.
+# Installed at /usr/local/lib/nemoclaw/bin/hermes and reached by PATH order
+# (set in /tmp/nemoclaw-proxy-env.sh, sourced by /sandbox/.bashrc).
+#
+# It is a pure passthrough. Telemetry flows through Hermes's bundled native
+# NeMo Relay plugin; there is no recipe-owned finalizer or lifecycle wrapper.
+
+set -euo pipefail
+
+exec /usr/local/bin/hermes "$@"

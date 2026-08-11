@@ -1,0 +1,51 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+# Native NeMo Relay configuration loaded in-process by Hermes.
+
+version = 1
+
+[[components]]
+kind = "observability"
+enabled = true
+
+[components.config]
+version = 3
+
+[components.config.opentelemetry]
+enabled = @@PHOENIX_ENABLED@@
+
+[[components.config.opentelemetry.endpoints]]
+type = "openinference"
+transport = "http_binary"
+endpoint = "@@PHOENIX_ENDPOINT@@"
+service_name = "financial-assistant"
+timeout_millis = 3000
+
+[components.config.opentelemetry.endpoints.resource_attributes]
+"openinference.project.name" = "@@PHOENIX_PROJECT_NAME@@"
+"deployment.environment" = "demo"
+
+# Resolver placeholders can appear in request metadata before OpenShell swaps
+# them at the egress boundary. Redact them from local and exported telemetry.
+[[components]]
+kind = "pii_redaction"
+enabled = true
+
+[components.config]
+version = 1
+
+[[components.config.profiles]]
+mode = "builtin"
+priority = 80
+
+[components.config.profiles.builtin]
+action = "regex_replace"
+pattern = "openshell:resolve:env:[A-Za-z_][A-Za-z0-9_]*"
+replacement = "[openshell env placeholder]"
+
+[[components]]
+kind = "adaptive"
+enabled = true
+
+[components.config.tool_parallelism]
+mode = "observe_only"

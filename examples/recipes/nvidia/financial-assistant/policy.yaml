@@ -1,0 +1,94 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+version: 1
+filesystem_policy:
+  include_workdir: true
+  read_only:
+    - /usr
+    - /lib
+    - /opt/hermes
+    - /proc
+    - /dev/urandom
+    - /etc
+    - /sandbox/.hermes
+  read_write:
+    - /sandbox
+    - /sandbox/.hermes-data
+    - /tmp
+    - /dev/null
+landlock:
+  compatibility: best_effort
+process:
+  run_as_user: sandbox
+  run_as_group: sandbox
+network_policies:
+  nvidia_inference:
+    name: nvidia-inference
+    endpoints:
+      - host: integrate.api.nvidia.com
+        port: 443
+        protocol: rest
+        tls: terminate
+        enforcement: enforce
+        rules:
+          - allow: { method: POST, path: /v1/chat/completions }
+          - allow: { method: POST, path: /v1/completions }
+          - allow: { method: GET, path: /v1/models }
+          - allow: { method: GET, path: /v1/models/** }
+    binaries: &hermes_python
+      - { path: /usr/local/bin/hermes }
+      - { path: /opt/hermes/.venv/bin/hermes }
+      - { path: /opt/hermes/.venv/bin/python }
+      - { path: /usr/bin/python3 }
+      - { path: /usr/bin/python3.13 }
+  yahoo_finance:
+    name: yahoo-finance-readonly
+    endpoints:
+      - host: query1.finance.yahoo.com
+        port: 443
+        protocol: rest
+        tls: terminate
+        enforcement: enforce
+        rules:
+          - allow: { method: GET, path: /v8/finance/chart/** }
+    binaries:
+      - { path: /usr/bin/python3 }
+      - { path: /usr/bin/python3.13 }
+      - { path: /opt/hermes/.venv/bin/python }
+  sec_public_data:
+    name: sec-public-data-readonly
+    endpoints:
+      - host: www.sec.gov
+        port: 443
+        protocol: rest
+        tls: terminate
+        enforcement: enforce
+        rules:
+          - allow: { method: GET, path: /files/company_tickers.json }
+      - host: data.sec.gov
+        port: 443
+        protocol: rest
+        tls: terminate
+        enforcement: enforce
+        rules:
+          - allow: { method: GET, path: /api/xbrl/companyfacts/** }
+    binaries:
+      - { path: /usr/bin/python3 }
+      - { path: /usr/bin/python3.13 }
+      - { path: /opt/hermes/.venv/bin/python }
+  phoenix_collector:
+    name: phoenix-collector
+    endpoints:
+      - host: host.openshell.internal
+        port: 6006
+        protocol: rest
+        enforcement: enforce
+        allowed_ips:
+          - 10.0.0.0/8
+          - 172.16.0.0/12
+          - 192.168.0.0/16
+          - fc00::/7
+        rules:
+          - allow: { method: POST, path: /v1/traces }
+    binaries: *hermes_python

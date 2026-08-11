@@ -1,0 +1,28 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+name: financial-assistant-observability
+
+services:
+  phoenix:
+    image: arizephoenix/phoenix:17.13.0
+    restart: unless-stopped
+    ports:
+      # Phoenix serves both its UI and OTLP/HTTP receiver on 6006. Keep the
+      # unauthenticated local deployment reachable from this host only.
+      - "127.0.0.1:6006:6006"
+    volumes:
+      - phoenix-data:/root/.phoenix
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:6006/healthz', timeout=3)"
+      interval: 5s
+      timeout: 4s
+      retries: 24
+      start_period: 10s
+
+volumes:
+  phoenix-data:

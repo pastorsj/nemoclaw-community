@@ -302,6 +302,14 @@ Service: NVIDIA Developer Forums
 Terms: See provider terms
 URL: https://forums.developer.nvidia.com/
 
+Service: Yahoo Finance public chart endpoint
+Terms: See provider terms, market-data attribution, delay, and redistribution notices
+URL: https://legal.yahoo.com/us/en/yahoo/terms/otos/index.html
+
+Service: U.S. Securities and Exchange Commission EDGAR JSON APIs
+Terms: See SEC developer resources and fair-access guidance
+URL: https://www.sec.gov/about/developer-resources
+
 Dataset: Curated fixture derived from the U.S. Treasury OFAC Specially Designated Nationals list
 License: U.S. Government work, public domain
 URL: https://sanctionslistservice.ofac.treas.gov/
