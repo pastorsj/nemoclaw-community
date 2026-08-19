@@ -159,8 +159,8 @@ fi
 # It bakes no bucket, key prefix, region, or downstream credentials: the
 # host-side relay owns all of those (and whether the backend is S3 or MinIO is
 # not a sandbox concern). When ATIF_EXPORT_MODE != relay, the native NeMo Relay
-# configuration writes ATIF trajectories to /tmp/atif and the bridge stays
-# down.
+# configuration writes ATIF trajectories to /sandbox/atif and no remote storage
+# component is configured.
 if atif_remote_enabled; then
   # atif_relay_backend validates ATIF_RELAY_BACKEND is set (loud error if not).
   echo "ATIF export: mode=relay backend=$(atif_relay_backend) (bucket + key prefix owned by the relay)"
@@ -310,7 +310,7 @@ kill "$SIGKILL_BG_PID" 2>/dev/null || true
 wait "$SIGKILL_BG_PID" 2>/dev/null || true
 
 if [[ "$READY" != "1" ]]; then
-  echo "Sandbox did not reach ready in ${SANDBOX_READY_TIMEOUT_SECS}s — likely a slow cold image build. Re-run bring-up (it resumes from cached layers) or raise SANDBOX_READY_TIMEOUT_SECS. Check 'openshell sandbox logs $SANDBOX_NAME'." >&2
+  echo "Sandbox did not reach ready in ${SANDBOX_READY_TIMEOUT_SECS}s — likely a slow cold image build. Re-run bring-up (it resumes from cached layers) or raise SANDBOX_READY_TIMEOUT_SECS. Check 'openshell logs $SANDBOX_NAME'." >&2
   exit 1
 fi
 echo "  Sandbox reported ready; detached local create stream."
