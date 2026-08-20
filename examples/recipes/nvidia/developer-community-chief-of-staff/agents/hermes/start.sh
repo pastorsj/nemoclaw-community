@@ -312,7 +312,7 @@ export MS_GRAPH_ACCESS_TOKEN="${MS_GRAPH_ACCESS_TOKEN:-openshell:resolve:env:MS_
 # env var. OpenShell substitutes the scoped placeholder only at the L7 egress
 # boundary; Hermes and Relay receive only the placeholder, never the real token.
 if [ "$ATIF_REMOTE_ENABLED" = "1" ]; then
-  export ATIF_RELAY_AUTHORIZATION="${ATIF_RELAY_AUTHORIZATION:-Bearer openshell:resolve:env:ATIF_RELAY_AUTH_TOKEN}"
+  export ATIF_RELAY_AUTHORIZATION="${ATIF_RELAY_AUTHORIZATION:-Bearer ${ATIF_RELAY_AUTH_TOKEN:-openshell:resolve:env:ATIF_RELAY_AUTH_TOKEN}}"
 fi
 
 # SECURITY FIX: Write proxy + tool env to a standalone file via
@@ -379,7 +379,7 @@ TUIENVEOF
   done
   if [ "$ATIF_REMOTE_ENABLED" = "1" ]; then
     cat <<'RELAYENVEOF'
-export ATIF_RELAY_AUTHORIZATION="${ATIF_RELAY_AUTHORIZATION:-Bearer openshell:resolve:env:ATIF_RELAY_AUTH_TOKEN}"
+export ATIF_RELAY_AUTHORIZATION="${ATIF_RELAY_AUTHORIZATION:-Bearer ${ATIF_RELAY_AUTH_TOKEN:-openshell:resolve:env:ATIF_RELAY_AUTH_TOKEN}}"
 RELAYENVEOF
   fi
 } | emit_sandbox_sourced_file "$_PROXY_ENV_FILE"

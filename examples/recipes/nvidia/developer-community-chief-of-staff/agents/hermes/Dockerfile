@@ -7,7 +7,7 @@
 # Layers recipe-specific code (plugin, config, startup script) on top of the
 # pre-built Hermes base image. Mirrors the OpenClaw Dockerfile structure.
 
-# Published by NVIDIA/NemoClaw v0.0.111. The base supplies NemoClaw's current
+# Published by NVIDIA/NemoClaw v0.0.112. The base supplies NemoClaw's current
 # sandbox hardening and system packages. Its Hermes 0.19.0 installation is
 # replaced below because NemoClaw has not yet published a base containing the
 # Hermes release with native Relay 0.7 support.

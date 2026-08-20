@@ -17,6 +17,7 @@ from aiohttp.test_utils import TestClient, TestServer
 
 RECIPE_DIR = Path(__file__).resolve().parents[2]
 RELAY_PATH = RECIPE_DIR / "extras/atif-export-relay/relay.py"
+START_PATH = RECIPE_DIR / "agents/hermes/start.sh"
 
 
 class FakeBackendError(Exception):
@@ -129,6 +130,15 @@ def test_relay_forwards_native_post_and_filename(monkeypatch: pytest.MonkeyPatch
             "application/json",
         )
     ]
+
+
+def test_start_uses_the_provider_injected_relay_placeholder() -> None:
+    source = START_PATH.read_text(encoding="utf-8")
+    expected = (
+        "Bearer ${ATIF_RELAY_AUTH_TOKEN:-"
+        "openshell:resolve:env:ATIF_RELAY_AUTH_TOKEN}"
+    )
+    assert source.count(expected) == 2
 
 
 @pytest.mark.parametrize("filename", ["", "../escape.json", "/absolute.json", "bad\\name.json"])
