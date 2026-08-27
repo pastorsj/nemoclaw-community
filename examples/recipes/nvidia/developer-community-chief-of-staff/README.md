@@ -275,7 +275,7 @@ $ git clone https://github.com/NVIDIA/nemoclaw-community.git && cd examples/reci
 $ curl -LsSf https://raw.githubusercontent.com/NVIDIA/OpenShell/main/install.sh | OPENSHELL_VERSION=v0.0.106 sh
 ```
 
-OpenShell `v0.0.106` matches the supported version in the NemoClaw `v0.0.112`
+OpenShell `v0.0.106` matches the supported version in the NemoClaw `v0.0.114`
 release that publishes this example's pinned Hermes sandbox base image.
 
 The package-managed installer starts a local gateway service for you. This
@@ -490,13 +490,14 @@ The example's Dockerfile drops the upstream `COPY nemoclaw-blueprint/` step —
 nothing in the Hermes runtime reads `/sandbox/.nemoclaw/blueprints/`, so this
 example is **fully self-contained** and never needs a NemoClaw checkout.
 
-The Dockerfile inherits the pinned NemoClaw `v0.0.112` Hermes sandbox base,
-then installs the checksum-pinned Hermes `v2026.8.18` release (package
-`0.20.4`). Hermes's native dependency lock selects NeMo Relay `0.7.2`, and its
-native `observability/nemo_relay` plugin handles scopes and export in process,
-so the image needs no separate Relay installation, dependency patch, or
-process. The Hermes source overlay can be removed once NemoClaw publishes a
-base image containing this Hermes release.
+The Dockerfile inherits the pinned NemoClaw `v0.0.114` Hermes sandbox base,
+then installs the checksum-pinned Hermes `v2026.8.27` release (package
+`0.20.6`). Hermes's native dependency lock selects NeMo Relay `0.7.2`, and
+Hermes core handles Relay scopes and export in process through the standard
+configuration selected by `HERMES_NEMO_RELAY_PLUGINS_TOML`. The image needs no
+separate Relay installation, dependency patch, or process. The Hermes source
+overlay can be removed once NemoClaw publishes a base image containing this
+Hermes release.
 
 Setting `PHOENIX_COLLECTOR_ENDPOINT` is a separate opt-in for live
 OpenInference egress: when present, `03-sandbox.sh` bakes the URL into the

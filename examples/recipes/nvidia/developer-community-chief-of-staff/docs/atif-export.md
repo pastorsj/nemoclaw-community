@@ -4,7 +4,7 @@ title:
   nav: "ATIF S3 Export"
 description:
   main: "Configure Hermes's native NeMo Relay integration to send completed ATIF trajectories to S3-compatible object storage through the host-side atif-export-relay. Real AWS credentials stay on the host; the sandbox carries only an OpenShell credential placeholder."
-  agent: "Explains how Hermes 0.20.4 and NeMo Relay 0.7.2 export ATIF through OpenShell. Native Relay POSTs ATIF JSON with a standard Authorization Bearer placeholder; OpenShell resolves the bearer at egress; the host relay validates it and writes to MinIO or S3 with host-side boto3 credentials."
+  agent: "Explains how Hermes 0.20.6 and NeMo Relay 0.7.2 export ATIF through OpenShell. Native Relay POSTs ATIF JSON with a standard Authorization Bearer placeholder; OpenShell resolves the bearer at egress; the host relay validates it and writes to MinIO or S3 with host-side boto3 credentials."
 keywords: ["atif export", "nemo relay", "openshell credential substitution", "sandbox object storage", "minio s3 export"]
 topics: ["generative_ai", "ai_agents", "observability"]
 tags: ["hermes", "openshell", "nemo-relay", "atif", "s3", "minio", "deployment", "provider-v2"]
@@ -24,10 +24,11 @@ status: published
 
 # ATIF Trace Export
 
-Hermes `0.20.4` runs NeMo Relay `0.7.2` in process through its native
-`observability/nemo_relay` plugin, with no separate Relay installation or
-process. When Hermes finalizes a session and closes its top-level Agent scope,
-the plugin produces one ATIF trajectory.
+Hermes `0.20.6` runs NeMo Relay `0.7.2` in process through its native core
+integration, with no separate Relay installation or process. When Hermes
+finalizes a session and closes its top-level Agent scope, Relay produces one
+ATIF trajectory using the standard configuration selected by
+`HERMES_NEMO_RELAY_PLUGINS_TOML`.
 
 The export destination is selected at deployment time:
 

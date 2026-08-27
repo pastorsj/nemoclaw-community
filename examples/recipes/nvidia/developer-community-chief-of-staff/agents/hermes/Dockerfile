@@ -7,15 +7,15 @@
 # Layers recipe-specific code (plugin, config, startup script) on top of the
 # pre-built Hermes base image. Mirrors the OpenClaw Dockerfile structure.
 
-# Published by NVIDIA/NemoClaw v0.0.112. The base supplies NemoClaw's current
+# Published by NVIDIA/NemoClaw v0.0.114. The base supplies NemoClaw's current
 # sandbox hardening and system packages. Its Hermes 0.19.0 installation is
 # replaced below because NemoClaw has not yet published a base containing the
 # Hermes release with native Relay 0.7 support.
-ARG BASE_IMAGE=ghcr.io/nvidia/nemoclaw/hermes-sandbox-base@sha256:ffafa4dd1d8d5a802ae4fc4005b51e1accfa5e782e47de736a0d8d8bf2c83837
-ARG HERMES_VERSION=v2026.8.18
-ARG HERMES_TARBALL_SHA256=1e3d39d3638ec15fa9d31af262568a953e9272090deb1c50c44cd401175f5b80
-ARG HERMES_SEMVER=0.20.4
-ARG HERMES_UV_EXTRAS="anthropic messaging web pty mcp"
+ARG BASE_IMAGE=ghcr.io/nvidia/nemoclaw/hermes-sandbox-base@sha256:212de47e723e9fec1e697d4eec1db82af2d0fb7802aade4fa5dfc3f05274d3c5
+ARG HERMES_VERSION=v2026.8.27
+ARG HERMES_TARBALL_SHA256=e622723b5bf3cd6c1db974d92d32242f1cb63f61c1112b6f708b34d619ef0fc7
+ARG HERMES_SEMVER=0.20.6
+ARG HERMES_UV_EXTRAS="anthropic messaging web pty mcp acp"
 
 # ── Stage 0: build the pinned native Hermes + Relay runtime ─────────────────
 FROM ${BASE_IMAGE} AS hermes-builder
@@ -62,7 +62,7 @@ RUN set -eu \
     && uv sync --python /usr/bin/python3.13 --frozen --no-dev "$@" --no-cache \
     && uv pip check --python /opt/hermes/.venv/bin/python \
     && /opt/hermes/.venv/bin/python -c \
-       'from importlib.metadata import version; expected={"aiohttp":"3.14.3","cryptography":"50.0.0","hermes-agent":"0.20.4","httpx2":"2.7.0","mcp":"2.0.0","nemo-relay":"0.7.2","pillow":"12.3.0","starlette":"1.3.1","tornado":"6.5.7"}; actual={name:version(name) for name in expected}; assert actual == expected, actual' \
+       'from importlib.metadata import version; expected={"agent-client-protocol":"0.9.0","aiohttp":"3.14.3","cryptography":"50.0.0","hermes-agent":"0.20.6","httpx2":"2.7.0","mcp":"2.0.0","nemo-relay":"0.7.2","pillow":"12.3.0","starlette":"1.3.1","tornado":"6.5.7"}; actual={name:version(name) for name in expected}; assert actual == expected, actual' \
     && npm ci --prefer-offline --no-audit --no-fund \
     && npm run build --workspace ui-tui \
     && npm run build --workspace web \
@@ -88,7 +88,7 @@ RUN ln -sfn /opt/hermes/.venv/bin/hermes /usr/local/bin/hermes \
     && ln -sfn /opt/hermes/.venv/bin/hermes-acp /usr/local/bin/hermes-acp \
     && /usr/local/bin/hermes --version \
     && /opt/hermes/.venv/bin/python -c \
-       'from importlib.metadata import version; expected={"aiohttp":"3.14.3","cryptography":"50.0.0","hermes-agent":"0.20.4","httpx2":"2.7.0","mcp":"2.0.0","nemo-relay":"0.7.2","pillow":"12.3.0","starlette":"1.3.1","tornado":"6.5.7"}; actual={name:version(name) for name in expected}; assert actual == expected, actual' \
+       'from importlib.metadata import version; expected={"agent-client-protocol":"0.9.0","aiohttp":"3.14.3","cryptography":"50.0.0","hermes-agent":"0.20.6","httpx2":"2.7.0","mcp":"2.0.0","nemo-relay":"0.7.2","pillow":"12.3.0","starlette":"1.3.1","tornado":"6.5.7"}; actual={name:version(name) for name in expected}; assert actual == expected, actual' \
     && test -s /opt/hermes/ui-tui/dist/entry.js \
     && test -s /opt/hermes/hermes_cli/web_dist/index.html
 
@@ -173,8 +173,8 @@ RUN hermes --version \
     && rm /tmp/verify-rich-block-renderer.py
 
 # ── Native NeMo Relay config (immutable, baked at build time) ─────────
-# Hermes loads this directly through its bundled observability/nemo_relay
-# plugin. Local mode writes ATIF files under /sandbox/atif. Relay mode sends each
+# Hermes core loads this standard Relay configuration directly. Local mode
+# writes ATIF files under /sandbox/atif. Relay mode sends each
 # completed trajectory directly to the HTTPS host relay through Relay's native
 # HTTP storage backend; the host relay alone owns bucket, prefix, and credentials.
 ARG ATIF_EXPORT_MODE=

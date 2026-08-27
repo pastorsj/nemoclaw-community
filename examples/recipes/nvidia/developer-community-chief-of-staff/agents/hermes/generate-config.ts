@@ -97,7 +97,7 @@ function main(): void {
   }
 
   const config: Record<string, unknown> = {
-    _config_version: 37,
+    _config_version: 39,
     model: {
       default: model,
       provider: "custom",
@@ -112,7 +112,7 @@ function main(): void {
       max_turns: 30,
       reasoning_effort: "medium",
       // Config migration v30 -> v32 disables the previous implicit
-      // verify-on-stop behavior. Generated configs start at v37, so preserve
+      // verify-on-stop behavior. Generated configs start at v39, so preserve
       // that migrated value explicitly instead of inheriting "auto".
       verify_on_stop: false,
     },
@@ -147,11 +147,12 @@ function main(): void {
       mode: "off",
       timeout: 60,
     },
-    // Hermes owns Relay's provider, tool, and session lifecycles in-process.
-    // The bundled plugin loads the immutable plugins.toml selected by
-    // HERMES_NEMO_RELAY_PLUGINS_TOML; no shell hooks or Relay daemon are used.
+    // Hermes core owns Relay's provider, tool, and session lifecycles
+    // in-process and loads the immutable plugins.toml selected by
+    // HERMES_NEMO_RELAY_PLUGINS_TOML. Relay is intentionally not listed as a
+    // Hermes plugin; that legacy plugin was removed in config schema v38.
     plugins: {
-      enabled: ["nemoclaw", "observability/nemo_relay"],
+      enabled: ["nemoclaw"],
     },
   };
 

@@ -65,15 +65,15 @@ class GenerateConfigTest(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             return result, None
 
-    def test_default_is_schema_37_with_native_relay_and_rich_blocks_on(self) -> None:
+    def test_default_is_schema_39_with_native_relay_and_rich_blocks_on(self) -> None:
         _, config = self.run_generator(channels=["slack"])
         assert config is not None
-        self.assertEqual(config["_config_version"], 37)
+        self.assertEqual(config["_config_version"], 39)
         self.assertIs(config["agent"]["verify_on_stop"], False)
         self.assertEqual(config["terminal"]["cwd"], "/sandbox")
         self.assertEqual(
             config["plugins"]["enabled"],
-            ["nemoclaw", "observability/nemo_relay"],
+            ["nemoclaw"],
         )
         self.assertNotIn("hooks", config)
         self.assertIs(config["platforms"]["slack"]["extra"]["rich_blocks"], True)
