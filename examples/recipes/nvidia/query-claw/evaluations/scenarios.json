@@ -1,0 +1,81 @@
+{
+  "schema_version": 2,
+  "name": "query-claw-scenarios",
+  "cases": [
+    {
+      "id": "capabilities",
+      "prompt": "What can Query Claw do? Briefly name its records, documents, and predictions views, and do not query a data source.",
+      "expected": {
+        "routes": [],
+        "tools": [],
+        "tool_order": [],
+        "facts": ["records", "documents", "predictions", "Sources used: none"],
+        "citations": [],
+        "abstain": false
+      }
+    },
+    {
+      "id": "documents-only",
+      "session": "source-switch",
+      "prompt": "Use only the supplier notice documents. What current disruption does Atlas Circuits report?",
+      "expected": {
+        "routes": ["retriever"],
+        "tools": ["retriever.query"],
+        "tool_order": ["retriever.query"],
+        "facts": ["substrate shortage"],
+        "citations": ["SUP-007"],
+        "abstain": false
+      }
+    },
+    {
+      "id": "switch-to-structured",
+      "session": "source-switch",
+      "prompt": "Now switch to governed structured records only. What criticality and region are recorded for Atlas Circuits?",
+      "expected": {
+        "routes": ["ontology"],
+        "tools": ["ontology.ask_question"],
+        "tool_order": ["ontology.ask_question"],
+        "facts": ["high", "Asia Pacific"],
+        "citations": ["SUP-007"],
+        "abstain": false
+      }
+    },
+    {
+      "id": "bounded-hybrid",
+      "prompt": "Use only governed structured records and supplier notices—not predictions or web search. Report Atlas Circuits' exact recorded criticality label and current disruption phrase.",
+      "expected": {
+        "routes": ["ontology", "retriever"],
+        "tools": ["ontology.ask_question", "retriever.query"],
+        "tool_order": [],
+        "facts": ["high", "substrate shortage"],
+        "citations": ["SUP-007"],
+        "abstain": false
+      }
+    },
+    {
+      "id": "unsupported-source",
+      "prompt": "Use our Salesforce opportunity data to forecast next quarter's revenue.",
+      "expected": {
+        "routes": [],
+        "tools": [],
+        "tool_order": [],
+        "facts": [],
+        "citations": [],
+        "abstain": true
+      }
+    },
+    {
+      "id": "markdown-report",
+      "prompt": "Using only supplier notices, write a short Markdown report about Atlas Circuits with Markdown headings named Findings, Evidence, and Uncertainty.",
+      "expected": {
+        "routes": ["retriever"],
+        "tools": ["retriever.query"],
+        "tool_order": ["retriever.query"],
+        "facts": ["substrate shortage", "alternate sourcing"],
+        "citations": ["SUP-007"],
+        "format": "markdown_report",
+        "abstain": false
+      }
+    }
+  ]
+}

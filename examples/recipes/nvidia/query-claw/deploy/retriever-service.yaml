@@ -1,0 +1,30 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+mode: standalone
+server: {host: 0.0.0.0, port: 7670}
+logging: {level: INFO, file: /var/lib/nemo-retriever/service.log}
+nim_endpoints:
+  embed_invoke_url: ${NVIDIA_EMBED_INVOKE_URL}
+  embed_model_name: ${NVIDIA_EMBED_MODEL}
+  api_key: null
+local_models: {enabled: false}
+llm: {enabled: false}
+agentic: {enabled: false}
+pipeline: {realtime_workers: 2, realtime_queue_size: 64, batch_workers: 2, batch_queue_size: 64}
+vectordb:
+  enabled: true
+  launch_on_start: true
+  vectordb_url: http://127.0.0.1:7671
+  lancedb_uri: /var/lib/nemo-retriever/vectordb
+  table_name: query_claw
+  embed_model: ${NVIDIA_EMBED_MODEL}
+auth:
+  enabled: true
+  api_token: null
+  bypass_paths: [/v1/live, /v1/health]
+mcp:
+  enabled: false
+  path: /mcp
+  enable_write_tools: false
+  query_methods: classic

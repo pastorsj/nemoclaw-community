@@ -1,0 +1,160 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+services:
+  postgres:
+    container_name: query-claw-postgres
+    image: pgvector/pgvector@sha256:cf134a767f474095eeba57e0117be8e568e011a63f33fbf252f14c9b760f8e6f
+    ports: !override []
+    environment:
+      GSF_QUERY_PASSWORD: ${GSF_QUERY_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ${QUERY_CLAW_DATA_DIR}/structured:/query-claw-data:ro
+
+  pgadmin:
+    profiles: [operator-tools]
+    ports: !override []
+
+  neo4j:
+    container_name: query-claw-neo4j
+    image: neo4j@sha256:dbc377fb9cd8fe8dabc19d3041b197d5ca0ef8bae514cea175b8df265e5b7a76
+    ports: !override []
+    environment:
+      NEO4J_USERNAME: ${NEO4J_USERNAME}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD}
+    healthcheck:
+      # Expand the credential inside the container so Docker's healthcheck
+      # metadata never contains the resolved password.
+      test: [CMD-SHELL, 'cypher-shell "RETURN 1" >/dev/null']
+
+  gsf:
+    container_name: query-claw-gsf
+    env_file: !override []
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DATABASE: ${POSTGRES_DATABASE}
+      NEO4J_USERNAME: ${NEO4J_USERNAME}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD}
+      CONNECTION_STRINGS: ${CONNECTION_STRINGS}
+      DEFAULT_MODELS_API_KEY: ${DEFAULT_MODELS_API_KEY}
+      DEFAULT_MODELS_ENDPOINT: ${DEFAULT_MODELS_ENDPOINT}
+      DEFAULT_MODELS_MODEL: ${DEFAULT_MODELS_MODEL}
+      EMBED_API_KEY: ${EMBED_API_KEY}
+      EMBED_ENDPOINT: ${EMBED_ENDPOINT}
+      EMBED_MODEL: ${EMBED_MODEL}
+    ports: !override ["127.0.0.1:3001:3001"]
+
+  ingestion-service:
+    container_name: query-claw-gsf-ingestion
+    env_file: !override []
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DATABASE: ${POSTGRES_DATABASE}
+      NEO4J_USERNAME: ${NEO4J_USERNAME}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD}
+      CONNECTION_STRINGS: ${CONNECTION_STRINGS}
+      DEFAULT_MODELS_API_KEY: ${DEFAULT_MODELS_API_KEY}
+      DEFAULT_MODELS_ENDPOINT: ${DEFAULT_MODELS_ENDPOINT}
+      DEFAULT_MODELS_MODEL: ${DEFAULT_MODELS_MODEL}
+      EMBED_API_KEY: ${EMBED_API_KEY}
+      EMBED_ENDPOINT: ${EMBED_ENDPOINT}
+      EMBED_MODEL: ${EMBED_MODEL}
+    ports: !override []
+
+  frontend-migrate:
+    container_name: query-claw-gsf-migrate
+    env_file: !override []
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DATABASE: ${POSTGRES_DATABASE}
+
+  gsf-frontend:
+    container_name: query-claw-gsf-ui
+    env_file: !override []
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DATABASE: ${POSTGRES_DATABASE}
+      GSF_ADMIN_EMAIL: ${GSF_ADMIN_EMAIL}
+      GSF_ADMIN_PASSWORD: ${GSF_ADMIN_PASSWORD}
+      AUTH_SECRET: ${AUTH_SECRET}
+      APP_URL: ${APP_URL}
+    ports: !override ["127.0.0.1:3000:3000"]
+
+  query-claw-mcp:
+    build:
+      context: ${QUERY_CLAW_DEPLOY_DIR}/services/mcp-adapters
+      args:
+        GSF_IMAGE: gsf:latest
+    image: query-claw-mcp-adapters:1
+    entrypoint: [python, /opt/query-claw/app.py]
+    environment:
+      GSF_API_URL: http://gsf:3001
+      GSF_DATABASE_NAME: query_claw
+      KUMO_RFM_API_URL: ${KUMO_RFM_API_URL}
+      KUMO_RFM_API_KEY: ${KUMO_RFM_API_KEY}
+      MCP_BEARER_TOKEN: ${QUERY_CLAW_MCP_TOKEN}
+      MCP_PORT: "8000"
+      QUERY_CLAW_DATA_DIR: /query-claw-data
+      QUERY_CLAW_MANIFEST: /query-claw-manifest.json
+      RETRIEVER_API_TOKEN: ${NEMO_RETRIEVER_API_TOKEN}
+      RETRIEVER_API_URL: http://retriever:7670
+    volumes:
+      - ${QUERY_CLAW_DATA_DIR}/structured:/query-claw-data:ro
+      - ${QUERY_CLAW_DATA_DIR}/../manifest.json:/query-claw-manifest.json:ro
+    expose: ["8000"]
+    healthcheck:
+      test: [CMD-SHELL, "python -c 'import os,urllib.request; r=urllib.request.Request(\"http://127.0.0.1:8000/health\", headers={\"Authorization\": \"Bearer \" + os.environ[\"MCP_BEARER_TOKEN\"]}); urllib.request.urlopen(r, timeout=5).read()'"]
+      interval: 10s
+      timeout: 6s
+      retries: 30
+      start_period: 10s
+    depends_on:
+      gsf: {condition: service_healthy}
+      retriever: {condition: service_healthy}
+    restart: unless-stopped
+
+  retriever:
+    image: ${NEMO_RETRIEVER_IMAGE}
+    command: [retriever, service, start, --config, /etc/nemo-retriever/retriever-service.yaml, --launch-vectordb]
+    environment:
+      NVIDIA_API_KEY: ${NVIDIA_INFERENCE_API_KEY}
+      NVIDIA_EMBED_INVOKE_URL: ${NVIDIA_EMBED_INVOKE_URL}
+      NVIDIA_EMBED_MODEL: ${NVIDIA_EMBED_MODEL}
+      NEMO_RETRIEVER_API_TOKEN: ${NEMO_RETRIEVER_API_TOKEN}
+      NRL_INTERNAL_VDB_TOKEN: ${NRL_INTERNAL_VDB_TOKEN}
+    volumes:
+      - ${QUERY_CLAW_DEPLOY_DIR}/retriever-service.yaml:/etc/nemo-retriever/retriever-service.yaml:ro
+      - ${QUERY_CLAW_DATA_DIR}/documents:/query-claw-documents:ro
+      - retriever_data:/var/lib/nemo-retriever
+    ports: ["127.0.0.1:7670:7670"]
+    healthcheck:
+      test: [CMD, curl, --fail, --silent, http://127.0.0.1:7670/v1/health]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    restart: unless-stopped
+
+  mcp-ingress:
+    image: caddy@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d
+    environment:
+      QUERY_CLAW_PRIVATE_IP: ${QUERY_CLAW_PRIVATE_IP}
+      QUERY_CLAW_PRIVATE_HOST: ${QUERY_CLAW_PRIVATE_HOST}
+    volumes:
+      - ${QUERY_CLAW_DEPLOY_DIR}/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    ports: ["${QUERY_CLAW_PRIVATE_IP}:9443:9443"]
+    depends_on:
+      query-claw-mcp: {condition: service_healthy}
+    restart: unless-stopped
+
+volumes:
+  retriever_data:
+  caddy_data:
+  caddy_config:

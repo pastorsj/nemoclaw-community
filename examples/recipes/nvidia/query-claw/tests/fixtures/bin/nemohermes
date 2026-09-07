@@ -1,0 +1,184 @@
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+set -euo pipefail
+
+{
+  printf 'args='
+  printf '%q ' "$@"
+  printf '\n'
+} >>"$QUERY_CLAW_TEST_LOG"
+
+token_for_server() {
+  case "$1" in
+    query-claw) printf '%s\n' QUERY_CLAW_MCP_TOKEN ;;
+  esac
+}
+
+assert_token_isolation() {
+  local expected="$1" name
+  for name in QUERY_CLAW_MCP_TOKEN; do
+    if [[ "$name" == "$expected" ]]; then
+      [[ -n "${!name:-}" ]]
+    else
+      [[ -z "${!name:-}" ]]
+    fi
+  done
+}
+
+if [[ "${2:-}" == mcp && ("${3:-}" == add || "${3:-}" == restart) ]]; then
+  assert_token_isolation "$(token_for_server "${4:?missing server name}")"
+else
+  assert_token_isolation none
+fi
+
+if [[ "${1:-}" == "--version" ]]; then
+  printf 'nemohermes %s\n' "${QUERY_CLAW_TEST_VERSION:-v0.0.120}"
+  exit 0
+elif [[ "${2:-}" == "status" ]]; then
+  printf '%s\n' '{"found":true,"agent":"hermes","agentVersion":"0.20.6","nemoclawVersion":"0.0.120","openshellVersion":"0.0.106"}'
+elif [[ "${2:-}" == "skill" && "${3:-}" == "install" ]]; then
+  skill_path="${4:?missing skill path}"
+  skill_name="$(basename "$skill_path")"
+  [[ "${QUERY_CLAW_TEST_SKILL_FAIL:-}" != "$skill_name" ]] || exit 2
+  python3 -c 'import hashlib,pathlib,sys; r=pathlib.Path(sys.argv[1]); print(hashlib.sha256(b"".join(p.relative_to(r).as_posix().encode()+b"\0"+p.read_bytes()+b"\0" for p in sorted(r.rglob("*")) if p.is_file())).hexdigest())' \
+    "$skill_path" >"$QUERY_CLAW_TEST_STATE/skill-$skill_name"
+elif [[ "${2:-}" == "skill" && "${3:-}" == "remove" ]]; then
+  skill_name="${4:?missing skill name}"
+  if [[ ! -f "$QUERY_CLAW_TEST_STATE/skill-$skill_name" ]]; then
+    printf "  Skill '%s' is not installed in sandbox '%s'.\n" \
+      "$skill_name" "${1:-query-claw}" >&2
+    exit 1
+  fi
+  rm -f "$QUERY_CLAW_TEST_STATE/skill-$skill_name"
+elif [[ "${2:-}" == "exec" ]]; then
+  if [[ "${5:-}" == "python3" ]]; then
+    case "${8:-}" in
+      snapshot)
+        printf '%s\n' '{"schema_version":2,"before":{"fields":{},"sha256":"before"},"applied":{"fields":{},"sha256":"applied"}}'
+        ;;
+      prepare)
+        [[ "${QUERY_CLAW_TEST_PROFILE_PREPARE_FAIL:-0}" != 1 ]] || exit 2
+        python3 -c 'import base64,sys; print(base64.b64decode(sys.argv[1]).decode())' \
+          "${9:?missing profile receipt}"
+        ;;
+      apply)
+        [[ "${QUERY_CLAW_TEST_PROFILE_APPLY_FAIL:-0}" != 1 ]] || exit 2
+        if [[ -f "$QUERY_CLAW_TEST_STATE/profile-applied" ]]; then
+          printf 'unchanged\n'
+        else
+          touch "$QUERY_CLAW_TEST_STATE/profile-applied"
+          printf 'changed\n'
+        fi
+        ;;
+      verify)
+        [[ -f "$QUERY_CLAW_TEST_STATE/profile-applied" ]]
+        ;;
+      restore-check)
+        [[ "${QUERY_CLAW_TEST_PROFILE_DRIFT:-0}" != 1 ]] || exit 2
+        if [[ -f "$QUERY_CLAW_TEST_STATE/profile-applied" ]]; then
+          printf 'restore-needed\n'
+        else
+          printf 'already-restored\n'
+        fi
+        ;;
+      restore)
+        [[ "${QUERY_CLAW_TEST_PROFILE_RESTORE_FAIL:-0}" != 1 ]] || exit 2
+        if [[ -f "$QUERY_CLAW_TEST_STATE/profile-applied" ]]; then
+          rm -f "$QUERY_CLAW_TEST_STATE/profile-applied"
+          touch "$QUERY_CLAW_TEST_STATE/profile-restored"
+          printf 'restored\n'
+        else
+          printf 'already-restored\n'
+        fi
+        ;;
+    esac
+  fi
+elif [[ "${2:-}" == "gateway" && "${3:-}" == "restart" ]]; then
+  [[ "${QUERY_CLAW_TEST_GATEWAY_FAIL:-0}" != 1 ]] || exit 2
+elif [[ "${2:-}" == "mcp" && "${3:-}" == "status" ]]; then
+  name="${4:?missing server name}"
+  state_path="$QUERY_CLAW_TEST_STATE/$name"
+  if [[ ! -f "$state_path" ]]; then
+    printf '%s\n' '{"server":"missing","agent":"hermes","support":{"supported":true,"mode":"bridge","adapter":"hermes-config"},"env":{"names":[],"missing":[],"ready":false},"provider":{"registryPresent":false},"policy":{"registryPresent":false},"adapter":{"registered":null}}'
+    exit 0
+  fi
+  if [[ " $* " == *" --tools "* ]]; then
+    case "$name" in
+      query-claw)
+        if [[ "${QUERY_CLAW_TEST_EXTRA_KUMO_TOOL:-0}" == 1 ]]; then
+          tools='["check_readiness","search_terms","check_answerable","ask_question","query","inspect_graph_metadata","predict","explain","delete_graph"]'
+        else
+          tools='["check_readiness","search_terms","check_answerable","ask_question","query","inspect_graph_metadata","predict","explain"]'
+        fi
+        ;;
+    esac
+  else
+    tools=''
+  fi
+  python3 - "$state_path" "$name" "$tools" "${QUERY_CLAW_TEST_PRIVATE_STATE:-match}" <<'PY'
+import json
+from pathlib import Path
+import sys
+
+state=json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+name,raw_tools,private_state=sys.argv[2:]
+payload={
+    "server": name,
+    "agent": state.get("agent", "hermes"),
+    "support": state.get("support", {"supported": True, "mode": "bridge", "adapter": "hermes-config"}),
+    "url": state["url"],
+    "env": {"names": [state["env"]], "missing": [], "ready": True},
+    "provider": {
+        "registryPresent": True,
+        "gatewayPresent": True,
+        "attached": True,
+        "credentialReady": True,
+    },
+    "policy": {"registryPresent": True, "gatewayPresent": True},
+    "adapter": {"registered": True},
+}
+if state.get("add_state"):
+    payload["addState"] = state["add_state"]
+if state.get("private_host"):
+    payload["trustedPrivateTarget"] = {
+        "host": state["private_host"],
+        "recordedPins": ["127.0.0.1"],
+        "currentPins": ["127.0.0.1"],
+        "state": private_state,
+    }
+if raw_tools:
+    tools=json.loads(raw_tools)
+    payload["toolDiscovery"]={"ok": True, "count": len(tools), "tools": tools, "truncated": False}
+print(json.dumps(payload, separators=(",", ":")))
+PY
+elif [[ "${2:-}" == "mcp" && "${3:-}" == "add" ]]; then
+  name="${4:?missing server name}"
+  url=''
+  token_env=''
+  private_host=''
+  shift 4
+  while (( $# )); do
+    case "$1" in
+      --url) url="${2:?missing URL}"; shift 2 ;;
+      --env) token_env="${2:?missing credential environment}"; shift 2 ;;
+      --trusted-private-host) private_host="${2:?missing private host}"; shift 2 ;;
+      --no-probe) shift ;;
+      *) exit 2 ;;
+    esac
+  done
+  python3 - "$QUERY_CLAW_TEST_STATE/$name" "$url" "$token_env" "$private_host" <<'PY'
+import json
+from pathlib import Path
+import sys
+Path(sys.argv[1]).write_text(json.dumps({"url":sys.argv[2],"env":sys.argv[3],"private_host":sys.argv[4]}), encoding="utf-8")
+PY
+  [[ "${QUERY_CLAW_TEST_ADD_FAIL:-}" != "$name" ]] || exit 2
+elif [[ "${2:-}" == "mcp" && "${3:-}" == "restart" ]]; then
+  name="${4:?missing server name}"
+  [[ -f "$QUERY_CLAW_TEST_STATE/$name" ]]
+  [[ "${QUERY_CLAW_TEST_RESTART_FAIL:-}" != "$name" ]] || exit 2
+elif [[ "${2:-}" == "mcp" && "${3:-}" == "remove" ]]; then
+  rm -f "$QUERY_CLAW_TEST_STATE/${4:?missing server name}"
+fi

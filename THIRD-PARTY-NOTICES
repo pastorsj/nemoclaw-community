@@ -567,6 +567,10 @@ Asset: NVIDIA header image under examples/recipes/nvidia/payment-ops-hermes/asse
 Owner: NVIDIA
 Notes: Reuses the repository's existing NVIDIA-owned header asset.
 
+Asset: Query Claw live-result screenshot under examples/recipes/nvidia/query-claw/assets/
+Owner: NVIDIA
+Notes: Sanitized live Hermes API result using synthetic data; no credentials or private host details.
+
 Asset: forklift-training.mp4 under examples/recipes/nvidia/sandboxed-hermes-bots/examples/videos/
 Owner: U.S. Army, Joint Forces Command United Assistance (U.S. Government work, public domain)
 Source: https://commons.wikimedia.org/wiki/File:JFC-UA_Service_Members_Train_NGOs,_Liberians_on_Forklift_150110-A-YW926-001.webm

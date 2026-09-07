@@ -1,0 +1,22 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+https://{$QUERY_CLAW_PRIVATE_HOST}:9443 {
+	tls internal
+
+	# FastMCP serves /mcp without a trailing slash. Rewrite explicitly so its
+	# framework redirect cannot drop the TLS scheme.
+	handle /mcp/ {
+		rewrite * /mcp
+		reverse_proxy query-claw-mcp:8000
+	}
+
+	# Private diagnostic used by setup/status checks.
+	handle_path /query-claw/* {
+		reverse_proxy query-claw-mcp:8000
+	}
+
+	handle {
+		respond "not found" 404
+	}
+}

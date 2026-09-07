@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "registration": {
+    "name": "query-claw",
+    "token_env": "QUERY_CLAW_MCP_TOKEN"
+  },
+  "routes": {
+    "ontology": [
+      "check_readiness",
+      "search_terms",
+      "check_answerable",
+      "ask_question"
+    ],
+    "retriever": [
+      "query"
+    ],
+    "kumo": [
+      "inspect_graph_metadata",
+      "predict",
+      "explain"
+    ]
+  }
+}

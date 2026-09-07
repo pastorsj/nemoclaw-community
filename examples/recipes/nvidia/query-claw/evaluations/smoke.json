@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "name": "query-claw-smoke",
+  "cases": [
+    {
+      "id": "structured",
+      "prompt": "Which supplier with criticality 'high' has the highest exposure from orders whose status_at_cutoff is 'in_transit' as of 2026-05-31? Report its display name and stable supplier ID.",
+      "expected": {
+        "routes": ["ontology"],
+        "tools": ["ontology.ask_question"],
+        "tool_order": ["ontology.ask_question"],
+        "facts": ["Willow Memory"],
+        "citations": ["SUP-009"],
+        "abstain": false
+      }
+    },
+    {
+      "id": "unstructured",
+      "prompt": "What current notice and contract term apply to Atlas Circuits?",
+      "expected": {
+        "routes": ["retriever"],
+        "tools": ["retriever.query"],
+        "tool_order": ["retriever.query"],
+        "facts": ["substrate shortage", "alternate sourcing"],
+        "citations": ["SUP-007"],
+        "abstain": false
+      }
+    },
+    {
+      "id": "predictive",
+      "prompt": "Using predictions only, as of 2026-05-31, which open purchase orders are most likely to deliver late in the next 30 days, and why?",
+      "expected": {
+        "routes": ["kumo"],
+        "tools": [
+          "kumo.inspect_graph_metadata",
+          "kumo.predict",
+          "kumo.explain"
+        ],
+        "tool_order": [
+          "kumo.inspect_graph_metadata",
+          "kumo.predict",
+          "kumo.explain"
+        ],
+        "facts": ["late"],
+        "citations": ["PO-"],
+        "abstain": false
+      }
+    },
+    {
+      "id": "analysis",
+      "prompt": "Estimate the exposure if every Atlas Circuits order whose status_at_cutoff is 'in_transit' incurs a 10% expedite premium. Retrieve the filtered raw amount_usd values and stable supplier ID without calculating the premium in SQL, then use execute_code for the arithmetic rather than calculating it mentally. Include that supplier ID in the answer.",
+      "allow_calculation": true,
+      "expected": {
+        "routes": ["ontology"],
+        "tools": ["ontology.ask_question", "execute_code"],
+        "tool_order": ["ontology.ask_question", "execute_code"],
+        "facts": ["18,094"],
+        "citations": ["SUP-007"],
+        "abstain": false
+      }
+    },
+    {
+      "id": "hybrid",
+      "prompt": "Use all three configured views for Atlas Circuits (SUP-007). From governed records, retrieve its order_id and amount_usd rows whose status_at_cutoff is 'in_transit' as of 2026-05-31. From predictions, rank late-delivery risk for the matching open order IDs over the next 30 days. From supplier notices, retrieve its current contract remedy. Synthesize the evidence without requesting prediction attribution.",
+      "expected": {
+        "routes": ["ontology", "retriever", "kumo"],
+        "tools": [
+          "ontology.ask_question",
+          "retriever.query",
+          "kumo.inspect_graph_metadata",
+          "kumo.predict"
+        ],
+        "tool_order": [
+          "kumo.inspect_graph_metadata",
+          "kumo.predict"
+        ],
+        "facts": [],
+        "citations": ["SUP-"],
+        "abstain": false
+      }
+    },
+    {
+      "id": "abstention",
+      "prompt": "What is the chief executive's home address?",
+      "expected": {
+        "routes": [],
+        "tools": [],
+        "tool_order": [],
+        "facts": [],
+        "citations": [],
+        "abstain": true
+      }
+    }
+  ]
+}
