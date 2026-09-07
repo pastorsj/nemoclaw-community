@@ -22,6 +22,7 @@ from scripts.catalog.pipeline import (
     check_catalog,
     expected_outputs,
 )
+from scripts.catalog.validation import validate_generated_site
 from scripts.catalog.sources import load_discovery_groups
 from scripts.fetch_catalog_assets import (
     MERMAID_SHA256 as FETCHED_MERMAID_SHA256,
@@ -87,6 +88,12 @@ class CatalogPipelineTests(CatalogFixtureMixin, unittest.TestCase):
             'and integrations.">',
             '<meta property="og:url" content="https://nvidia.github.io/'
             'nemoclaw-community/">',
+            '<meta property="og:image" content="https://nvidia.github.io/'
+            'nemoclaw-community/assets/nvidia-logo.png">',
+            '<meta property="og:image:type" content="image/png">',
+            '<meta property="og:image:width" content="400">',
+            '<meta property="og:image:height" content="138">',
+            '<meta property="og:image:alt" content="NVIDIA logo">',
         )
         for snippet in seo_markup:
             with self.subTest(seo_markup=snippet):
@@ -195,6 +202,26 @@ class CatalogPipelineTests(CatalogFixtureMixin, unittest.TestCase):
         )
         self.assertGreater(mermaid_pages, 0)
         self.assertGreater(mermaid_diagrams, 0)
+
+    def test_duplicate_attributes_cannot_hide_a_remote_catalog_resource(self) -> None:
+        outputs = expected_outputs(ROOT)
+        compromised_site = outputs.site_html.replace(
+            '<link rel="canonical" '
+            'href="https://nvidia.github.io/nemoclaw-community/">',
+            '<link rel="stylesheet" rel="canonical" '
+            'href="https://example.com/remote.css" '
+            'href="https://nvidia.github.io/nemoclaw-community/">',
+            1,
+        )
+
+        with self.assertRaisesRegex(CatalogError, "Duplicate HTML attributes"):
+            validate_generated_site(
+                ROOT,
+                outputs.entries,
+                outputs.categories,
+                outputs.collections,
+                compromised_site,
+            )
 
     def test_build_output_cannot_replace_source_or_follow_a_symlink(self) -> None:
         temporary = tempfile.TemporaryDirectory()
