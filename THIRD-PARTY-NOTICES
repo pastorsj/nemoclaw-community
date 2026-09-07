@@ -59,6 +59,22 @@ Image: postgrest/postgrest:v13.0.4
 License: MIT
 URL: https://github.com/PostgREST/postgrest
 
+Image: caddy
+License: Apache-2.0
+URL: https://github.com/caddyserver/caddy
+
+Image: neo4j (Community Edition)
+License: GPL-3.0
+URL: https://github.com/neo4j/neo4j
+
+Image: pgvector/pgvector
+License: PostgreSQL License
+URL: https://github.com/pgvector/pgvector
+
+Image: nvcr.io/nvidia/nemo-microservices/nrl-service (pinned by digest sha256:597f0ac7404329b600669f5ece03b65fc4158f2068c2892f3cfb3df2d75add58)
+License: See the NGC artifact and included image/component notices
+URL: https://github.com/NVIDIA/NeMo-Retriever
+
 Image: otel/opentelemetry-collector-contrib:0.145.0
 License: Apache-2.0
 URL: https://github.com/open-telemetry/opentelemetry-collector-contrib
@@ -175,6 +191,10 @@ URL: https://github.com/dlt-hub/dlt
 Package: fastapi
 License: MIT
 URL: https://github.com/fastapi/fastapi
+
+Package: fastmcp
+License: Apache-2.0
+URL: https://github.com/PrefectHQ/fastmcp
 
 Package: hermes-agent
 License: MIT
@@ -455,6 +475,18 @@ Project: NVIDIA/NemoClaw source and sandbox base image
 License: Apache-2.0 and included component licenses
 URL: https://github.com/NVIDIA/NemoClaw
 
+Project: NVIDIA/NeMo-Retriever source archive
+License: Apache-2.0
+URL: https://github.com/NVIDIA/NeMo-Retriever
+
+Project: NVIDIA Ontology operator-provided source
+License: See the license terms supplied with the authorized distribution
+URL: https://www.nvidia.com/en-us/agreements/
+
+Project: KumoRFM SDK supplied by the operator's licensed NVIDIA software checkout
+License: See the license terms supplied with the authorized distribution
+URL: https://docs.nvidia.com/sdgm/quick-start/rfm
+
 Project: Kubernetes SIG Agent Sandbox controller and API
 License: Apache-2.0
 URL: https://github.com/kubernetes-sigs/agent-sandbox
@@ -542,6 +574,10 @@ URL: https://forums.developer.nvidia.com/
 Service: NVIDIA API Catalog / NIM inference endpoints (build.nvidia.com, integrate.api.nvidia.com, ai.api.nvidia.com)
 Terms: See provider terms
 URL: https://build.nvidia.com/
+
+Service: NVIDIA Structured Data and Graph Models (KumoRFM)
+Terms: See provider terms and the operator's service agreement
+URL: https://docs.nvidia.com/sdgm/quick-start/rfm
 
 Service: Tavily Search API and remote MCP
 Terms: See provider terms

@@ -8,11 +8,13 @@ on:
     branches: [main]
     paths:
       - examples/recipes/nvidia/agentic-ai-learning-path/**
+      - examples/recipes/nvidia/query-claw/**
       - .github/workflows/example-validation.yml
   pull_request:
     branches: [main]
     paths:
       - examples/recipes/nvidia/agentic-ai-learning-path/**
+      - examples/recipes/nvidia/query-claw/**
       - .github/workflows/example-validation.yml
 
 permissions:
@@ -42,3 +44,28 @@ jobs:
 
       - name: Run example validator
         run: bash examples/recipes/nvidia/agentic-ai-learning-path/tests/validate-example.sh
+
+  query-claw:
+    name: Validate query-claw
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    defaults:
+      run:
+        working-directory: examples/recipes/nvidia/query-claw
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run credential-free verification
+        run: |
+          python3 scripts/verify.py --local
+          python3 -m unittest discover -s tests -p 'test_*.py' -v
+          bash tests/test_lifecycle.sh
+          bash tests/test_deploy_lifecycle.sh
+          bash -n scripts/*.sh deploy/*.sh deploy/lib/*.sh tests/*.sh tests/fixtures/bin/*

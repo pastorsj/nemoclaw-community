@@ -157,10 +157,11 @@ def parse_stack_declaration(
 
 
 def _runtime_files(root: Path) -> list[Path]:
-    """Return supported Dockerfiles; custom layouts fall back to README data."""
+    """Return the small set of supported runtime source files."""
 
     candidates = list(root.glob("Dockerfile*"))
     candidates.extend(root.glob("agents/*/Dockerfile*"))
+    candidates.append(root / "deploy" / "setup-hermes.sh")
     files: list[Path] = []
     for path in sorted(set(candidates)):
         try:
