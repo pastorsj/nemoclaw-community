@@ -112,7 +112,9 @@ class GeneratedHTMLValidator(HTMLParser):
                     self.errors.append(f"Root-relative URL breaks project Pages: {value}")
                 if value.startswith("#"):
                     self.fragments.add(unquote(value[1:]))
-        if tag in {"img", "link", "script"}:
+        link_relations = values.get("rel", "").casefold().split()
+        is_canonical = tag == "link" and "canonical" in link_relations
+        if tag in {"img", "link", "script"} and not is_canonical:
             resource = values.get("src") or values.get("href") or ""
             if resource:
                 self.resources.append(resource)
