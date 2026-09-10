@@ -8,7 +8,7 @@ DEPLOY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 EXAMPLE_DIR="$(cd "$DEPLOY_DIR/.." && pwd)"
 RUNTIME_DIR="$EXAMPLE_DIR/.runtime"
 DEPLOY_ENV="${QUERY_CLAW_DEPLOY_ENV:-$RUNTIME_DIR/deploy.env}"
-DATA_DIR="$RUNTIME_DIR/data/service"
+DATA_DIR="$RUNTIME_DIR/active-data"
 
 # NemoClaw installs its launcher here on Linux. Brev's non-login execution
 # shells do not source the profile update written by the installer.
@@ -97,6 +97,44 @@ chat_ui_forward_origin() {
   chat_ui_url_part "$1" forward-origin "$2"
 }
 
+validate_credentialed_service_url() {
+  local url="${1:-}" label="${2:-service URL}"
+  python3 - "$url" "$label" <<'PY'
+import ipaddress
+import sys
+from urllib.parse import urlparse
+
+raw, label = sys.argv[1:]
+try:
+    parsed = urlparse(raw)
+    host = parsed.hostname
+    parsed.port
+except ValueError as exc:
+    raise SystemExit(f"{label} is invalid") from exc
+if (
+    not host
+    or parsed.username is not None
+    or parsed.password is not None
+    or parsed.query
+    or parsed.fragment
+):
+    raise SystemExit(f"{label} is invalid")
+normalized = host.lower().rstrip(".")
+try:
+    address = ipaddress.ip_address(normalized)
+except ValueError:
+    loopback = normalized == "localhost"
+else:
+    loopback = address.is_loopback
+    if address.is_unspecified:
+        raise SystemExit(f"{label} is invalid")
+if parsed.scheme.lower() != "https" and not (
+    parsed.scheme.lower() == "http" and loopback
+):
+    raise SystemExit(f"{label} must use HTTPS or loopback HTTP")
+PY
+}
+
 private_ipv4() {
   hostname -I 2>/dev/null | tr ' ' '\n' | awk '
     /^10\./ || /^192\.168\./ {print; exit}
@@ -104,6 +142,26 @@ private_ipv4() {
       split($0, octet, ".")
       if (octet[2] >= 16 && octet[2] <= 31) {print; exit}
     }'
+}
+
+validate_private_ipv4() {
+  python3 - "$1" <<'PY'
+import ipaddress
+import sys
+
+try:
+    address = ipaddress.IPv4Address(sys.argv[1])
+except ipaddress.AddressValueError as exc:
+    raise SystemExit("QUERY_CLAW_PRIVATE_IP must be an RFC1918 IPv4 address") from exc
+
+networks = (
+    ipaddress.IPv4Network("10.0.0.0/8"),
+    ipaddress.IPv4Network("172.16.0.0/12"),
+    ipaddress.IPv4Network("192.168.0.0/16"),
+)
+if not any(address in network for network in networks):
+    raise SystemExit("QUERY_CLAW_PRIVATE_IP must be an RFC1918 IPv4 address")
+PY
 }
 
 private_hostname() {
@@ -175,7 +233,8 @@ with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=path.parent, delete=
 os.chmod(temporary, mode)
 os.replace(temporary, path)
 PY
-  unset QUERY_CLAW_DEPLOY_DIR QUERY_CLAW_DATA_DIR DEFAULT_MODELS_API_KEY \
+  unset QUERY_CLAW_DEPLOY_DIR QUERY_CLAW_DATA_DIR QUERY_CLAW_ACTIVE_MANIFEST \
+    QUERY_CLAW_STRUCTURED_DIR DEFAULT_MODELS_API_KEY \
     DEFAULT_MODELS_ENDPOINT DEFAULT_MODELS_MODEL EMBED_API_KEY EMBED_ENDPOINT \
     EMBED_MODEL CONNECTION_STRINGS NEMOCLAW_ENDPOINT_URL NEMOCLAW_MODEL \
     COMPATIBLE_API_KEY NEMOCLAW_VERSION ONTOLOGY_MCP_TOKEN \
@@ -187,6 +246,10 @@ export_runtime_env() {
   local inference_model="${LLM_MODEL:-nvidia/llama-3.3-nemotron-super-49b-v1.5}"
   export QUERY_CLAW_DEPLOY_DIR="$DEPLOY_DIR"
   export QUERY_CLAW_DATA_DIR="$DATA_DIR"
+  export QUERY_CLAW_ACTIVE_MANIFEST="$DATA_DIR/active-data-packs.json"
+  export QUERY_CLAW_DATASETS="${QUERY_CLAW_DATASETS:-supply-chain}"
+  export QUERY_CLAW_PACKS_ROOT="${QUERY_CLAW_PACKS_ROOT:-$RUNTIME_DIR/data-packs}"
+  export QUERY_CLAW_STRUCTURED_DIR="$DATA_DIR/packs/supply-chain/structured"
   export QUERY_CLAW_DEPLOY_ENV="$DEPLOY_ENV"
   export NEMO_RETRIEVER_SOURCE_DIR="${NEMO_RETRIEVER_SOURCE_DIR:-$RUNTIME_DIR/sources/nemo-retriever}"
   export DEFAULT_MODELS_API_KEY="${NVIDIA_INFERENCE_API_KEY:-}"
@@ -247,6 +310,7 @@ initialize_deploy_env() {
   # a credential rotation or checkout move cannot leave split configuration;
   # NEMOCLAW_VERSION is also retired because setup-hermes.sh owns that pin.
   remove_derived_env QUERY_CLAW_DEPLOY_DIR QUERY_CLAW_DATA_DIR \
+    QUERY_CLAW_ACTIVE_MANIFEST QUERY_CLAW_STRUCTURED_DIR \
     DEFAULT_MODELS_API_KEY DEFAULT_MODELS_ENDPOINT DEFAULT_MODELS_MODEL \
     EMBED_API_KEY EMBED_ENDPOINT EMBED_MODEL CONNECTION_STRINGS \
     NEMOCLAW_ENDPOINT_URL NEMOCLAW_MODEL COMPATIBLE_API_KEY NEMOCLAW_VERSION \
@@ -255,10 +319,14 @@ initialize_deploy_env() {
   local actual_gsf_revision ip private_host resolved_addresses
   ip="${QUERY_CLAW_PRIVATE_IP:-$(private_ipv4)}"
   [[ -n "$ip" ]] || die "could not discover an RFC1918 host address"
+  validate_private_ipv4 "$ip" || \
+    die "invalid QUERY_CLAW_PRIVATE_IP in $DEPLOY_ENV"
   private_host="${QUERY_CLAW_PRIVATE_HOST:-$(private_hostname "$ip")}"
   [[ -n "$private_host" ]] || die "could not discover a DNS name for $ip"
   append_default QUERY_CLAW_PRIVATE_IP "$ip"
   append_default QUERY_CLAW_PRIVATE_HOST "$private_host"
+  append_default QUERY_CLAW_DATASETS supply-chain
+  append_default QUERY_CLAW_PACKS_ROOT ''
   append_default POSTGRES_USER postgres
   append_default POSTGRES_PORT 5432
   append_default POSTGRES_DATABASE gsf
@@ -283,6 +351,10 @@ initialize_deploy_env() {
   require_var GSF_SOURCE_DIR
   require_var GSF_SOURCE_REVISION
   require_var NVIDIA_INFERENCE_API_KEY
+  if [[ -n "${KUMO_RFM_API_URL:-}" ]]; then
+    validate_credentialed_service_url "$KUMO_RFM_API_URL" KUMO_RFM_API_URL || \
+      die "invalid KUMO_RFM_API_URL in $DEPLOY_ENV"
+  fi
   if [[ -n "${CHAT_UI_URL:-}" ]]; then
     chat_ui_host "$CHAT_UI_URL" >/dev/null || die "invalid CHAT_UI_URL in $DEPLOY_ENV"
   fi

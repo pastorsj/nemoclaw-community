@@ -62,7 +62,7 @@ elif [[ "$arch" != x86_64 && "$arch" != amd64 ]]; then
   die "unsupported host architecture: $arch"
 fi
 
-data_fingerprint="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["fingerprint"])' "$RUNTIME_DIR/data/manifest.json")"
+data_fingerprint="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["fingerprint"])' "$QUERY_CLAW_ACTIVE_MANIFEST")"
 fingerprint="$(python3 - "$data_fingerprint" "$NEMO_RETRIEVER_IMAGE" \
   "$NVIDIA_EMBED_INVOKE_URL" "$NVIDIA_EMBED_MODEL" <<'PY'
 import hashlib
@@ -85,27 +85,15 @@ compose up -d retriever
 wait_http http://127.0.0.1:7670/v1/health "NeMo Retriever" 120
 
 if (( needs_ingest )); then
-  compose exec -T retriever retriever ingest service /query-claw-documents \
-    --service-url http://127.0.0.1:7670 \
-    --service-concurrency 2
+  collection_action=ingest
+else
+  collection_action=verify
 fi
-
-results="$(compose exec -T retriever retriever query service "Atlas Circuits" \
-  --service-url http://127.0.0.1:7670 --top-k 10 --format hits \
-  --max-text-chars 200)" || {
+if ! compose exec -T retriever python \
+  /opt/query-claw/retriever_collections.py "$collection_action"; then
   rm -f "$marker"
-  die "NeMo Retriever qualification query failed"
-}
-if ! python3 -c '
-import json,sys
-rows=json.load(sys.stdin)
-sources={str(row.get("source", "")).rsplit("/", 1)[-1] for row in rows}
-expected={f"sup-{index:03d}-notice.md" for index in range(1, 11)}
-raise SystemExit(0 if len(rows) == 10 and sources == expected and "Atlas Circuits" in str(rows[0].get("text", "")) else 1)
-' <<<"$results"; then
-  rm -f "$marker"
-  die "NeMo Retriever does not contain the ten expected Query Claw documents"
+  die "NeMo Retriever active collection qualification failed"
 fi
 printf '%s\n' "$fingerprint" >"$marker"
 
-printf 'ready: NeMo Retriever %s with Query Claw documents\n' "$RETRIEVER_TAG"
+printf 'ready: NeMo Retriever %s with active data-pack collections\n' "$RETRIEVER_TAG"

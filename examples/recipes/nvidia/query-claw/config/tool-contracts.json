@@ -7,7 +7,6 @@
   "routes": {
     "ontology": [
       "check_readiness",
-      "search_terms",
       "check_answerable",
       "ask_question"
     ],
@@ -15,9 +14,7 @@
       "query"
     ],
     "kumo": [
-      "inspect_graph_metadata",
-      "predict",
-      "explain"
+      "predict"
     ]
   }
 }

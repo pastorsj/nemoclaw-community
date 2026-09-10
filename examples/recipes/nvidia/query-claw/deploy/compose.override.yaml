@@ -10,7 +10,7 @@ services:
       GSF_QUERY_PASSWORD: ${GSF_QUERY_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ${QUERY_CLAW_DATA_DIR}/structured:/query-claw-data:ro
+      - ${QUERY_CLAW_STRUCTURED_DIR}:/query-claw-data:ro
 
   pgadmin:
     profiles: [operator-tools]
@@ -44,6 +44,13 @@ services:
       EMBED_API_KEY: ${EMBED_API_KEY}
       EMBED_ENDPOINT: ${EMBED_ENDPOINT}
       EMBED_MODEL: ${EMBED_MODEL}
+      KUMO_RFM_API_URL: ${KUMO_RFM_API_URL}
+      KUMO_RFM_API_KEY: ${KUMO_RFM_API_KEY}
+      KUMO_MAX_TABLES: "8"
+      KUMO_MAX_ROWS_PER_TABLE: "10000"
+      KUMO_MAX_PREVIEW_ROWS: "25"
+      KUMO_MAX_ENTITIES: "1000"
+      KUMO_MAX_PQL_EXAMPLES: "5"
     ports: !override ["127.0.0.1:3001:3001"]
 
   ingestion-service:
@@ -94,18 +101,14 @@ services:
     entrypoint: [python, /opt/query-claw/app.py]
     environment:
       GSF_API_URL: http://gsf:3001
-      GSF_DATABASE_NAME: query_claw
-      KUMO_RFM_API_URL: ${KUMO_RFM_API_URL}
-      KUMO_RFM_API_KEY: ${KUMO_RFM_API_KEY}
       MCP_BEARER_TOKEN: ${QUERY_CLAW_MCP_TOKEN}
       MCP_PORT: "8000"
-      QUERY_CLAW_DATA_DIR: /query-claw-data
-      QUERY_CLAW_MANIFEST: /query-claw-manifest.json
+      QUERY_CLAW_ACTIVE_MANIFEST: /query-claw-active/active-data-packs.json
       RETRIEVER_API_TOKEN: ${NEMO_RETRIEVER_API_TOKEN}
       RETRIEVER_API_URL: http://retriever:7670
+      RETRIEVER_SCOPE: query-claw
     volumes:
-      - ${QUERY_CLAW_DATA_DIR}/structured:/query-claw-data:ro
-      - ${QUERY_CLAW_DATA_DIR}/../manifest.json:/query-claw-manifest.json:ro
+      - ${QUERY_CLAW_DATA_DIR}:/query-claw-active:ro
     expose: ["8000"]
     healthcheck:
       test: [CMD-SHELL, "python -c 'import os,urllib.request; r=urllib.request.Request(\"http://127.0.0.1:8000/health\", headers={\"Authorization\": \"Bearer \" + os.environ[\"MCP_BEARER_TOKEN\"]}); urllib.request.urlopen(r, timeout=5).read()'"]
@@ -129,7 +132,8 @@ services:
       NRL_INTERNAL_VDB_TOKEN: ${NRL_INTERNAL_VDB_TOKEN}
     volumes:
       - ${QUERY_CLAW_DEPLOY_DIR}/retriever-service.yaml:/etc/nemo-retriever/retriever-service.yaml:ro
-      - ${QUERY_CLAW_DATA_DIR}/documents:/query-claw-documents:ro
+      - ${QUERY_CLAW_DEPLOY_DIR}/retriever_collections.py:/opt/query-claw/retriever_collections.py:ro
+      - ${QUERY_CLAW_DATA_DIR}:/query-claw-active:ro
       - retriever_data:/var/lib/nemo-retriever
     ports: ["127.0.0.1:7670:7670"]
     healthcheck:

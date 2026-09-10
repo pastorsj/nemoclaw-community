@@ -31,15 +31,11 @@
       "prompt": "Using predictions only, as of 2026-05-31, which open purchase orders are most likely to deliver late in the next 30 days, and why?",
       "expected": {
         "routes": ["kumo"],
-        "tools": [
-          "kumo.inspect_graph_metadata",
-          "kumo.predict",
-          "kumo.explain"
-        ],
-        "tool_order": [
-          "kumo.inspect_graph_metadata",
-          "kumo.predict",
-          "kumo.explain"
+      "tools": [
+        "kumo.predict"
+      ],
+      "tool_order": [
+        "kumo.predict"
         ],
         "facts": ["late"],
         "citations": ["PO-"],
@@ -65,14 +61,12 @@
       "expected": {
         "routes": ["ontology", "retriever", "kumo"],
         "tools": [
-          "ontology.ask_question",
-          "retriever.query",
-          "kumo.inspect_graph_metadata",
-          "kumo.predict"
-        ],
-        "tool_order": [
-          "kumo.inspect_graph_metadata",
-          "kumo.predict"
+        "ontology.ask_question",
+        "retriever.query",
+        "kumo.predict"
+      ],
+      "tool_order": [
+        "kumo.predict"
         ],
         "facts": [],
         "citations": ["SUP-"],

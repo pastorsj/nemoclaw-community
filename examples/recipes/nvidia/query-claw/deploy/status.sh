@@ -18,7 +18,15 @@ if command -v sha256sum >/dev/null 2>&1 && [[ -f "$qualification_marker" ]] && \
   kumo_state=qualified
 fi
 printf '\nPredictive upstream:\n'
-printf '  Kumo prediction API  %s\n' "$kumo_state"
+printf '  Ontology-routed Kumo %s\n' "$kumo_state"
+if [[ -f "$QUERY_CLAW_ACTIVE_MANIFEST" ]]; then
+  printf '\nActive datasets:\n'
+  python3 -c '
+import json,sys
+for item in json.load(open(sys.argv[1], encoding="utf-8"))["datasets"]:
+    print("  " + item["id"])
+' "$QUERY_CLAW_ACTIVE_MANIFEST"
+fi
 printf '\nLoopback user surfaces:\n'
 printf '  NVIDIA Ontology UI  http://127.0.0.1:3000\n'
 printf '  NVIDIA Ontology API http://127.0.0.1:3001\n'

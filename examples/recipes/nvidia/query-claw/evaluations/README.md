@@ -28,6 +28,11 @@ Select multi-turn cases in suite order including their earlier turns. By
 default, independent cases continue after a failure; later turns in a failed
 conversation are skipped and its temporary session is deleted.
 
+Run only one evaluator process against a Hermes sandbox at a time. A new turn
+can interrupt an active turn in that sandbox; parallel qualification therefore
+requires one independent sandbox per worker and backend capacity for the same
+concurrency.
+
 Run the public behavioral scenarios separately:
 
 ```bash
@@ -35,7 +40,8 @@ API_SERVER_KEY="$(nemohermes "${NEMOCLAW_SANDBOX_NAME:-query-claw}" gateway-toke
   python3 scripts/evaluate_live.py --suite evaluations/scenarios.json
 ```
 
-Each input line has this shape:
+The public suites and other simple single-dataset suites use the original
+compact case shape:
 
 ```json
 {
@@ -53,14 +59,78 @@ Each input line has this shape:
 }
 ```
 
-Consecutive cases with the same optional `session` value share one temporary
-Hermes conversation. The evaluator rejects a session name reused after another
-session or standalone case, and deletes the temporary conversation after its
-last turn. Omit `session` to isolate a case as before.
+For a dataset-aware benchmark, use schema version 3. The evaluator creates a
+fresh facade scope for every turn, makes only the listed dataset views visible,
+records the datasets and routes actually used, and revokes the scope before the
+next turn. An empty `datasets` list is a deliberate deny-all turn.
+
+```json
+{
+  "schema_version": 3,
+  "id": "cloud-policy",
+  "origin_id": "private-suite:cloud-policy",
+  "cohort": "cloud",
+  "session": "",
+  "turn": 1,
+  "prompt": "What does the selected policy require?",
+  "sources": ["cloud_documents"],
+  "datasets": [
+    {"id": "cloud-operations", "views": ["documents"]}
+  ],
+  "expected": {
+    "routes": ["retriever"],
+    "forbidden_routes": ["ontology", "kumo"],
+    "route_only": true,
+    "response": ["answer"],
+    "facts": ["stable private check"],
+    "facts_policy": "all",
+    "forbidden_facts": ["wrong dataset marker"],
+    "citations": ["private source locator"]
+  }
+}
+```
+
+Run source-scoped cases by supplying the scope-control base URL, bearer, and its
+private CA through the documented CLI flags or `QUERY_CLAW_FACADE_URL`,
+`QUERY_CLAW_MCP_BEARER_TOKEN`, and `QUERY_CLAW_FACADE_CA`. The URL path must be
+exactly `/query-claw`, for example
+`https://<private-host>:9443/query-claw`; the managed MCP URL ending in `/mcp/`
+is not the scope-control base. The opaque token is injected into the turn
+instructions, must be passed to readiness and every data tool, is checked for
+answer leakage, and is never written to a receipt. Schema-v3 cases fail closed
+when this scope facade is not configured.
+
+Use `--detailed-output` only in an approved private workspace when you need the
+per-question flow report. That mode-`0600` JSONL includes each question,
+answer, declared and audited datasets, attempted and successful routes, ordered
+attempted and successful tools, judge result, latency, and failure reason.
+`audited_dataset_attempts` contains only calls retained by the facade's
+source-scope audit; a rejected or failed tool start can therefore appear under
+attempted routes and tools without an audited dataset call. The legacy
+`actual_routes`, `actual_tools`, and `actual_source_calls` fields remain as
+successful-route, attempted-tool, and audited-call aliases, respectively. The
+normal `--output` remains the privacy-preserving CI receipt.
+
+Consecutive cases with the same optional `session` value describe one logical
+conversation. They share a temporary Hermes conversation only while their exact
+dataset-and-view grant is unchanged. A grant change starts a fresh physical
+Hermes conversation so evidence from the previous grant cannot remain in model
+context; the detailed report still retains the declared logical `session` and
+`turn`. Make the first turn after a grant change self-contained rather than
+referring to an answer from the prior physical conversation. The evaluator
+rejects a session name reused after another session or standalone case and
+deletes each temporary conversation after its last eligible turn. Omit
+`session` to isolate a case as before.
 
 Allowed routes are `ontology`, `retriever`, and `kumo`. The `facts` and
 `citations` fields are case-insensitive literal-presence checks, not semantic
 truth checks; use them only for stable identifiers and deterministic values.
+For schema-v3 cases, `expected.routes` is the exact set of routes that must
+complete successfully. An extra successful route fails even when it is not
+listed in `forbidden_routes`; that field documents especially important
+exclusions rather than defining the complement of the allowed set.
+Positive fact and citation checks apply to answers, while abstentions and
+clarifications are judged by response class plus any forbidden-fact checks.
 The successful query and calculation tool set must equal `expected.tools`
 exactly: a missing or extra route query tool fails closed. Hermes may
 call the read-only `skills_list` and `skill_view` tools to load native Query
@@ -96,8 +166,11 @@ one corrective retry; a third call fails the case.
 The `tools` list still preserves execution order and repeated calls in failed
 receipts so loops remain visible during diagnosis.
 
-This evaluator is a route-qualification and deterministic-evidence gate. Add an
-optional OpenAI-compatible semantic judge whose endpoint supports JSON Schema
+This evaluator is a route-qualification and deterministic-evidence gate. A
+case with no fact, citation, or forbidden-answer checks proves its source scope,
+route choice, response class, and successful execution—not factual answer
+quality. Report those cases separately or configure the optional semantic
+judge. Add an OpenAI-compatible judge whose endpoint supports JSON Schema
 structured output with:
 
 ```bash

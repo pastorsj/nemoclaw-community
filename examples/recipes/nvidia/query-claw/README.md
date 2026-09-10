@@ -18,11 +18,13 @@ observations, predictions, calculations, and recommendations separately.
 
 The deployment scripts generate one synthetic supply-chain data product with
 three selectable evidence views—governed records, cited documents, and
-predictions. They load its database, index its documents, connect the configured
-prediction endpoint, install the stock Hermes integration, and verify the
-resulting query-only MCP surface through NemoClaw's native MCP lifecycle.
-Operators supply licensed NVIDIA Ontology source and credentials; no private
-source or secret is committed here.
+predictions. A small data-pack contract can also expose an explicit allowlist
+of operator-managed datasets without mounting hidden packs. Setup loads the
+built-in database, indexes every selected document collection, qualifies the
+configured prediction path, installs the stock Hermes integration, and verifies
+the query-only MCP surface through NemoClaw's native MCP lifecycle. Operators
+supply licensed NVIDIA Ontology source and credentials; no private source or
+secret is committed here.
 
 ## Screenshot
 
@@ -53,7 +55,7 @@ delay priority orders by 8–12 days, cited to `sup-007-notice p.1`.
 
 ## What This Example Does
 
-Query Claw gives Hermes four explicit routes across one data product:
+Query Claw gives Hermes four explicit routes across selected data products:
 
 - **Structured retrieval:** NVIDIA Ontology answers governed semantic questions
   over enterprise tables.
@@ -86,7 +88,7 @@ flowchart LR
     U[Operator] --> H[Hermes skill router]
     H --> O[NVIDIA Ontology\nstructured facts]
     H --> R[NeMo Retriever\ncited documents]
-    H --> K[Kumo\npredictions]
+    H --> K[NVIDIA Ontology + Kumo\npredictions]
     H --> P[Bounded Python\ncalculations]
     O --> E[Evidence ledger]
     R --> E
@@ -110,14 +112,15 @@ provider, policy, adapter, credential, and DNS pins in place.
 
 | Route | Facade tool names | Boundary |
 | --- | --- | --- |
-| NVIDIA Ontology | `check_readiness`, `search_terms`, `check_answerable`, `ask_question` | A static-bearer adapter pins every question to the generated `query_claw` database, whose model-facing PostgreSQL role is transaction-read-only, and bounds returned rows to 25 while retaining the full row count. |
-| NeMo Retriever | `query` | The facade fixes every request to citation-ready, non-reranked retrieval over the service-owned index; Retriever 26.08.1's broader MCP surface is disabled. |
-| Kumo | `inspect_graph_metadata`, `predict`, `explain` | A query-only adapter accepts a bounded 1–50 entity population. Explanations bind one requested entity and cutoff to a normalized probability and at most 12 scored local factors; raw graph links, context examples, setup, and mutation tools are absent. |
+| Inventory | `check_readiness` | Returns only the active datasets and views visible to the caller's short-lived source scope. It never enumerates hidden packs. |
+| NVIDIA Ontology | `check_answerable`, `ask_question` | Each call names one active dataset binding. The built-in `query_claw` database uses a transaction-read-only model role, and returned rows are bounded while retaining the full row count. |
+| NeMo Retriever | `query` | Each dataset fixes the request to its declared collection and citation-ready retrieval; Retriever 26.08.1's broader service surface is disabled. |
+| NVIDIA Ontology + Kumo | `predict` | The facade sends a bounded predictive question to the selected Ontology database, which owns its configured Kumo integration. Hermes never calls Kumo directly or constructs PQL. |
 | Python | `execute_code` | The live evaluator accepts only numeric-scalar arithmetic with one printed result and grants one non-persistent approval. |
 | Skills | `skills_list`, `skill_view`, `skill_manage` | NemoClaw installs the five namespaced Query Claw skills natively. Hermes must load matching skills with `skill_view`; any `skill_manage` write is scanned and staged for explicit operator approval. |
 
 Tool filtering is not treated as authorization. One facade exposes only the
-eight query tools above, uses one bearer credential, and sits behind a private
+five Query Claw tools above, uses one bearer credential, and sits behind a private
 TLS ingress. One native NemoClaw registration manages the provider, policy,
 credential, and Hermes adapter for that external facade. Its
 v0.0.120 `tools/list` diagnostic does not run for explicitly trusted private
@@ -131,6 +134,8 @@ native skill lifecycle. Its reversible Hermes profile enables skill-write
 approval and agent-authored skill scanning, then exposes only
 `code_execution`, native skill tools, and the named Query Claw MCP server; it
 excludes every other built-in or globally registered MCP server.
+Facade upstream calls stop before Hermes's native MCP deadline so the agent
+receives a bounded error instead of tripping its server circuit breaker.
 The evaluator's numeric-AST
 check and agent instructions are not runtime authorization: dashboard
 operators must inspect and deny broader code approvals. OpenShell policy and
@@ -186,6 +191,7 @@ Set these operator inputs in `.runtime/deploy.env`:
 | `NVIDIA_INFERENCE_API_KEY`, `NVIDIA_BASE_URL`, `LLM_MODEL` | Compatible inference and embedding route. |
 | `ONTOLOGY_MODEL` | Optional lower-latency Ontology text-to-SQL model; blank uses `LLM_MODEL`. |
 | `KUMO_RFM_API_URL`, `KUMO_RFM_API_KEY` | Direct compatible Kumo API and optional credential; websites, redirects, and project-management APIs are incompatible. |
+| `QUERY_CLAW_DATASETS`, `QUERY_CLAW_PACKS_ROOT` | Startup allowlist and optional operator-managed pack registry. The default selects only the built-in `supply-chain` pack. |
 | `NEMOCLAW_SANDBOX_NAME`, `NEMOCLAW_GATEWAY_PORT`, `NEMOCLAW_DASHBOARD_PORT`, `NEMOCLAW_HERMES_API_PORT` | Optional deployment name and collision-free host ports; defaults are `query-claw`, `8080`, `18789`, and `8642`. |
 | `CHAT_UI_URL` | Optional authenticated dashboard origin; on Brev, use the hostname assigned to the configured dashboard port before onboarding. |
 | `QUERY_CLAW_JUDGE_BASE_URL`, `QUERY_CLAW_JUDGE_MODEL`, `QUERY_CLAW_JUDGE_API_KEY` | Optional semantic judge used only with `--judge`. |
@@ -219,13 +225,13 @@ It runs five reviewable stages in order:
 
 1. `setup-gsf.sh` builds NVIDIA Ontology, loads PostgreSQL, catalogs the six
    synthetic tables in Neo4j, and completes semantic compilation.
-2. `setup-retriever.sh` starts NeMo Retriever 26.08.1 and ingests the ten
-   synthetic supplier notices. On arm64 it builds the pinned CPU service target
-   from source because the released container is amd64-only.
-3. `setup-kumo.sh` starts the single query-only facade, rejects
-   redirects, checks API readiness, requires the current `kumo-relational`
-   model ID, and runs one real prediction. It does not
-   provision or train Kumo.
+2. `setup-retriever.sh` starts NeMo Retriever 26.08.1, creates each active
+   document collection, ingests its declared files, and verifies retrieval. On
+   arm64 it builds the pinned CPU service target from source because the
+   released container is amd64-only.
+3. `setup-kumo.sh` qualifies every active prediction binding through NVIDIA
+   Ontology, then starts the five-tool facade. It does not provision or train
+   Kumo, and it does not expose a direct Kumo tool.
 4. `setup-ingress.sh` creates a private, locally trusted TLS ingress for the
    Query Claw MCP server.
 5. `setup-hermes.sh` installs NemoClaw v0.0.120 when the CLI is absent or
@@ -235,9 +241,8 @@ It runs five reviewable stages in order:
    lets NemoClaw create or recover its native dashboard and API host forwards.
 
 Setup sends prompts and selected evidence to the configured inference provider
-and documents to the configured embedding service. The Kumo adapter constructs
-its relational graph from all six generated structured CSV tables and sends
-that context with prediction requests to the configured Kumo endpoint. Review
+and documents to the configured embedding service. NVIDIA Ontology sends
+prediction requests to the configured Kumo endpoint. Review
 each provider's access, retention, residency, license, and cost terms first. Do
 not publish `.runtime/deploy.env`, the generated CA, the Hermes dashboard, or
 the MCP ingress.
@@ -248,12 +253,14 @@ Inspect the deployment without printing its credentials:
 bash deploy/status.sh
 ```
 
-Query Claw does not add a separate booth UI or database selector: ask for
-records, documents, predictions, or an explicit combination in natural
-language. The coordinator skill delegates only to the
-matching specialist skills; the Ontology adapter is pinned to the `query_claw`
-database, Retriever searches the ingested notices, and Kumo scores the
-configured prediction graph. Try:
+Query Claw does not add a separate booth UI or database selector: ask for a
+visible dataset and its records, documents, predictions, or an explicit
+combination in natural language. The coordinator skill delegates only to the
+matching specialist skills. With multiple datasets, a trusted caller creates a
+short-lived source scope for each turn; unscoped calls fail rather than falling
+back to another dataset. The stock dashboard is intended for one dataset
+selected at startup; use the evaluator or another trusted API controller for
+per-turn multi-dataset selection. Try:
 
 ```text
 Which supplier should operations prioritize when in-transit order exposure,
@@ -334,7 +341,7 @@ https://<private-host>:9443/mcp/
 Keep the trailing slash. The generated private CA is passed to NemoClaw during
 onboarding, and the endpoint uses one generated bearer credential.
 
-## Data Pack
+## Data Packs
 
 `data/supply-chain.json` is the small, authored scenario. The generator writes
 ignored runtime files with a fixed seed and cutoff:
@@ -360,6 +367,18 @@ never enter the service graph. Kumo excludes the service-only prediction split
 and cutoff status from its model graph, then anchors predictions to the manifest
 cutoff with a `(0, 30, DAYS)` horizon.
 
+Additional datasets use one `pack.json` that declares an ID, industry,
+available views, and service-owned Ontology database or Retriever collection
+bindings. Predictive packs also declare one stable setup probe that must return
+Kumo rows and a graph receipt for that exact database. `QUERY_CLAW_DATASETS`
+selects the startup allowlist. Materialization
+copies only those packs into the read-only active tree, so an unselected pack is
+not mounted or discoverable. The one-command deployment supports the built-in
+structured/predictive pack plus supplemental document-only packs; operators can
+use the same manifest with separately provisioned Ontology databases for other
+structured or predictive packs. See [Data packs](docs/data-packs.md) for the
+small schema, loading boundary, and per-turn source scopes.
+
 ## Verification
 
 **Local evidence level:** local/static.
@@ -384,7 +403,7 @@ PASS temporal boundary   24 prediction labels withheld after cutoff
 PASS tool contracts      3 contract-bounded routes
 PASS routing skills      5 focused skills; one shared evidence contract
 Query Claw local verification: 6/6 checks passed
-Ran 56 tests ... OK
+Ran 81 tests ... OK
 PASS: Query Claw native lifecycle command contracts
 PASS: Query Claw deployment release contracts
 ```
@@ -472,19 +491,25 @@ confirm that command.
   host. The recipe builds that source tree or export but does not fetch, vendor, publish, or
   validate an operator's entitlement to it; obtain access through an authorized
   NVIDIA distribution or support channel.
+- The pinned, booth-tested Ontology revision includes governed prediction-graph
+  receipts but has not yet landed on `NVIDIA/GSF` main. A public release must
+  replace this development revision with the corresponding upstream commit.
 - The released NeMo Retriever 26.08.1 container is amd64-only. On arm64, setup
   requires a clean pinned source commit, labels the resulting image with that
   revision, and removes its x86 CUDA installation
   block before building the CPU service target; that path does not provide
   local GPU inference. The amd64 path additionally requires NGC registry access
   for the pinned `nvcr.io` image.
-- Kumo remains an external prediction service. Its API must advertise the
-  current `kumo-relational` model ID and pass a real
-  prediction during setup. The recipe does not provision a project, train a
-  model, or manage the endpoint lifecycle.
+- Kumo remains an external prediction service. NVIDIA Ontology must complete a
+  real prediction through it during setup. The recipe does not provision a
+  project, train a model, or manage the endpoint lifecycle.
 - The generated PostgreSQL data, Ontology catalog, Retriever index, and Kumo
   entity population form a synthetic reference scenario. They are not a
   production data migration, authorization model, or quality benchmark.
+- The one-command loader remains intentionally specific to the built-in
+  supply-chain database. It can ingest supplemental document-only packs, but
+  another structured or predictive pack requires a separately provisioned and
+  compiled Ontology database matching its declared binding.
 - A Git NVIDIA Ontology checkout must be clean and at the declared revision. A
   source export can only declare that revision through `SOURCE_COMMIT`; the
   recipe cannot independently prove the export contents.
@@ -507,6 +532,7 @@ confirm that command.
 query-claw/
 ├── config/tool-contracts.json  # exact model-visible MCP inventories
 ├── data/supply-chain.json      # deterministic synthetic scenario
+├── docs/data-packs.md          # dataset and source-scope contract
 ├── evaluations/                # smoke, scenarios, and private-suite contract
 ├── deploy/                     # full-stack setup, status, and teardown
 ├── scripts/                    # data, registration, evaluation, verification

@@ -1,34 +1,35 @@
 ---
 name: query-claw-predictive
-description: Run bounded Kumo predictions for the Query Claw supply-chain graph. Use for future outcomes, probabilities, forecasts, and risk rankings; do not use for observed facts, document claims, or causal conclusions.
+description: Run governed Kumo-backed predictions for a selected Query Claw dataset through NVIDIA Ontology. Use for future outcomes, probabilities, forecasts, and risk rankings; do not use for observed facts, document claims, or causal conclusions.
 ---
 
 # Query Claw predictions
 
-Use this skill for the **predictions** view of the Query Claw supply-chain data
-product. If the operator selected predictions only, never call Ontology or
-Retriever.
+Use this skill for the **predictions** view of the selected Query Claw dataset.
+Predictions are routed through NVIDIA Ontology and its governed Kumo
+integration. Never call Kumo directly or construct PQL.
 
 For a question whose requested result is itself a forecast, probability, risk
 ranking, or model attribution, use predictions alone unless the operator
 explicitly asks to combine that result with observed records or documents.
 
-1. Call `mcp__query_claw__inspect_graph_metadata` once. Confirm that its
-   prediction contract matches the requested cutoff, target, and horizon.
-2. Pass the returned contract PQL and prediction-population entity IDs to
-   `mcp__query_claw__predict` once. The adapter fixes the manifest cutoff
-   and 30-day horizon; keep that service-owned population and execution bound.
-3. Call `mcp__query_claw__explain` only when the operator explicitly asks why
-   an entity ranked highly or requests prediction attribution. Call it once for
-   only the highest-risk returned entity unless the operator asks for
-   additional entities.
+Before calling a tool, require a clear outcome or target, entity or population,
+and prediction horizon or endpoint. If any of those is ambiguous or missing,
+ask one concise clarifying question and do not call `predict` yet.
+
+Call `mcp__query_claw__predict` once with the complete prediction question, the
+exact selected `dataset_id`, and the unchanged `scope_token` when supplied. Do
+not send observed-record or document requests to this route. If the selected
+dataset has no predictions view, abstain without trying another dataset.
 
 Report the target, anchor time, horizon, population, and returned score or
-probability. Label each result **Predicted**. Attributions describe influence,
-not causation. Never use evaluation labels or future outcomes that were
-unavailable at the anchor time. If metadata does not support the request,
-abstain. End with:
+probability when the tool provides them. Label each result **Predicted**. Use
+only returned assumptions, warnings, or graph receipt to qualify a prediction;
+never invent an explanation. Attributions describe influence, not causation.
+Never use evaluation labels or future outcomes that were unavailable at the
+anchor time, and never expose a scope token. If the result does not support the
+request, abstain. End with:
 
 ```text
-Sources used: predictions (Kumo)
+Sources used: predictions (NVIDIA Ontology / Kumo)
 ```

@@ -58,6 +58,8 @@ def _sha256(path: Path) -> str:
 
 
 def _prepare_output(output: Path) -> None:
+    if output.is_symlink():
+        raise ValueError(f"refusing to replace generated symlink: {output}")
     output.mkdir(parents=True, exist_ok=True)
     service = output / "service"
     leaves = (service / "structured", service / "documents", output / "evaluation")
@@ -502,13 +504,15 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    manifest = generate(args.spec.resolve(), args.output.resolve())
+    if args.output.is_symlink():
+        parser.error("--output must not be a symlink")
+    manifest = generate(args.spec.resolve(), args.output)
     print(
         f"Generated {manifest['dataset_id']} {manifest['dataset_version']}: "
         f"{manifest['row_counts']['purchase_orders']} orders"
     )
     if args.validate:
-        summary = validate(args.output.resolve())
+        summary = validate(args.output)
         print(f"Validated data fingerprint: {summary['fingerprint']}")
     return 0
 

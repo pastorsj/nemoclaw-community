@@ -130,10 +130,10 @@ def validate_skill() -> None:
     required_files = {
         skills / "query-claw" / "SKILL.md": (
             "name: query-claw",
-            "Select sources",
+            "Select a dataset and sources",
             "Sources used:",
             "configured read-only Query Claw tools",
-            "unavailable named source",
+            "requested dataset is unavailable",
         ),
         skills / "query-claw-structured" / "SKILL.md": (
             "name: query-claw-structured",
@@ -147,9 +147,7 @@ def validate_skill() -> None:
         ),
         skills / "query-claw-predictive" / "SKILL.md": (
             "name: query-claw-predictive",
-            "mcp__query_claw__inspect_graph_metadata",
             "mcp__query_claw__predict",
-            "mcp__query_claw__explain",
             "Label each result **Predicted**",
         ),
         skills / "query-claw-reporting" / "SKILL.md": (

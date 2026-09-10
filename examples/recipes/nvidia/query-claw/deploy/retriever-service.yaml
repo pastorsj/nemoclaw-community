@@ -22,6 +22,7 @@ vectordb:
 auth:
   enabled: true
   api_token: null
+  default_scope: query-claw
   bypass_paths: [/v1/live, /v1/health]
 mcp:
   enabled: false

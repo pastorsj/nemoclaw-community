@@ -108,9 +108,9 @@ elif [[ "${2:-}" == "mcp" && "${3:-}" == "status" ]]; then
     case "$name" in
       query-claw)
         if [[ "${QUERY_CLAW_TEST_EXTRA_KUMO_TOOL:-0}" == 1 ]]; then
-          tools='["check_readiness","search_terms","check_answerable","ask_question","query","inspect_graph_metadata","predict","explain","delete_graph"]'
+          tools='["check_readiness","check_answerable","ask_question","query","predict","delete_graph"]'
         else
-          tools='["check_readiness","search_terms","check_answerable","ask_question","query","inspect_graph_metadata","predict","explain"]'
+          tools='["check_readiness","check_answerable","ask_question","query","predict"]'
         fi
         ;;
     esac

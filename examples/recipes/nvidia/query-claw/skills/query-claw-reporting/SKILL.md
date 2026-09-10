@@ -24,4 +24,5 @@ Choose the requested supported form:
 Do not generate HTML, SVG, PowerPoint, or other files in this pass. Offer a
 Markdown report or text chart instead. Preserve evidence citations and end
 with the coordinator's `Sources used:` line, naming only the views actually
-queried. Use `Sources used: none` if no evidence source was queried.
+queried. Never include a scope token in any output. Use `Sources used: none` if
+no evidence source was queried.

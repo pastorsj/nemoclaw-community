@@ -60,6 +60,65 @@ custom="$(env -u LLM_MODEL -u NEMOCLAW_PROVIDER bash -c '
 [[ "$custom" == $'https://inference.example.test/v1\nnvidia/llama-3.3-nemotron-super-49b-v1.5\ncustom' ]] || \
   fail "custom Hermes inference defaults are incomplete"
 
+for ip in 10.0.0.1 10.255.255.254 172.16.0.1 172.31.255.254 \
+  192.168.0.1 192.168.255.254; do
+  bash -c 'source "$1"; validate_private_ipv4 "$2"' _ "$common" "$ip" || \
+    fail "RFC1918 address was rejected: $ip"
+done
+for ip in 0.0.0.0 127.0.0.1 169.254.1.1 8.8.8.8 172.15.255.255 \
+  172.32.0.1 ::1 2001:db8::1 not-an-address; do
+  if bash -c 'source "$1"; validate_private_ipv4 "$2"' \
+    _ "$common" "$ip" >"$TEST_ROOT/private-ip.out" 2>&1; then
+    fail "non-RFC1918 address was accepted: $ip"
+  fi
+done
+
+setup="$EXAMPLE_DIR/deploy/setup.sh"
+setup_log="$TEST_ROOT/setup-failure.log"
+if SETUP_LOG="$setup_log" bash -c '
+  source "$1"
+  require_command() { :; }
+  initialize_deploy_env() {
+    KUMO_RFM_API_URL=https://prediction.example.test/v1
+    QUERY_CLAW_DATASETS=supply-chain
+    QUERY_CLAW_PACKS_ROOT=/unused
+  }
+  compose() { printf "compose %s\n" "$*" >>"$SETUP_LOG"; }
+  docker() { printf "%s\n" 2.24.4; }
+  python3() {
+    if [[ "$1" == - ]]; then
+      command cat >/dev/null
+      return 0
+    fi
+    printf "python %s\n" "$*" >>"$SETUP_LOG"
+    [[ "$1" != */prepare_data_packs.py ]]
+  }
+  main
+' _ "$setup" >"$TEST_ROOT/setup-failure.out" 2>&1; then
+  fail "setup unexpectedly succeeded after data-pack activation failed"
+fi
+expected_setup_log="$(cat <<EOF
+compose stop mcp-ingress query-claw-mcp
+python $EXAMPLE_DIR/scripts/generate_data.py --validate
+python $EXAMPLE_DIR/scripts/prepare_data_packs.py --datasets supply-chain --packs-root /unused
+compose stop mcp-ingress query-claw-mcp
+EOF
+)"
+[[ "$(cat "$setup_log")" == "$expected_setup_log" ]] || \
+  fail "failed setup did not keep the ingress and facade down"
+
+for url in https://prediction.example.test/v1 http://127.0.0.1:9000 http://localhost:9000; do
+  bash -c 'source "$1"; validate_credentialed_service_url "$2" KUMO_RFM_API_URL' \
+    _ "$common" "$url" || fail "safe Kumo URL was rejected: $url"
+done
+for url in http://prediction.example.test/v1 'https://user:secret@example.test/v1' \
+  'https://prediction.example.test/v1?token=secret' 'https://prediction.example.test/v1#fragment'; do
+  if bash -c 'source "$1"; validate_credentialed_service_url "$2" KUMO_RFM_API_URL' \
+    _ "$common" "$url" >"$TEST_ROOT/kumo-url.out" 2>&1; then
+    fail "unsafe Kumo URL was accepted"
+  fi
+done
+
 if grep -q '^NEMOCLAW_VERSION=' "$EXAMPLE_DIR/.env.example"; then
   fail "the code-owned NemoClaw version leaked back into .env.example"
 fi

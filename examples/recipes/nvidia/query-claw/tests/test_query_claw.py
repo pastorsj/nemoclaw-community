@@ -3,15 +3,14 @@
 
 from __future__ import annotations
 
-import ast
 import csv
 import importlib.util
 import json
+import stat
 import sys
 import tempfile
 import types
 import unittest
-from datetime import datetime
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -76,6 +75,8 @@ def _load_mcp_adapter():
     pydantic.Field = lambda **kwargs: kwargs
     starlette = types.ModuleType("starlette")
     starlette.__path__ = []
+    requests = types.ModuleType("starlette.requests")
+    requests.Request = type("Request", (), {})
     responses = types.ModuleType("starlette.responses")
     responses.JSONResponse = lambda content, **kwargs: {"content": content, **kwargs}
     exceptions = types.ModuleType("fastmcp.exceptions")
@@ -90,6 +91,7 @@ def _load_mcp_adapter():
         "fastmcp.server.auth.auth": auth,
         "pydantic": pydantic,
         "starlette": starlette,
+        "starlette.requests": requests,
         "starlette.responses": responses,
     }
     path = EXAMPLE_ROOT / "deploy" / "services" / "mcp-adapters" / "app.py"
@@ -97,6 +99,7 @@ def _load_mcp_adapter():
     if spec is None or spec.loader is None:
         raise RuntimeError(f"could not load {path}")
     module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
     with patch.dict(sys.modules, modules):
         spec.loader.exec_module(module)
     return module
@@ -120,6 +123,19 @@ LIVE_EVALUATOR = _load_live_evaluator()
 SMOKE_CASES = dict(
     LIVE_EVALUATOR.load_suite(EXAMPLE_ROOT / "evaluations" / "smoke.json")[1]
 )
+
+
+def _load_prediction_qualifier():
+    path = EXAMPLE_ROOT / "deploy" / "qualify_prediction.py"
+    spec = importlib.util.spec_from_file_location("query_claw_qualify_prediction", path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"could not load {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+PREDICTION_QUALIFIER = _load_prediction_qualifier()
 
 
 def _rows(path: Path) -> list[dict[str, str]]:
@@ -296,7 +312,7 @@ class QueryClawContractTests(unittest.TestCase):
     def test_missing_or_extra_tools_fail_closed(self) -> None:
         tools = VERIFIER.load_contracts()["routes"]["kumo"]
         with self.assertRaisesRegex(ValueError, "missing required tools"):
-            VERIFIER.check_inventory("kumo", tools, ["predict"])
+            VERIFIER.check_inventory("kumo", tools, [])
         with self.assertRaisesRegex(ValueError, "outside its allowed contract"):
             VERIFIER.check_inventory("kumo", tools, tools + ["delete_graph"])
 
@@ -351,504 +367,419 @@ class QueryClawContractTests(unittest.TestCase):
                 "ontology", ready | {"adapter": {"registered": False}}
             )
 
-    def test_adapter_arguments_match_the_skill_contract(self) -> None:
-        path = EXAMPLE_ROOT / "deploy" / "services" / "mcp-adapters" / "app.py"
-        adapter_source = path.read_text(encoding="utf-8")
-        tree = ast.parse(adapter_source)
-        arguments = {
-            node.name: [argument.arg for argument in node.args.args]
-            for node in ast.walk(tree)
-            if isinstance(node, ast.AsyncFunctionDef)
-            and node.name
-            in {"search_terms", "ask_question", "query", "predict", "explain"}
-        }
-        self.assertEqual(["query", "limit"], arguments["search_terms"])
-        self.assertEqual(["question", "entity_filters"], arguments["ask_question"])
-        self.assertEqual(["question", "top_k"], arguments["query"])
-        self.assertEqual(25, MCP_ADAPTER.MAX_ONTOLOGY_ROWS)
-        self.assertEqual(["pql", "entity_ids", "max_results"], arguments["predict"])
-        self.assertEqual(["pql", "entity_id"], arguments["explain"])
-        predictive_skill = (
-            EXAMPLE_ROOT / "skills" / "query-claw-predictive" / "SKILL.md"
-        ).read_text(encoding="utf-8")
-        self.assertNotIn("PREDICT purchase_orders", predictive_skill)
-        self.assertIn('"prediction_contract"', adapter_source)
-        self.assertIn("COUNT(delivery_outcomes.*", MCP_ADAPTER.KUMO_PREDICTION_PQL)
-        self.assertIn("0, 30, DAYS", MCP_ADAPTER.KUMO_PREDICTION_PQL)
-        self.assertIn(
-            "COUNT(shipment_events.*, -30, 0, DAYS)", MCP_ADAPTER.KUMO_PREDICTION_PQL
-        )
 
-    def test_governed_entity_aliases_resolve_names_to_stable_ids(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            fixtures = {
-                "suppliers.csv": "supplier_id,supplier_name\nSUP-007,Atlas Circuits\n",
-                "facilities.csv": "facility_id,name\nFAC-ATL,Atlanta Assembly\n",
-                "products.csv": "product_id,name\nPRD-CTRL,Control module\n",
-            }
-            for name, contents in fixtures.items():
-                (root / name).write_text(contents, encoding="utf-8")
-            aliases = MCP_ADAPTER._load_entity_aliases(root)
-        resolved = MCP_ADAPTER._resolve_entity_filters(["atlas circuits"], aliases)
+class QueryClawPredictionQualificationTests(unittest.TestCase):
+    def test_receipt_requires_kumo_qualified_prediction_and_is_private(self) -> None:
+        fallback = {"sql_code": "SELECT id FROM records", "rows": [{"id": 1}]}
+        with self.assertRaisesRegex(RuntimeError, "no qualified Kumo prediction"):
+            PREDICTION_QUALIFIER._validate_prediction(fallback, "alpha_predictions")
+
+        prediction = {
+            "sql_code": "PREDICT records.risk FOR EACH records.id",
+            "rows": [{"id": 1, "score": 0.75}],
+        }
+        with self.assertRaisesRegex(RuntimeError, "no qualified Kumo prediction"):
+            PREDICTION_QUALIFIER._validate_prediction(prediction, "alpha_predictions")
+        with self.assertRaisesRegex(RuntimeError, "no qualified Kumo prediction"):
+            PREDICTION_QUALIFIER._validate_prediction(
+                prediction | {"graph_receipt": {"database_name": "other"}},
+                "alpha_predictions",
+            )
+
+        answer = prediction | {
+            "rows": json.dumps(prediction["rows"]),
+            "response": "prediction complete",
+            "graph_receipt": {"database_name": "alpha_predictions"},
+        }
+        PREDICTION_QUALIFIER._validate_prediction(answer, "alpha_predictions")
         self.assertEqual(
-            (
+            ([{"id": 1, "score": 0.75}], 1), MCP_ADAPTER._safe_rows(answer)
+        )
+
+        with tempfile.TemporaryDirectory(
+            prefix="query-claw-prediction-receipt-"
+        ) as temporary:
+            receipt = Path(temporary) / "prediction-qualified.json"
+            receipt.write_text("stale\n", encoding="utf-8")
+            receipt.chmod(0o644)
+            PREDICTION_QUALIFIER._write_receipt(
+                receipt, "a" * 64, ["alpha_predictions"]
+            )
+
+            self.assertEqual(0o600, stat.S_IMODE(receipt.stat().st_mode))
+            self.assertEqual(
                 {
-                    "entity": "suppliers",
-                    "id_field": "supplier_id",
-                    "id": "SUP-007",
-                    "name": "Atlas Circuits",
+                    "schema_version": 1,
+                    "selection_fingerprint": "a" * 64,
+                    "databases": ["alpha_predictions"],
                 },
-            ),
-            resolved,
-        )
-        normalized = MCP_ADAPTER._validate_filtered_rows(
-            [{"supplier_id": "SUP-007", "amount_usd": 100}], resolved
-        )
-        self.assertEqual("SUP-007", normalized[0]["supplier_id"])
-        with self.assertRaisesRegex(MCP_ADAPTER.ToolError, "outside"):
-            MCP_ADAPTER._validate_filtered_rows(
-                [{"confirmed_entity_id": "SUP-007"}], resolved
+                json.loads(receipt.read_text(encoding="utf-8")),
             )
-        with self.assertRaisesRegex(MCP_ADAPTER.ToolError, "outside"):
-            MCP_ADAPTER._validate_filtered_rows(
-                [{"confirmed_entity_id": "SUP-008"}], resolved
-            )
-        self.assertEqual((), MCP_ADAPTER._resolve_entity_filters([], aliases))
-        with self.assertRaisesRegex(ValueError, "governed display name"):
-            MCP_ADAPTER._resolve_entity_filters(["Unknown Supplier"], aliases)
-
-    def test_kumo_model_discovery_accepts_only_supported_ids(self) -> None:
-        client = MagicMock()
-        response = client.return_value.__enter__.return_value.get.return_value
-        response.is_redirect = False
-        response.status_code = 200
-        response.json.return_value = {"data": [{"id": "kumo-relational"}]}
-
-        with patch.object(MCP_ADAPTER.httpx, "Client", client):
-            selected = MCP_ADAPTER._advertised_kumo_model(
-                "https://kumo.example.test", "secret-key"
-            )
-        self.assertEqual("kumo-relational", selected)
-        client.assert_called_once_with(follow_redirects=False, timeout=30)
-        response_call = client.return_value.__enter__.return_value.get
-        response_call.assert_called_once_with(
-            "https://kumo.example.test/v1/models",
-            headers={"X-API-Key": "secret-key"},
-        )
-
-        with patch.object(MCP_ADAPTER.httpx, "Client") as client:
-            response = client.return_value.__enter__.return_value.get.return_value
-            response.is_redirect = False
-            response.status_code = 200
-            response.json.return_value = {"data": [{"id": "other-model"}]}
-            with self.assertRaisesRegex(RuntimeError, "kumo-relational"):
-                MCP_ADAPTER._advertised_kumo_model("https://kumo.example.test", None)
-
-    def test_kumo_model_discovery_does_not_follow_or_leak_secrets(self) -> None:
-        secret = "do-not-disclose-this-key"
-        client = MagicMock()
-        client.__enter__.return_value.get.return_value = MagicMock(
-            is_redirect=True, status_code=307
-        )
-        with patch.object(MCP_ADAPTER.httpx, "Client", return_value=client):
-            with self.assertRaisesRegex(RuntimeError, "must not redirect") as raised:
-                MCP_ADAPTER._advertised_kumo_model("https://kumo.example.test", secret)
-        self.assertNotIn(secret, str(raised.exception))
-
-    def test_kumo_model_discovery_prefers_relational_and_preserves_base_path(
-        self,
-    ) -> None:
-        client = MagicMock()
-        response = client.return_value.__enter__.return_value.get.return_value
-        response.is_redirect = False
-        response.status_code = 200
-        response.json.return_value = {
-            "data": [{"id": "kumo-rfm"}, {"id": "kumo-relational"}]
-        }
-        with patch.object(MCP_ADAPTER.httpx, "Client", client):
-            selected = MCP_ADAPTER._advertised_kumo_model(
-                "https://kumo.example.test/tenant/api/", None
-            )
-        self.assertEqual("kumo-relational", selected)
-        client.return_value.__enter__.return_value.get.assert_called_once_with(
-            "https://kumo.example.test/tenant/api/v1/models", headers=None
-        )
-
-    def test_kumo_endpoint_accepts_https_and_loopback_http_only(self) -> None:
-        accepted = {
-            "https://kumo.example.test": "https://kumo.example.test",
-            "https://kumo.example.test/tenant/api/": (
-                "https://kumo.example.test/tenant/api"
-            ),
-            "http://localhost:8000/api": "http://localhost:8000/api",
-            "http://127.0.0.1:8000": "http://127.0.0.1:8000",
-            "http://[::1]:8000/base/": "http://[::1]:8000/base",
-        }
-        for endpoint, expected in accepted.items():
-            with self.subTest(endpoint=endpoint):
-                self.assertEqual(
-                    expected, MCP_ADAPTER._validated_kumo_endpoint(endpoint)
-                )
-
-        rejected = (
-            "http://kumo.example.test",
-            "http://0.0.0.0:8000",
-            "https://user:password@kumo.example.test",
-            "https://kumo.example.test?token=secret",
-            "https://kumo.example.test/#fragment",
-            "ftp://kumo.example.test",
-            "kumo.example.test",
-        )
-        for endpoint in rejected:
-            with (
-                self.subTest(endpoint=endpoint),
-                self.assertRaises(RuntimeError),
-            ):
-                MCP_ADAPTER._validated_kumo_endpoint(endpoint)
-
-    def test_kumo_connects_with_the_relational_client(self) -> None:
-        class FakeClient:
-            def __init__(self, endpoint, api_key=None):
-                self.endpoint = endpoint
-                self.api_key = api_key
-                self.closed = False
-
-            def close(self):
-                self.closed = True
-
-        payload = types.SimpleNamespace(TFM_MODEL_KUMO_RFM="kumo-rfm")
-        rfm = types.ModuleType("kumorfm.rfm")
-        rfm.payload = payload
-        rfm.KumoRFM = lambda graph, _client: ("relational-model", graph, _client)
-        kumorfm = types.ModuleType("kumorfm")
-        kumorfm.__path__ = []
-        kumorfm.KumoClient = FakeClient
-        kumorfm.rfm = rfm
-        with patch.dict(sys.modules, {"kumorfm": kumorfm, "kumorfm.rfm": rfm}):
-            model, client = MCP_ADAPTER._connect_kumo(
-                "graph", "https://kumo.example.test", "key"
-            )
-        self.assertEqual(("relational-model", "graph", client), model)
-        self.assertEqual("kumo-relational", payload.TFM_MODEL_KUMO_RFM)
-
-        runtime = MCP_ADAPTER.KumoRuntime()
-        runtime.client = client
-        runtime.model = model
-        runtime.graph = "graph"
-        runtime.prediction_entity_ids = ["order-1"]
-        runtime.prediction_cutoff = datetime(2026, 5, 31)
-        runtime.prediction_horizon_days = 30
-        runtime.close()
-        self.assertTrue(client.closed)
-        self.assertIsNone(runtime.model)
-        self.assertIsNone(runtime.prediction_cutoff)
-
-    def test_kumo_model_omits_prediction_population_bookkeeping(self) -> None:
-        source_orders = MagicMock()
-        source_frames = {
-            "purchase_orders": source_orders,
-            "suppliers": "supplier-frame",
-        }
-        model_frames = MCP_ADAPTER.KumoRuntime._model_frames(source_frames)
-        source_orders.drop.assert_called_once_with(
-            columns=["split", "status_at_cutoff"]
-        )
-        self.assertIs(source_orders, source_frames["purchase_orders"])
-        self.assertIs(source_orders.drop.return_value, model_frames["purchase_orders"])
-        self.assertEqual("supplier-frame", model_frames["suppliers"])
-
-    def test_kumo_predictions_are_validated_and_ranked(self) -> None:
-        rows = MCP_ADAPTER._rank_prediction_rows(
-            [
-                {
-                    "ENTITY": "PO-E0001",
-                    "ANCHOR_TIMESTAMP": "2026-05-31T00:00:00+00:00",
-                    "TRUE_PROB": 0.2,
-                },
-                {
-                    "ENTITY": "PO-E0002",
-                    "ANCHOR_TIMESTAMP": "2026-05-31T00:00:00+00:00",
-                    "TRUE_PROB": 0.8,
-                },
-            ],
-            ["PO-E0001", "PO-E0002"],
-            "2026-05-31",
-        )
-        self.assertEqual(["PO-E0002", "PO-E0001"], [row["ENTITY"] for row in rows])
-        with self.assertRaisesRegex(ValueError, "wrong cutoff"):
-            MCP_ADAPTER._rank_prediction_rows(
-                [
-                    {
-                        "ENTITY": "PO-E0001",
-                        "ANCHOR_TIMESTAMP": "2026-06-01T00:00:00+00:00",
-                        "TRUE_PROB": 0.2,
-                    }
-                ],
-                ["PO-E0001"],
-                "2026-05-31",
-            )
-        for malformed_anchor in (
-            "2026-05-3100",
-            "2026-05-31T" + "0" * 65,
-        ):
-            with (
-                self.subTest(anchor=malformed_anchor),
-                self.assertRaisesRegex(ValueError, "wrong cutoff"),
-            ):
-                MCP_ADAPTER._rank_prediction_rows(
-                    [
-                        {
-                            "ENTITY": "PO-E0001",
-                            "ANCHOR_TIMESTAMP": malformed_anchor,
-                            "TRUE_PROB": 0.2,
-                        }
-                    ],
-                    ["PO-E0001"],
-                    "2026-05-31",
-                )
 
 
-class QueryClawAdapterSecurityTests(unittest.IsolatedAsyncioTestCase):
+class QueryClawAdapterTests(unittest.IsolatedAsyncioTestCase):
     TOKEN = "test-query-claw-token-that-is-long-enough"
 
-    class FakeKumoRuntime:
-        def __init__(self, error: Exception | None = None) -> None:
-            self.error = error
-            self.prediction_entity_ids = ["PO-EVAL-001"]
-            self.prediction_cutoff = datetime(2026, 5, 31)
-            self.prediction_horizon_days = 30
-            self.model = MagicMock()
-            self.model.predict.side_effect = error
-            self.graph = types.SimpleNamespace(tables={}, edges=[])
-
-        async def ready(self) -> None:
-            if self.error and self.model is None:
-                raise self.error
-
-        def close(self) -> None:
-            pass
-
-    def kumo_tools(self, runtime):
-        with (
-            patch.object(MCP_ADAPTER, "KumoRuntime", return_value=runtime),
-            patch.dict(
-                MCP_ADAPTER.os.environ,
-                {"MCP_BEARER_TOKEN": self.TOKEN},
-                clear=False,
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory(prefix="query-claw-adapter-")
+        self.manifest = Path(self.temporary.name) / "active-data-packs.json"
+        self.manifest.write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "fingerprint": "a" * 64,
+                    "datasets": [
+                        self.dataset("alpha"),
+                        self.dataset("beta", views=("documents",)),
+                    ],
+                }
             ),
-        ):
-            return MCP_ADAPTER.kumo_server().tools
+            encoding="utf-8",
+        )
 
-    def test_combined_server_exposes_only_the_contract_union(self) -> None:
-        contracts = VERIFIER.load_contracts()
-        expected = {tool for tools in contracts["routes"].values() for tool in tools}
-        with patch.dict(
-            MCP_ADAPTER.os.environ,
-            {
-                "MCP_BEARER_TOKEN": self.TOKEN,
-                "RETRIEVER_API_TOKEN": self.TOKEN,
-            },
-            clear=True,
-        ):
-            actual = set(MCP_ADAPTER.query_claw_server().tools)
-        self.assertEqual(expected, actual)
+    def tearDown(self) -> None:
+        self.temporary.cleanup()
 
-    async def test_retriever_tool_forces_bounded_citation_ready_query(self) -> None:
-        response = MagicMock()
-        response.json.return_value = {
-            "evidence": [{"text": "notice", "source": "SUP-007"}]
+    @staticmethod
+    def dataset(identifier: str, views=("structured", "documents", "predictions")):
+        bindings = {}
+        if {"structured", "predictions"} & set(views):
+            bindings["ontology"] = {
+                "database": f"{identifier}_records",
+                "prediction_database": f"{identifier}_predictions",
+            }
+            if "predictions" in views:
+                bindings["ontology"]["prediction_probe"] = (
+                    f"Predict a supported outcome for {identifier}."
+                )
+        if "documents" in views:
+            bindings["retriever"] = {"collection": f"{identifier}_documents"}
+        return {
+            "schema_version": 1,
+            "id": identifier,
+            "title": identifier.title(),
+            "description": f"{identifier.title()} data",
+            "industry": "Other",
+            "views": {view: f"packs/{identifier}/{view}" for view in views},
+            "bindings": bindings,
         }
-        client = MagicMock()
-        client.post = AsyncMock(return_value=response)
+
+    def server(self, gsf, retriever):
         with (
-            patch.object(MCP_ADAPTER.httpx, "AsyncClient", return_value=client),
+            patch.object(
+                MCP_ADAPTER.httpx,
+                "AsyncClient",
+                side_effect=[gsf, retriever],
+            ) as clients,
             patch.dict(
                 MCP_ADAPTER.os.environ,
                 {
                     "MCP_BEARER_TOKEN": self.TOKEN,
+                    "QUERY_CLAW_ACTIVE_MANIFEST": str(self.manifest),
                     "RETRIEVER_API_TOKEN": self.TOKEN,
                 },
                 clear=True,
             ),
         ):
-            tools = MCP_ADAPTER.retriever_server().tools
-        result = await tools["query"]("Atlas Circuits", top_k=5)
-        self.assertEqual("SUP-007", result["evidence"][0]["source"])
-        client.post.assert_awaited_once_with(
-            "/v1/query",
-            json={
-                "query": "Atlas Circuits",
-                "top_k": 5,
-                "format": "evidence",
-                "rerank": False,
-            },
-        )
-
-    async def test_predict_and_explain_require_the_exact_advertised_pql(self) -> None:
-        runtime = self.FakeKumoRuntime()
-        tools = self.kumo_tools(runtime)
-        for tool_name, arguments in (
-            (
-                "predict",
-                {"entity_ids": ["PO-EVAL-001"], "max_results": 1},
-            ),
-            ("explain", {"entity_id": "PO-EVAL-001"}),
-        ):
-            with (
-                self.subTest(tool=tool_name),
-                self.assertRaisesRegex(
-                    MCP_ADAPTER.ToolError, "exactly match.*prediction contract"
-                ),
-            ):
-                await tools[tool_name](
-                    pql=MCP_ADAPTER.KUMO_PREDICTION_PQL + " ",
-                    **arguments,
-                )
-        runtime.model.predict.assert_not_called()
-
-    async def test_predict_uses_the_fixed_cutoff_and_ranks_results(self) -> None:
-        runtime = self.FakeKumoRuntime()
-        runtime.prediction_entity_ids = ["PO-EVAL-001", "PO-EVAL-002"]
-        runtime.model.predict.return_value = [
-            {
-                "ENTITY": "PO-EVAL-001",
-                "ANCHOR_TIMESTAMP": "2026-05-31T00:00:00+00:00",
-                "TRUE_PROB": 0.1,
-            },
-            {
-                "ENTITY": "PO-EVAL-002",
-                "ANCHOR_TIMESTAMP": "2026-05-31T00:00:00+00:00",
-                "TRUE_PROB": 0.9,
-            },
+            server = MCP_ADAPTER.query_claw_server()
+        self.client_timeouts = [
+            call.kwargs["timeout"] for call in clients.call_args_list
         ]
-        tools = self.kumo_tools(runtime)
-        result = await tools["predict"](
-            pql=MCP_ADAPTER.KUMO_PREDICTION_PQL,
-            entity_ids=runtime.prediction_entity_ids,
-            max_results=1,
-        )
-        runtime.model.predict.assert_called_once_with(
-            MCP_ADAPTER.KUMO_PREDICTION_PQL,
-            indices=runtime.prediction_entity_ids,
-            anchor_time=runtime.prediction_cutoff,
-            run_mode="fast",
-        )
-        self.assertEqual("2026-05-31", result["cutoff"])
-        self.assertEqual(30, result["horizon_days"])
-        self.assertEqual("PO-EVAL-002", result["predictions"][0]["ENTITY"])
-        self.assertTrue(result["truncated"])
+        return server
 
-    async def test_explain_binds_entity_and_bounds_factors(self) -> None:
-        runtime = self.FakeKumoRuntime()
-        cells = {
-            f"factor_{index}": {
-                "value": "x" * 300 if index == 13 else index,
-                "score": index / 20,
-            }
-            for index in range(1, 14)
+    def readiness_server(self, database_names=()):
+        status = MagicMock()
+        status.json.return_value = {"calculated": True}
+        databases = MagicMock()
+        databases.json.return_value = {
+            "data": [{"name": name} for name in database_names]
         }
-        runtime.model.predict.return_value = types.SimpleNamespace(
-            prediction=[
+
+        async def get(path):
+            return status if path == "/api/semantic-compilation/status" else databases
+
+        gsf = MagicMock(get=AsyncMock(side_effect=get), aclose=AsyncMock())
+        collection = MagicMock()
+        retriever = MagicMock(
+            get=AsyncMock(return_value=collection), aclose=AsyncMock()
+        )
+        return self.server(gsf, retriever), gsf, retriever
+
+    async def create_scope(self, server, datasets):
+        request = types.SimpleNamespace(
+            headers={"authorization": f"Bearer {self.TOKEN}"},
+            json=AsyncMock(return_value={"datasets": datasets, "ttl_seconds": 60}),
+        )
+        created = await server.routes["/scopes/create"](request)
+        return created["content"]["scope_token"]
+
+    def test_catalog_requires_an_explicit_active_dataset_without_disclosure(
+        self,
+    ) -> None:
+        catalog = MCP_ADAPTER.DatasetCatalog(self.manifest)
+        self.assertEqual(
+            ["documents", "predictions", "records"],
+            catalog.public_inventory()[0]["views"],
+        )
+        with self.assertRaisesRegex(MCP_ADAPTER.ToolError, "dataset_id is required"):
+            catalog.resolve("structured")
+        for identifier in ("hidden-pack", "not safe"):
+            with self.subTest(identifier=identifier):
+                with self.assertRaises(MCP_ADAPTER.ToolError) as raised:
+                    catalog.resolve("structured", identifier)
+                self.assertEqual("dataset is not active", str(raised.exception))
+                self.assertNotIn("alpha", str(raised.exception))
+
+        duplicate = Path(self.temporary.name) / "duplicate.json"
+        duplicate.write_text(
+            '{"schema_version":1,"schema_version":1,"fingerprint":"'
+            + "a" * 64
+            + '","datasets":[]}',
+            encoding="utf-8",
+        )
+        with self.assertRaisesRegex(RuntimeError, "invalid"):
+            MCP_ADAPTER.DatasetCatalog(duplicate)
+
+        value = json.loads(self.manifest.read_text(encoding="utf-8"))
+        value["datasets"][1]["bindings"]["retriever"]["collection"] = value["datasets"][
+            0
+        ]["bindings"]["retriever"]["collection"]
+        duplicate.write_text(json.dumps(value), encoding="utf-8")
+        with self.assertRaisesRegex(RuntimeError, "share"):
+            MCP_ADAPTER.DatasetCatalog(duplicate)
+
+    async def test_scopes_only_narrow_and_audit_dataset_attempts(self) -> None:
+        scopes = MCP_ADAPTER.ScopeStore(MCP_ADAPTER.DatasetCatalog(self.manifest))
+        with self.assertRaisesRegex(MCP_ADAPTER.ToolError, "source_scope is required"):
+            await scopes.resolve(None, "structured", "alpha", "ask_question")
+        with self.assertRaisesRegex(MCP_ADAPTER.ToolError, "source_scope is required"):
+            await scopes.public_inventory()
+        token = await scopes.create([{"id": "alpha", "views": ["records"]}], 60)
+        dataset = await scopes.resolve(token, "structured", "alpha", "ask_question")
+        self.assertEqual("alpha", dataset.id)
+        audit = await scopes.inspect(token)
+        self.assertEqual(
+            [{"tool": "ask_question", "dataset_id": "alpha"}],
+            audit["calls"],
+        )
+        self.assertEqual("attempted", audit["call_semantics"])
+        with self.assertRaisesRegex(MCP_ADAPTER.ToolError, "outside this source scope"):
+            await scopes.resolve(token, "documents", "beta", "query")
+        with self.assertRaisesRegex(MCP_ADAPTER.ToolError, "view is outside"):
+            await scopes.resolve(token, "documents", "alpha", "query")
+        revoked = await scopes.inspect(token, revoke=True)
+        self.assertEqual(audit["calls"], revoked["calls"])
+        with self.assertRaisesRegex(MCP_ADAPTER.ToolError, "invalid or expired"):
+            await scopes.resolve(token, "structured", "alpha", "ask_question")
+
+    async def test_active_scope_blocks_single_dataset_unscoped_bypass(self) -> None:
+        value = json.loads(self.manifest.read_text(encoding="utf-8"))
+        value["datasets"] = value["datasets"][:1]
+        self.manifest.write_text(json.dumps(value), encoding="utf-8")
+        scopes = MCP_ADAPTER.ScopeStore(MCP_ADAPTER.DatasetCatalog(self.manifest))
+
+        dataset = await scopes.resolve(None, "structured", None, "ask_question")
+        self.assertEqual("alpha", dataset.id)
+
+        view_only = await scopes.create([{"id": "alpha", "views": ["documents"]}], 60)
+        with self.assertRaisesRegex(MCP_ADAPTER.ToolError, "source_scope is required"):
+            await scopes.resolve(None, "structured", None, "ask_question")
+        with self.assertRaisesRegex(MCP_ADAPTER.ToolError, "source_scope is required"):
+            await scopes.public_inventory()
+        await scopes.inspect(view_only, revoke=True)
+        self.assertEqual(
+            "alpha",
+            (await scopes.resolve(None, "structured", None, "ask_question")).id,
+        )
+
+        deny_all = await scopes.create([], 60)
+        with self.assertRaisesRegex(MCP_ADAPTER.ToolError, "source_scope is required"):
+            await scopes.resolve(None, "structured", None, "ask_question")
+        scopes._scopes[scopes._key(deny_all)].expires_at = MCP_ADAPTER.datetime.now(
+            MCP_ADAPTER.UTC
+        ) - MCP_ADAPTER.timedelta(seconds=1)
+        self.assertEqual(
+            "alpha",
+            (await scopes.resolve(None, "structured", None, "ask_question")).id,
+        )
+
+    async def test_scope_control_routes_require_the_facade_bearer(self) -> None:
+        gsf = MagicMock(aclose=AsyncMock())
+        retriever = MagicMock(aclose=AsyncMock())
+        routes = self.server(gsf, retriever).routes
+        request = types.SimpleNamespace(headers={}, json=AsyncMock())
+        denied = await routes["/scopes/create"](request)
+        self.assertEqual(401, denied["status_code"])
+        request.json.assert_not_awaited()
+
+        request = types.SimpleNamespace(
+            headers={"authorization": f"Bearer {self.TOKEN}"},
+            json=AsyncMock(
+                return_value={
+                    "datasets": [{"id": "alpha", "views": ["records"]}],
+                    "ttl_seconds": 60,
+                }
+            ),
+        )
+        created = await routes["/scopes/create"](request)
+        self.assertIn("scope_token", created["content"])
+
+        request = types.SimpleNamespace(
+            headers={"authorization": f"Bearer {self.TOKEN}"},
+            json=AsyncMock(return_value={"datasets": {"id": "alpha"}}),
+        )
+        malformed = await routes["/scopes/create"](request)
+        self.assertEqual(400, malformed["status_code"])
+
+        for datasets in (
+            [{"id": [], "views": ["records"]}],
+            [{"id": "alpha", "views": [{}]}],
+        ):
+            with self.subTest(datasets=datasets):
+                request = types.SimpleNamespace(
+                    headers={"authorization": f"Bearer {self.TOKEN}"},
+                    json=AsyncMock(return_value={"datasets": datasets}),
+                )
+                malformed = await routes["/scopes/create"](request)
+                self.assertEqual(400, malformed["status_code"])
+
+    async def test_scoped_readiness_filters_dataset_inventory_without_recording(
+        self,
+    ) -> None:
+        server, _gsf, _retriever = self.readiness_server(
+            ("alpha_records", "alpha_predictions")
+        )
+        token = await self.create_scope(
+            server,
+            [
                 {
-                    "ENTITY": "PO-EVAL-001",
-                    "ANCHOR_TIMESTAMP": "2026-05-31T00:00:00+00:00",
-                    "TRUE_PROB": 0.25,
-                    "UNEXPECTED": "not returned",
+                    "id": "alpha",
+                    "views": ["records", "documents", "predictions"],
                 }
             ],
-            details={
-                "format": "kumo_rfm_v2_1",
-                "details": {
-                    "task_type": "binary_classification",
-                    "cohorts": ["not returned"],
-                    "subgraphs": [
-                        {
-                            "tables": {
-                                "purchase_orders": {
-                                    "0": {
-                                        "cells": cells,
-                                        "links": {"not": "returned"},
-                                    }
-                                }
-                            },
-                            "context_examples": ["not returned"],
-                        }
-                    ],
-                },
-            },
         )
-        tools = self.kumo_tools(runtime)
-        result = await tools["explain"](
-            pql=MCP_ADAPTER.KUMO_PREDICTION_PQL,
-            entity_id="PO-EVAL-001",
-        )
-        runtime.model.predict.assert_called_once_with(
-            MCP_ADAPTER.KUMO_PREDICTION_PQL,
-            indices=["PO-EVAL-001"],
-            anchor_time=runtime.prediction_cutoff,
-            run_mode="fast",
-            explain={"skip_summary": True},
-        )
-        self.assertEqual("PO-EVAL-001", result["entity_id"])
+
+        readiness = await server.tools["check_readiness"](scope_token=token)
+
+        self.assertNotIn("selection_fingerprint", readiness)
+        self.assertEqual(["alpha"], [item["id"] for item in readiness["datasets"]])
         self.assertEqual(
-            {
-                "entity_id": "PO-EVAL-001",
-                "anchor_timestamp": "2026-05-31T00:00:00+00:00",
-                "late_probability": 0.25,
-            },
-            result["prediction"],
+            ["documents", "predictions", "records"],
+            readiness["datasets"][0]["views"],
         )
-        factors = result["explanation"]["factors"]
-        self.assertEqual(12, len(factors))
-        self.assertEqual("factor_13", factors[0]["column"])
-        self.assertEqual(256, len(factors[0]["value"]))
-        self.assertTrue(result["explanation"]["truncated"])
-        serialized = json.dumps(result)
-        self.assertNotIn("context_examples", serialized)
-        self.assertNotIn("links", serialized)
-        self.assertNotIn("UNEXPECTED", serialized)
-        runtime.model.predict.return_value.prediction[0]["ENTITY"] = "PO-EVAL-999"
-        with self.assertRaisesRegex(MCP_ADAPTER.ToolError, "Kumo explanation failed"):
-            await tools["explain"](
-                pql=MCP_ADAPTER.KUMO_PREDICTION_PQL,
-                entity_id="PO-EVAL-001",
+        request = types.SimpleNamespace(
+            headers={"authorization": f"Bearer {self.TOKEN}"},
+            json=AsyncMock(return_value={"scope_token": token}),
+        )
+        audit = await server.routes["/scopes/read"](request)
+        self.assertEqual([], audit["content"]["calls"])
+        self.assertEqual("attempted", audit["content"]["call_semantics"])
+
+    async def test_scoped_readiness_filters_hidden_views(self) -> None:
+        server, gsf, retriever = self.readiness_server()
+        token = await self.create_scope(
+            server, [{"id": "alpha", "views": ["documents"]}]
+        )
+
+        readiness = await server.tools["check_readiness"](scope_token=token)
+
+        self.assertTrue(readiness["ready"])
+        self.assertEqual(["documents"], readiness["datasets"][0]["views"])
+        self.assertEqual({"documents": True}, readiness["datasets"][0]["readiness"])
+        gsf.get.assert_not_awaited()
+        retriever.get.assert_awaited_once_with("/v1/collections/alpha_documents")
+        retriever.get.return_value.raise_for_status.assert_called_once_with()
+
+    async def test_prediction_readiness_requires_a_matching_receipt(self) -> None:
+        async def readiness() -> bool:
+            server, _gsf, _retriever = self.readiness_server(
+                ("alpha_records", "alpha_predictions")
+            )
+            token = await self.create_scope(
+                server, [{"id": "alpha", "views": ["predictions"]}]
+            )
+            result = await server.tools["check_readiness"](scope_token=token)
+            return result["datasets"][0]["readiness"]["predictions"]
+
+        self.assertFalse(await readiness())
+        receipt = self.manifest.parent / "prediction-qualified.json"
+        receipt.write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "selection_fingerprint": "b" * 64,
+                    "databases": ["alpha_predictions"],
+                }
+            ),
+            encoding="utf-8",
+        )
+        self.assertFalse(await readiness())
+        receipt.write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "selection_fingerprint": "a" * 64,
+                    "databases": ["alpha_predictions"],
+                }
+            ),
+            encoding="utf-8",
+        )
+        self.assertTrue(await readiness())
+
+    async def test_scoped_readiness_accepts_and_validates_dataset_id(self) -> None:
+        server, _gsf, _retriever = self.readiness_server(("alpha_records",))
+        token = await self.create_scope(
+            server,
+            [
+                {"id": "alpha", "views": ["records"]},
+                {"id": "beta", "views": ["documents"]},
+            ],
+        )
+
+        readiness = await server.tools["check_readiness"](
+            dataset_id="alpha", scope_token=token
+        )
+
+        self.assertEqual(["alpha"], [item["id"] for item in readiness["datasets"]])
+        with self.assertRaisesRegex(MCP_ADAPTER.ToolError, "outside this source scope"):
+            await server.tools["check_readiness"](
+                dataset_id="hidden", scope_token=token
             )
 
-    async def test_kumo_upstream_failures_do_not_expose_details(self) -> None:
-        secret = "upstream-secret-and-internal-host"
-        runtime = self.FakeKumoRuntime(RuntimeError(secret))
-        tools = self.kumo_tools(runtime)
-        with self.assertRaises(MCP_ADAPTER.ToolError) as prediction:
-            await tools["predict"](
-                pql=MCP_ADAPTER.KUMO_PREDICTION_PQL,
-                entity_ids=["PO-EVAL-001"],
-            )
-        self.assertEqual("Kumo prediction failed", str(prediction.exception))
-        self.assertNotIn(secret, str(prediction.exception))
+    async def test_scoped_readiness_rejects_an_invalid_token_before_discovery(
+        self,
+    ) -> None:
+        server, gsf, _retriever = self.readiness_server()
 
-        with self.assertRaises(MCP_ADAPTER.ToolError) as explanation:
-            await tools["explain"](
-                pql=MCP_ADAPTER.KUMO_PREDICTION_PQL,
-                entity_id="PO-EVAL-001",
-            )
-        self.assertEqual("Kumo explanation failed", str(explanation.exception))
-        self.assertNotIn(secret, str(explanation.exception))
+        with self.assertRaisesRegex(MCP_ADAPTER.ToolError, "invalid or expired"):
+            await server.tools["check_readiness"](scope_token="invalid")
 
-    async def test_kumo_readiness_failure_is_redacted(self) -> None:
-        secret = "private-readiness-diagnostic"
-        runtime = self.FakeKumoRuntime(RuntimeError(secret))
-        runtime.model = None
-        tools = self.kumo_tools(runtime)
-        with self.assertRaises(MCP_ADAPTER.ToolError) as raised:
-            await tools["inspect_graph_metadata"]()
-        self.assertEqual("Kumo service is unavailable", str(raised.exception))
-        self.assertNotIn(secret, str(raised.exception))
+        gsf.get.assert_not_awaited()
 
-    async def test_ontology_stream_error_is_redacted(self) -> None:
-        secret = "database-secret-and-internal-host"
+    async def test_deny_all_scope_is_ready_but_denies_every_data_tool(self) -> None:
+        server, gsf, _retriever = self.readiness_server()
+        token = await self.create_scope(server, [])
 
-        class Response:
+        readiness = await server.tools["check_readiness"](scope_token=token)
+
+        self.assertTrue(readiness["ready"])
+        self.assertNotIn("selection_fingerprint", readiness)
+        self.assertEqual([], readiness["datasets"])
+        gsf.get.assert_not_awaited()
+        for tool_name in ("check_answerable", "ask_question", "query", "predict"):
+            with self.subTest(tool=tool_name):
+                with self.assertRaisesRegex(
+                    MCP_ADAPTER.ToolError, "no datasets are available"
+                ):
+                    await server.tools[tool_name](
+                        "question", dataset_id="alpha", scope_token=token
+                    )
+
+    async def test_facade_forces_dataset_bindings_and_bounds_results(self) -> None:
+        rows = [{"record_id": index} for index in range(30)]
+        prediction_database = "alpha_predictions"
+
+        class StreamResponse:
             async def __aenter__(self):
                 return self
 
@@ -856,195 +787,164 @@ class QueryClawAdapterSecurityTests(unittest.IsolatedAsyncioTestCase):
                 return False
 
             def raise_for_status(self):
-                pass
+                return None
+
+            async def aiter_lines(self):
+                answer = {
+                    "sql_code": "SELECT record_id FROM records",
+                    "sql_response_from_db": rows,
+                    "response": "bounded answer",
+                    "graph_receipt": {"database_name": prediction_database},
+                }
+                yield "data: " + json.dumps({"type": "result", "answer": answer})
+
+        gsf = MagicMock()
+        gsf.stream.return_value = StreamResponse()
+        gsf.aclose = AsyncMock()
+        retriever_response = MagicMock()
+        retriever_response.json.return_value = {
+            "dataset_id": "attempted-overwrite",
+            "results": [
+                {
+                    "evidence": [
+                        {
+                            "text": "notice",
+                            "source": "doc-1",
+                            "locator": {"kind": "page", "value": 1},
+                        }
+                    ]
+                }
+            ],
+        }
+        retriever = MagicMock()
+        retriever.post = AsyncMock(return_value=retriever_response)
+        retriever.aclose = AsyncMock()
+        server = self.server(gsf, retriever)
+        tools = server.tools
+        self.assertEqual([110, 110], self.client_timeouts)
+        self.assertEqual(
+            {"check_readiness", "check_answerable", "ask_question", "query", "predict"},
+            set(tools),
+        )
+        scope_token = await self.create_scope(
+            server,
+            [
+                {"id": "alpha", "views": ["records", "predictions"]},
+                {"id": "beta", "views": ["documents"]},
+            ],
+        )
+
+        real_timeout = MCP_ADAPTER.asyncio.timeout
+        with patch.object(
+            MCP_ADAPTER.asyncio, "timeout", side_effect=real_timeout
+        ) as total_timeout:
+            structured = await tools["ask_question"](
+                "List records", "alpha", scope_token=scope_token
+            )
+        total_timeout.assert_called_once_with(110)
+        self.assertEqual("alpha", structured["dataset_id"])
+        self.assertEqual(25, len(structured["rows"]))
+        self.assertEqual(30, structured["row_count"])
+        self.assertTrue(structured["truncated"])
+        self.assertEqual(
+            "alpha_records", gsf.stream.call_args.kwargs["json"]["target_db"]
+        )
+
+        documents = await tools["query"](
+            "Find the notice", "beta", scope_token=scope_token, top_k=5
+        )
+        self.assertEqual("beta", documents["dataset_id"])
+        self.assertEqual("notice", documents["results"][0]["evidence"][0]["text"])
+        retriever.post.assert_awaited_once_with(
+            "/v1/query",
+            json={
+                "query": "Find the notice",
+                "top_k": 5,
+                "format": "evidence",
+                "rerank": False,
+                "collection_name": "beta_documents",
+            },
+        )
+
+        prediction = await tools["predict"](
+            "What happens next?", "alpha", scope_token=scope_token
+        )
+        payload = gsf.stream.call_args.kwargs["json"]
+        self.assertEqual(
+            {
+                "question": "What happens next?",
+                "prediction": True,
+                "target_db": "alpha_predictions",
+            },
+            payload,
+        )
+        self.assertEqual("alpha", prediction["dataset_id"])
+
+        prediction_database = "beta_predictions"
+        with self.assertRaisesRegex(
+            MCP_ADAPTER.ToolError, "prediction source did not match"
+        ):
+            await tools["predict"](
+                "What happens next?", "alpha", scope_token=scope_token
+            )
+
+    async def test_upstream_errors_are_redacted(self) -> None:
+        secret = "private-upstream-host-and-secret"
+
+        class ErrorStream:
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *_args):
+                return False
+
+            def raise_for_status(self):
+                return None
 
             async def aiter_lines(self):
                 yield "data: " + json.dumps({"type": "error", "message": secret})
 
-        client = MagicMock()
-        client.stream.return_value = Response()
-        with (
-            patch.object(MCP_ADAPTER.httpx, "AsyncClient", return_value=client),
-            patch.dict(
-                MCP_ADAPTER.os.environ,
-                {"MCP_BEARER_TOKEN": self.TOKEN},
-                clear=False,
-            ),
-        ):
-            tools = MCP_ADAPTER.ontology_server().tools
-        with self.assertRaises(MCP_ADAPTER.ToolError) as raised:
-            await tools["ask_question"]("Which supplier is at risk?")
-        self.assertEqual("Ontology agent failed", str(raised.exception))
-        self.assertNotIn(secret, str(raised.exception))
-        sent_question = client.stream.call_args.kwargs["json"]["question"]
-        self.assertTrue(sent_question.startswith("Which supplier is at risk?\n\n"))
-        self.assertIn("never compare an identifier column", sent_question)
-        self.assertIn("stable entity identifier columns", sent_question)
+        gsf = MagicMock()
+        gsf.stream.return_value = ErrorStream()
+        gsf.aclose = AsyncMock()
+        retriever_response = MagicMock()
+        retriever_response.raise_for_status.side_effect = MCP_ADAPTER.httpx.HTTPError(
+            secret
+        )
+        retriever = MagicMock()
+        retriever.post = AsyncMock(return_value=retriever_response)
+        retriever.aclose = AsyncMock()
+        server = self.server(gsf, retriever)
+        tools = server.tools
+        scope_token = await self.create_scope(
+            server,
+            [
+                {"id": "alpha", "views": ["records"]},
+                {"id": "beta", "views": ["documents"]},
+            ],
+        )
 
-    async def test_ontology_rejects_rows_outside_an_explicit_entity_filter(
-        self,
-    ) -> None:
-        class Response:
-            async def __aenter__(self):
-                return self
+        with self.assertRaises(MCP_ADAPTER.ToolError) as ontology:
+            await tools["ask_question"]("question", "alpha", scope_token=scope_token)
+        self.assertEqual("Ontology agent failed", str(ontology.exception))
+        with self.assertRaises(MCP_ADAPTER.ToolError) as documents:
+            await tools["query"]("question", "beta", scope_token=scope_token)
+        self.assertEqual("Retriever query failed", str(documents.exception))
+        self.assertNotIn(secret, str(ontology.exception) + str(documents.exception))
 
-            async def __aexit__(self, *_args):
-                return False
-
-            def raise_for_status(self):
-                pass
-
-            async def aiter_lines(self):
-                result = {
-                    "type": "result",
-                    "answer": {
-                        "sql_code": "SELECT amount_usd FROM purchase_orders",
-                        "sql_response_from_db": [
-                            {"supplier_id": "SUP-008", "amount_usd": 100}
-                        ],
-                    },
-                }
-                yield "data: " + json.dumps(result)
-
-        client = MagicMock()
-        client.stream.return_value = Response()
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            for name, contents in {
-                "suppliers.csv": "supplier_id,supplier_name\nSUP-007,Atlas Circuits\n",
-                "facilities.csv": "facility_id,name\nFAC-ATL,Atlanta Assembly\n",
-                "products.csv": "product_id,name\nPRD-CTRL,Control module\n",
-            }.items():
-                (root / name).write_text(contents, encoding="utf-8")
-            with (
-                patch.object(MCP_ADAPTER.httpx, "AsyncClient", return_value=client),
-                patch.dict(
-                    MCP_ADAPTER.os.environ,
-                    {
-                        "MCP_BEARER_TOKEN": self.TOKEN,
-                        "QUERY_CLAW_DATA_DIR": str(root),
-                    },
-                    clear=False,
-                ),
-            ):
-                tools = MCP_ADAPTER.ontology_server().tools
-            with self.assertRaisesRegex(
-                MCP_ADAPTER.ToolError, "outside the requested entity filters"
-            ):
-                await tools["ask_question"](
-                    "Show Atlas Circuits orders",
-                    entity_filters=["Atlas Circuits"],
-                )
-
-        sent_question = client.stream.call_args.kwargs["json"]["question"]
-        self.assertIn('"id":"SUP-007"', sent_question)
-        self.assertIn('"id_field":"supplier_id"', sent_question)
-
-    async def test_ontology_requires_verifiable_rows_for_entity_filters(self) -> None:
-        missing = object()
-
-        async def invoke(rows, entity_filters=("Atlas Circuits",)):
-            answer = {"sql_code": "SELECT supplier_id FROM suppliers"}
-            if rows is not missing:
-                answer["sql_response_from_db"] = rows
-
-            class Response:
-                async def __aenter__(self):
-                    return self
-
-                async def __aexit__(self, *_args):
-                    return False
-
-                def raise_for_status(self):
-                    pass
-
-                async def aiter_lines(self):
-                    yield "data: " + json.dumps({"type": "result", "answer": answer})
-
-            client = MagicMock()
-            client.stream.return_value = Response()
-            with tempfile.TemporaryDirectory() as temporary:
-                root = Path(temporary)
-                for name, contents in {
-                    "suppliers.csv": (
-                        "supplier_id,supplier_name\nSUP-007,Atlas Circuits\n"
-                    ),
-                    "facilities.csv": "facility_id,name\nFAC-ATL,Atlanta Assembly\n",
-                    "products.csv": "product_id,name\nPRD-CTRL,Control module\n",
-                }.items():
-                    (root / name).write_text(contents, encoding="utf-8")
-                with (
-                    patch.object(MCP_ADAPTER.httpx, "AsyncClient", return_value=client),
-                    patch.dict(
-                        MCP_ADAPTER.os.environ,
-                        {
-                            "MCP_BEARER_TOKEN": self.TOKEN,
-                            "QUERY_CLAW_DATA_DIR": str(root),
-                        },
-                        clear=False,
-                    ),
-                ):
-                    tools = MCP_ADAPTER.ontology_server().tools
-                return await tools["ask_question"](
-                    "Show Atlas Circuits orders",
-                    entity_filters=list(entity_filters),
-                )
-
-        for rows in (missing, ["not-json"], {"unexpected": "object"}):
-            with (
-                self.subTest(rows=rows),
-                self.assertRaisesRegex(MCP_ADAPTER.ToolError, "invalid rows"),
-            ):
-                await invoke(rows)
-            with (
-                self.subTest(rows=rows, unfiltered=True),
-                self.assertRaisesRegex(MCP_ADAPTER.ToolError, "invalid rows"),
-            ):
-                await invoke(rows, entity_filters=())
-
-        with self.assertRaisesRegex(MCP_ADAPTER.ToolError, "no verifiable rows"):
-            await invoke([])
-
-        result = await invoke([{"supplier_id": "SUP-007", "amount_usd": 100}])
-        self.assertEqual("SUP-007", result["rows"][0]["supplier_id"])
-
-    async def test_ontology_caps_rows_and_omits_unbounded_upstream_prose(self) -> None:
-        rows = [{"supplier_id": f"SUP-{index:03d}"} for index in range(26)]
-
-        class Response:
-            async def __aenter__(self):
-                return self
-
-            async def __aexit__(self, *_args):
-                return False
-
-            def raise_for_status(self):
-                pass
-
-            async def aiter_lines(self):
-                answer = {
-                    "response": "UNBOUNDED-SENTINEL",
-                    "sql_code": "SELECT supplier_id FROM suppliers",
-                    "sql_response_from_db": rows,
-                }
-                yield "data: " + json.dumps({"type": "result", "answer": answer})
-
-        client = MagicMock()
-        client.stream.return_value = Response()
-        with (
-            patch.object(MCP_ADAPTER.httpx, "AsyncClient", return_value=client),
-            patch.dict(
-                MCP_ADAPTER.os.environ,
-                {"MCP_BEARER_TOKEN": self.TOKEN},
-                clear=False,
-            ),
-        ):
-            tools = MCP_ADAPTER.ontology_server().tools
-        result = await tools["ask_question"]("List suppliers")
-        self.assertEqual(25, len(result["rows"]))
-        self.assertEqual(26, result["row_count"])
-        self.assertTrue(result["truncated"])
-        self.assertNotIn("answer", result)
+        request = types.SimpleNamespace(
+            headers={"authorization": f"Bearer {self.TOKEN}"},
+            json=AsyncMock(return_value={"scope_token": scope_token}),
+        )
+        audit = await server.routes["/scopes/read"](request)
+        self.assertEqual(
+            [
+                {"tool": "ask_question", "dataset_id": "alpha"},
+                {"tool": "query", "dataset_id": "beta"},
+            ],
+            audit["content"]["calls"],
+        )
+        self.assertEqual("attempted", audit["content"]["call_semantics"])
 
 
 class QueryClawLiveEvaluatorTests(unittest.TestCase):
@@ -1318,12 +1218,6 @@ class QueryClawLiveEvaluatorTests(unittest.TestCase):
                 )
             ],
             (
-                "route-order",
-                predictive,
-                list(reversed(predictive.order)),
-                "out of order",
-            ),
-            (
                 "repeated-query",
                 unstructured,
                 [*unstructured.order, *unstructured.order, *unstructured.order],
@@ -1340,7 +1234,7 @@ class QueryClawLiveEvaluatorTests(unittest.TestCase):
                 structured,
                 [
                     *structured.order,
-                    LIVE_EVALUATOR.tool("ontology", "check_readiness"),
+                    LIVE_EVALUATOR.tool("ontology", "check_answerable"),
                 ],
                 "unexpected successful tools",
             ),
