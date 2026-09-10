@@ -1721,7 +1721,9 @@ class QueryClawLiveEvaluatorTests(unittest.TestCase):
                     LIVE_EVALUATOR,
                     "run_case",
                     return_value=LIVE_EVALUATOR.RunResult(
-                        (LIVE_EVALUATOR.tool("ontology", "ask_question"),), answer
+                        (LIVE_EVALUATOR.tool("ontology", "ask_question"),),
+                        answer,
+                        response_class="answer",
                     ),
                 ),
                 patch.object(judge, "score_answer", return_value=judged) as score,

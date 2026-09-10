@@ -19,7 +19,8 @@ the operator selected records only, never call Retriever or predictions.
 3. Use `mcp__query_claw__check_answerable` only when coverage is uncertain,
    with the same `dataset_id` and optional `scope_token`. Use
    `mcp__query_claw__check_readiness` only for initial discovery or to diagnose
-   a service error.
+   a service error. Coverage is not answer evidence: after a positive coverage
+   result, call `mcp__query_claw__ask_question` before answering.
 4. Treat returned rows as observed evidence at the source timestamp. Preserve
    entity or query IDs, row count, and truncation. Narrow a truncated query
    before claiming completeness. Ask Ontology only for domain fields and their

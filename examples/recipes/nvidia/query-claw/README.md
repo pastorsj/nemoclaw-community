@@ -403,7 +403,7 @@ PASS temporal boundary   24 prediction labels withheld after cutoff
 PASS tool contracts      3 contract-bounded routes
 PASS routing skills      5 focused skills; one shared evidence contract
 Query Claw local verification: 6/6 checks passed
-Ran 81 tests ... OK
+Ran 82 tests ... OK
 PASS: Query Claw native lifecycle command contracts
 PASS: Query Claw deployment release contracts
 ```

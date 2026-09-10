@@ -13,5 +13,7 @@ Join views only on confirmed shared IDs. Report conflicts instead of choosing a
 convenient value. An attribution describes model influence, not causation. If
 one view fails, return a partial answer only when its reduced scope is explicit.
 
-Include decisive evidence and uncertainty, not raw traces or hidden reasoning.
-End with the `Sources used:` line defined by the coordinator skill.
+Before synthesis, retain at least one decisive fact and returned source ID or
+locator from every view used. Include decisive evidence and uncertainty, not
+raw traces or hidden reasoning. End with the `Sources used:` line defined by
+the coordinator skill.

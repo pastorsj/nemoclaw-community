@@ -101,6 +101,40 @@ class EvaluateLiveV3Tests(unittest.TestCase):
             ),
         )
 
+        existential = (
+            "There are no datasets available, so I cannot retrieve evidence. "
+            "Would you like to configure one?"
+        )
+        self.assertEqual(
+            "abstention",
+            EVALUATOR.classify_response(
+                existential, {"status": "completed", "output": existential}
+            ),
+        )
+
+    def test_only_concise_information_requests_are_clarifications(self) -> None:
+        self.assertEqual(
+            {"answer", "abstention"}, EVALUATOR.JUDGED_RESPONSE_CLASSES
+        )
+        clarification = "Which dataset should I use?"
+        self.assertEqual(
+            "clarification",
+            EVALUATOR.classify_response(
+                clarification, {"status": "completed", "output": clarification}
+            ),
+        )
+
+        answer = " ".join(
+            ["Query Claw can inspect governed records and cited documents."] * 10
+        ) + " Which source would you like to explore?"
+        self.assertGreater(len(answer.split()), EVALUATOR.MAX_CLARIFICATION_WORDS)
+        self.assertEqual(
+            "answer",
+            EVALUATOR.classify_response(
+                answer, {"status": "completed", "output": answer}
+            ),
+        )
+
     def test_source_issued_qualifier_does_not_make_an_answer_an_abstention(
         self,
     ) -> None:

@@ -695,7 +695,7 @@ def query_claw_server() -> FastMCP:
         dataset_id: str | None = None,
         scope_token: str | None = None,
     ) -> dict[str, Any]:
-        """Estimate governed structured coverage for one scoped dataset."""
+        """Check structured coverage; a positive result requires ask_question."""
         dataset = await scopes.resolve(
             scope_token, "structured", dataset_id, "check_answerable"
         )
@@ -768,7 +768,7 @@ def query_claw_server() -> FastMCP:
         dataset_id: str | None = None,
         scope_token: str | None = None,
     ) -> dict[str, Any]:
-        """Run one governed Kumo-backed prediction for one active dataset."""
+        """Predict only with an explicit target, population/entity, and horizon."""
         dataset = await scopes.resolve(
             scope_token, "predictions", dataset_id, "predict"
         )

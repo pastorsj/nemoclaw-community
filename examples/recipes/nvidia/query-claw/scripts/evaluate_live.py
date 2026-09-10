@@ -41,6 +41,7 @@ EVALUATOR_VERSION = 3
 READ_ONLY_SCAFFOLD_TOOLS = frozenset({"skills_list", "skill_view"})
 DATASET_VIEWS = frozenset({"records", "documents", "predictions"})
 RESPONSE_CLASSES = frozenset({"answer", "clarification", "abstention", "error"})
+JUDGED_RESPONSE_CLASSES = frozenset({"answer", "abstention"})
 VIEW_ROUTES = {
     "records": "ontology",
     "documents": "retriever",
@@ -49,9 +50,12 @@ VIEW_ROUTES = {
 MAX_CALCULATION_CODE_CHARS = 2_000
 MAX_CALCULATION_AST_NODES = 512
 MAX_CALCULATION_STATEMENTS = 64
+MAX_CLARIFICATION_WORDS = 80
 NO_DATASET_PATTERN = (
-    r"\bno (?:query claw )?(?:dataset|data set|source)s? (?:is|are) "
-    r"(?:currently )?(?:available|selected|configured)\b"
+    r"\b(?:no (?:query claw )?(?:dataset|data set|source)s? (?:is|are) "
+    r"(?:currently )?(?:available|selected|configured)|there (?:is|are) no "
+    r"(?:query claw )?(?:dataset|data set|source)s? "
+    r"(?:currently )?(?:available|selected|configured))\b"
 )
 ABSTENTION_PATTERNS = (
     r"\b(?:cannot|can't|unable to|won't|will not) "
@@ -941,8 +945,12 @@ def classify_response(output: str, status: dict[str, Any]) -> str:
         output.rstrip(),
     ).rstrip()
     folded = substantive.casefold().translate(str.maketrans({"’": "'", "‘": "'"}))
-    if substantive.endswith("?") or any(
-        re.search(pattern, folded) for pattern in CLARIFICATION_PATTERNS
+    if re.search(NO_DATASET_PATTERN, folded):
+        return "abstention"
+    is_concise = len(substantive.split()) <= MAX_CLARIFICATION_WORDS
+    if is_concise and (
+        substantive.endswith("?")
+        or any(re.search(pattern, folded) for pattern in CLARIFICATION_PATTERNS)
     ):
         return "clarification"
     if any(re.search(pattern, folded) for pattern in RESPONSE_ABSTENTION_PATTERNS):
@@ -1780,7 +1788,7 @@ def main() -> int:
                 scope_client=scope_client,
                 scope_ttl=args.scope_ttl,
             )
-            if args.judge and result.response_class != "error":
+            if args.judge and result.response_class in JUDGED_RESPONSE_CLASSES:
                 try:
                     judge_result = evaluation_judge.score_answer(
                         base_url=args.judge_base_url,
