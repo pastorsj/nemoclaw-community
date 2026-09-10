@@ -161,8 +161,11 @@ invocation without exposing suite contents. `declared_stack_versions` records
 the recipe pins, and `declared_model` records the optional model value from the
 evaluator environment; neither field is a live attestation of the running
 sandbox. Judge runs also record the model actually requested from the judge and
-the rubric version. Each route query tool may make one initial call and at most
-one corrective retry; a third call fails the case.
+the rubric version. In schema-v3 cases, each route query tool may make one
+initial call and at most one corrective retry per granted dataset; the
+source-scope audit rejects a third call to the same tool/dataset pair. The
+event stream applies the equivalent aggregate ceiling before that audit.
+Legacy cases retain the two-call limit per query tool.
 The `tools` list still preserves execution order and repeated calls in failed
 receipts so loops remain visible during diagnosis.
 

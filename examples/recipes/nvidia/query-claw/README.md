@@ -440,8 +440,10 @@ strict-code calculation, hybrid, and abstention behavior. Each isolated session
 is deleted after its final status is checked. The evaluator grants only one
 non-persistent approval for a statically bounded arithmetic script with one
 printed numeric result; repeated calculations, unexpected approvals or tools,
-more than one corrective route retry, web fallback, errors, and missing
-evidence fail closed.
+more than one corrective retry of the same route tool for the same dataset,
+web fallback, errors, and missing evidence fail closed. Schema-v3 cases scale
+the aggregate event-stream ceiling with the datasets granted to that route,
+while the source-scope audit retains the per-tool, per-dataset bound.
 
 The latest Brev arm64 qualification on 2026-09-07 passed all six smoke cases
 and all six companion scenarios through the stock Hermes 0.20.6 integration.

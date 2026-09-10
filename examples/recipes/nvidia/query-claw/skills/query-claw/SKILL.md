@@ -62,6 +62,8 @@ The available views can differ by dataset. Use `query-claw-structured`,
   coverage is inadequate. Coverage checking is diagnostic, not answer evidence.
 - On a successful route, call each selected query tool once. Do not repeat a
   query merely to double-check it.
+- After one successful response per planned dataset/view, synthesize
+  immediately; retry only a failed, empty, or truncated call.
 - For a multi-view request, give each tool only its complete route-specific
   subquestion. Preserve every field, value, date, population, ranking, and
   other filter that applies to that view; do not send one view's request to

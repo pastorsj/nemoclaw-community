@@ -17,6 +17,7 @@ import re
 import ssl
 import sys
 import time
+import unicodedata
 import uuid
 from collections import Counter
 from dataclasses import dataclass
@@ -958,6 +959,21 @@ def classify_response(output: str, status: dict[str, Any]) -> str:
     return "answer"
 
 
+def contains_literal(text: str, literal: str) -> bool:
+    """Match an NFKC/casefolded literal without crossing alphanumeric edges."""
+    normalized_text = unicodedata.normalize("NFKC", text).casefold()
+    normalized_literal = unicodedata.normalize("NFKC", literal).casefold()
+    if not normalized_literal:
+        return False
+    pattern = re.escape(normalized_literal)
+    alphanumeric = r"[^\W_]"
+    if normalized_literal[0].isalnum():
+        pattern = f"(?<!{alphanumeric}){pattern}"
+    if normalized_literal[-1].isalnum():
+        pattern = f"{pattern}(?!{alphanumeric})"
+    return re.search(pattern, normalized_text) is not None
+
+
 def validate_answer(
     case: Case,
     event_output: str,
@@ -985,9 +1001,8 @@ def validate_answer(
             + ", ".join(sorted(case.response_classes))
         )
 
-    folded = output.casefold()
     fact_matches = (
-        [term.casefold() in folded for term in case.required_answer_terms]
+        [contains_literal(output, term) for term in case.required_answer_terms]
         if response_class == "answer"
         else []
     )
@@ -1000,7 +1015,10 @@ def validate_answer(
             f"answer omitted {count} expected deterministic evidence check(s)"
         )
     missing_citations = (
-        sum(term.casefold() not in folded for term in case.required_citation_terms)
+        sum(
+            not contains_literal(output, term)
+            for term in case.required_citation_terms
+        )
         if response_class == "answer"
         else 0
     )
@@ -1009,14 +1027,16 @@ def validate_answer(
             f"answer omitted {missing_citations} expected citation check(s)"
         )
     present_forbidden = [
-        term for term in case.forbidden_answer_terms if term.casefold() in folded
+        term
+        for term in case.forbidden_answer_terms
+        if contains_literal(output, term)
     ]
     if present_forbidden:
         raise EvaluationError(
             f"answer included {len(present_forbidden)} forbidden fact check(s)"
         )
 
-    normalized = folded.translate(str.maketrans({"’": "'", "‘": "'"}))
+    normalized = output.casefold().translate(str.maketrans({"’": "'", "‘": "'"}))
     if case.expect_abstention and not any(
         re.search(pattern, normalized) for pattern in ABSTENTION_PATTERNS
     ):
@@ -1067,16 +1087,23 @@ def validate_run(
 
     if started != completed:
         raise EvaluationError("tool start/completion events were not paired")
-    overused = [
-        name
-        for name, count in started.items()
-        if (name == "execute_code" and count > 1)
-        or (
-            name in case.allowed_query_tools
-            and name not in READ_ONLY_SCAFFOLD_TOOLS
-            and count > 2
-        )
-    ]
+    overused = []
+    for name, count in started.items():
+        if name == "execute_code" and count > 1:
+            overused.append(name)
+            continue
+        if name not in case.allowed_query_tools or name in READ_ONLY_SCAFFOLD_TOOLS:
+            continue
+        limit = 2
+        if case.response_classes:
+            route = route_for_tool(name)
+            granted_datasets = sum(
+                route in {VIEW_ROUTES[view] for view in dataset.views}
+                for dataset in case.datasets
+            )
+            limit = 2 * granted_datasets
+        if count > limit:
+            overused.append(name)
     if overused:
         raise EvaluationError(
             "tool exceeded its call bound: " + ", ".join(sorted(overused))
@@ -1366,6 +1393,15 @@ def validate_source_calls(
     ]
     if outside_views:
         raise EvaluationError("source-scope audit used a view outside the case")
+    call_counts = Counter(
+        (name, dataset_id)
+        for name, dataset_id in calls
+        if not source_call_is_scaffold(name)
+    )
+    if any(count > 2 for count in call_counts.values()):
+        raise EvaluationError(
+            "source-scope audit exceeded its per-dataset call bound"
+        )
     actual_routes = {
         route_for_source_call(name)
         for name, _dataset_id in calls

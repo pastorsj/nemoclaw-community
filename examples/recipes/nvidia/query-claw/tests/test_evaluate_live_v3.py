@@ -222,6 +222,37 @@ class EvaluateLiveV3Tests(unittest.TestCase):
                 {"status": "completed", "output": answer},
             )
 
+        self.assertTrue(
+            EVALUATOR.contains_literal("STABLE FACT at rec-1", "stable fact")
+        )
+        self.assertTrue(EVALUATOR.contains_literal("Value 42", "42"))
+        self.assertFalse(EVALUATOR.contains_literal("REC-10", "REC-1"))
+        self.assertFalse(EVALUATOR.contains_literal("Value 142", "42"))
+
+        literal_raw = _case(views=["records"])
+        literal_raw["expected"]["facts"] = ["42"]
+        literal_raw["expected"]["citations"] = ["REC-1"]
+        literal_raw["expected"]["forbidden_facts"] = ["BAD-1"]
+        _, literal_case = EVALUATOR.parse_suite_case(literal_raw, "fixture")
+        valid = "Value 42 is supported by rec-1; BAD-10 is unrelated."
+        EVALUATOR.validate_answer(
+            literal_case, valid, {"status": "completed", "output": valid}
+        )
+        for output, message in (
+            ("Value 142 is supported by REC-1.", "deterministic evidence"),
+            ("Value 42 is supported by REC-10.", "citation"),
+            ("Value 42 is supported by REC-1, not bad-1.", "forbidden fact"),
+        ):
+            with (
+                self.subTest(literal_output=output),
+                self.assertRaisesRegex(EVALUATOR.EvaluationError, message),
+            ):
+                EVALUATOR.validate_answer(
+                    literal_case,
+                    output,
+                    {"status": "completed", "output": output},
+                )
+
     def test_tool_failures_and_call_bounds_precede_answer_checks(self) -> None:
         _, case = EVALUATOR.parse_suite_case(_case(), "fixture")
         ontology = EVALUATOR.tool("ontology", "ask_question")
@@ -239,11 +270,52 @@ class EvaluateLiveV3Tests(unittest.TestCase):
                 {"status": "completed", "output": incomplete},
             )
 
+        multi_raw = _case(views=["records"])
+        multi_raw["datasets"] = [
+            {"id": "alpha", "views": ["records"]},
+            {"id": "beta", "views": ["records"]},
+        ]
+        _, multi_case = EVALUATOR.parse_suite_case(multi_raw, "fixture")
+        answer = "Stable fact REC-1"
+        EVALUATOR.validate_run(
+            multi_case,
+            _events([ontology] * 4, answer),
+            {"status": "completed", "output": answer},
+        )
+        audited = (
+            ("ask_question", "alpha"),
+            ("ask_question", "alpha"),
+            ("ask_question", "beta"),
+            ("ask_question", "beta"),
+        )
+        EVALUATOR.validate_source_calls(multi_case, audited)
+        with self.assertRaisesRegex(EVALUATOR.EvaluationError, "call bound"):
+            EVALUATOR.validate_source_calls(
+                multi_case,
+                (
+                    ("ask_question", "alpha"),
+                    ("ask_question", "alpha"),
+                    ("ask_question", "alpha"),
+                    ("ask_question", "beta"),
+                ),
+            )
         with self.assertRaisesRegex(EVALUATOR.EvaluationError, "call bound"):
             EVALUATOR.validate_run(
-                case,
-                _events([ontology, ontology, ontology], incomplete),
-                {"status": "completed", "output": incomplete},
+                multi_case,
+                _events([ontology] * 5, answer),
+                {"status": "completed", "output": answer},
+            )
+
+        legacy_case = EVALUATOR.Case(
+            prompt="Find the record.",
+            order=(ontology,),
+            required_tools=frozenset({ontology}),
+        )
+        with self.assertRaisesRegex(EVALUATOR.EvaluationError, "call bound"):
+            EVALUATOR.validate_run(
+                legacy_case,
+                _events([ontology] * 3, "Legacy answer"),
+                {"status": "completed", "output": "Legacy answer"},
             )
 
     def test_v3_response_classes_and_error_are_supported(self) -> None:
