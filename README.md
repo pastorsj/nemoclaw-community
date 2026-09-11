@@ -49,19 +49,19 @@ runtime health.
 
 Each example README declares its NemoClaw, harness, and OpenShell values. The
 catalog compares those declarations with recognized version variables in a
-root `Dockerfile*` or `agents/*/Dockerfile*`. A reviewed exact NemoClaw release
-and a recognized harness selection can also supply the stock harness and
-OpenShell versions through the checked-in
+root `Dockerfile*`, `agents/*/Dockerfile*`, or the standard stock-Hermes
+`deploy/setup-hermes.sh`. A reviewed exact NemoClaw release and a recognized
+harness selection can also supply the stock harness and OpenShell versions through the checked-in
 [release contracts](scripts/nemoclaw-release-contracts.json). The build does
 not run the example or guess values from custom file layouts.
 
 | Status | Meaning |
 | --- | --- |
-| `Confirmed` | Exact README values agree with recognized Dockerfile evidence. |
+| `Confirmed` | Exact README values agree with recognized implementation evidence. |
 | `Unconfirmed` | Exact values appear only in the README. |
 | `Unpinned` | A participating version is a range or mutable value. |
 | `Unknown` | The harness or a required version cannot be determined. |
-| `Conflict` | README declarations and Dockerfile evidence disagree. |
+| `Conflict` | README declarations and implementation evidence disagree. |
 | `N/A` | NemoClaw, a harness, and OpenShell do not participate. |
 
 For mixed component results, the overall priority is `Conflict`, `Unknown`,

@@ -157,10 +157,10 @@ blocks, duplicate titles, and values outside the controlled vocabulary.
 ## Static Stack Discovery
 
 Every README declares `NemoClaw`, `Harness`, and `OpenShell`. The builder then
-looks for matching values only in root `Dockerfile*` or
-`agents/*/Dockerfile*` files. It recognizes a short list of conventional
-variables documented in `CONTRIBUTING.md`; nested and custom layouts use the
-README fallback until standardized.
+looks for matching values only in root `Dockerfile*`, `agents/*/Dockerfile*`,
+or the stock-Hermes `deploy/setup-hermes.sh`. It recognizes a short list of
+conventional variables documented in `CONTRIBUTING.md`; other custom layouts
+use the README fallback until standardized.
 
 The checked-in `scripts/nemoclaw-release-contracts.json` maps reviewed exact
 NemoClaw tags and commits to their stock harness matrix and OpenShell version.

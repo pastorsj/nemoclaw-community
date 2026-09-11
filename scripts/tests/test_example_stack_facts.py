@@ -83,6 +83,24 @@ class ExampleStackFactsTests(unittest.TestCase):
         self.assertEqual(facts.openshell.version, "0.0.85")
         self.assertIn("inferred from NemoClaw", " ".join(facts.reasons))
 
+    def test_query_claw_release_confirms_stock_hermes_stack(self) -> None:
+        self.write(
+            "deploy/setup-hermes.sh",
+            "readonly NEMOCLAW_VERSION=v0.0.123\n"
+            "readonly NEMOCLAW_COMMIT=f75f722bb4a1ec9642c8df36c8924e24500d78f0\n"
+            "readonly HERMES_VERSION=0.20.6\n"
+            "readonly OPENSHELL_VERSION=0.0.106\n"
+            "export NEMOCLAW_AGENT=hermes\n",
+        )
+
+        facts = self.facts("v0.0.123", "Hermes 0.20.6", "0.0.106")
+
+        self.assertEqual(facts.status, "confirmed")
+        self.assertEqual(facts.nemoclaw.version, "v0.0.123")
+        self.assertEqual(facts.harness.name, "Hermes")
+        self.assertEqual(facts.harness.version, "0.20.6")
+        self.assertEqual(facts.openshell.version, "0.0.106")
+
     def test_nemoclaw_langchain_selector_uses_the_release_contract(self) -> None:
         self.write(
             "Dockerfile",
@@ -212,6 +230,7 @@ class ExampleStackFactsTests(unittest.TestCase):
             states,
             Counter(
                 {
+                    "confirmed": 1,
                     "unconfirmed": 7,
                     "unpinned": 11,
                     "unknown": 1,

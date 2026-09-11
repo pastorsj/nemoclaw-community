@@ -497,14 +497,15 @@ change activity, not support, quality, or runtime health.
 
 The three README rows are the human fallback; they do not confirm what the
 implementation installs. The catalog performs a deliberately small static
-check of root `Dockerfile*` or `agents/*/Dockerfile*` files.
+check of root `Dockerfile*`, `agents/*/Dockerfile*`, or the standard
+`deploy/setup-hermes.sh` used by stock-Hermes deployments.
 
 It recognizes `NEMOCLAW_VERSION`, `NEMOCLAW_COMMIT`,
 `NEMOCLAW_INSTALL_TAG`, `NEMOCLAW_INSTALL_REF`, `NEMOCLAW_AGENT`,
 `HERMES_VERSION`, `HERMES_SEMVER`, `OPENCLAW_VERSION`,
 `DEEPAGENTS_VERSION`, `DEEP_AGENTS_VERSION`,
 `LANGCHAIN_DEEP_AGENTS_CODE_VERSION`, and `OPENSHELL_VERSION`. Put standard
-runtime values in the Dockerfile that installs the stack:
+runtime values in the Dockerfile or setup script that actually installs the stack:
 
 ```dockerfile
 ARG NEMOCLAW_VERSION=v0.0.104
@@ -514,8 +515,7 @@ ARG OPENSHELL_VERSION=0.0.85
 ```
 
 Do not add a catalog-only version file. Nested or custom deployment layouts
-intentionally remain README-only until they adopt a root Dockerfile
-convention.
+intentionally remain README-only until they adopt one of these conventions.
 
 An exact NemoClaw tag or commit listed in
 `scripts/nemoclaw-release-contracts.json` can supply its stock harness and
