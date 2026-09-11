@@ -1,0 +1,26 @@
+{
+  "schema_version": 2,
+  "registrations": {
+    "gsf": {
+      "auth": "oauth"
+    },
+    "retriever": {
+      "auth": "managed-bearer",
+      "token_env": "NEMO_RETRIEVER_API_TOKEN"
+    }
+  },
+  "routes": {
+    "ontology": {
+      "registration": "gsf",
+      "tools": [
+        "ask_question"
+      ]
+    },
+    "retriever": {
+      "registration": "retriever",
+      "tools": [
+        "query"
+      ]
+    }
+  }
+}

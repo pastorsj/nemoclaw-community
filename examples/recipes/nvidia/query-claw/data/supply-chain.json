@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "dataset": {
+    "id": "query-claw-supply-chain",
+    "version": "1.0.0",
+    "seed": 20260901,
+    "start_date": "2024-07-01",
+    "prediction_cutoff": "2026-05-31",
+    "as_of_date": "2026-06-30",
+    "prediction_horizon_days": 30,
+    "historical_order_count": 1500,
+    "evaluation_order_count": 24
+  },
+  "facilities": [
+    {"facility_id": "FAC-ATL", "name": "Atlanta Assembly", "region": "US Southeast", "lane_risk": 0.03},
+    {"facility_id": "FAC-AUS", "name": "Austin Integration", "region": "US Southwest", "lane_risk": 0.04},
+    {"facility_id": "FAC-DEN", "name": "Denver Distribution", "region": "US Mountain", "lane_risk": 0.05},
+    {"facility_id": "FAC-PHX", "name": "Phoenix Manufacturing", "region": "US Southwest", "lane_risk": 0.07},
+    {"facility_id": "FAC-RDU", "name": "Raleigh Systems", "region": "US Southeast", "lane_risk": 0.02}
+  ],
+  "products": [
+    {"product_id": "PRD-CTRL", "name": "Control module", "unit_price_usd": 720},
+    {"product_id": "PRD-FAN", "name": "Cooling assembly", "unit_price_usd": 185},
+    {"product_id": "PRD-IO", "name": "I/O board", "unit_price_usd": 460},
+    {"product_id": "PRD-MEM", "name": "Memory carrier", "unit_price_usd": 980},
+    {"product_id": "PRD-NET", "name": "Network module", "unit_price_usd": 640},
+    {"product_id": "PRD-POWER", "name": "Power assembly", "unit_price_usd": 390},
+    {"product_id": "PRD-SENSOR", "name": "Thermal sensor", "unit_price_usd": 95},
+    {"product_id": "PRD-SUB", "name": "Chassis subassembly", "unit_price_usd": 1250}
+  ],
+  "suppliers": [
+    {"supplier_id": "SUP-001", "name": "Northstar Components", "region": "North America", "criticality": "high", "reliability": 0.93, "base_lead_days": 14, "notice": "Capacity remains stable for the next planning window.", "contract_term": "Expedite review starts when projected delay exceeds five days."},
+    {"supplier_id": "SUP-002", "name": "Cedar Logistics", "region": "North America", "criticality": "medium", "reliability": 0.96, "base_lead_days": 9, "notice": "No material lane constraints are reported.", "contract_term": "Standard freight applies unless the buyer approves an expedite."},
+    {"supplier_id": "SUP-003", "name": "Harbor Metals", "region": "Europe", "criticality": "medium", "reliability": 0.89, "base_lead_days": 18, "notice": "A scheduled maintenance window may reduce output for seven days.", "contract_term": "The supplier must provide a recovery plan after two late orders in one quarter."},
+    {"supplier_id": "SUP-004", "name": "Juniper Systems", "region": "North America", "criticality": "low", "reliability": 0.97, "base_lead_days": 11, "notice": "The current order book remains within committed capacity.", "contract_term": "Routine schedule changes require three business days of notice."},
+    {"supplier_id": "SUP-005", "name": "Mesa Power", "region": "North America", "criticality": "high", "reliability": 0.91, "base_lead_days": 16, "notice": "One production line is operating at reduced throughput.", "contract_term": "Critical orders qualify for alternate-line allocation after a documented capacity constraint."},
+    {"supplier_id": "SUP-006", "name": "Redwood Sensors", "region": "Asia Pacific", "criticality": "medium", "reliability": 0.9, "base_lead_days": 20, "notice": "Inspection queues have added two days to recent shipments.", "contract_term": "Quality holds require a written disposition before shipment release."},
+    {"supplier_id": "SUP-007", "name": "Atlas Circuits", "region": "Asia Pacific", "criticality": "high", "reliability": 0.76, "base_lead_days": 22, "notice": "A substrate shortage and port congestion may delay priority orders by eight to twelve days.", "contract_term": "The buyer may request alternate sourcing when projected delay exceeds seven days on a critical order."},
+    {"supplier_id": "SUP-008", "name": "Summit Cooling", "region": "Europe", "criticality": "medium", "reliability": 0.88, "base_lead_days": 17, "notice": "Carrier availability is constrained on one export lane.", "contract_term": "The supplier must propose an alternate carrier for delays above four days."},
+    {"supplier_id": "SUP-009", "name": "Willow Memory", "region": "Asia Pacific", "criticality": "high", "reliability": 0.87, "base_lead_days": 19, "notice": "Allocation remains available, but lead times are above the annual baseline.", "contract_term": "Allocation changes for critical orders require buyer confirmation."},
+    {"supplier_id": "SUP-010", "name": "Blue Ridge Networks", "region": "North America", "criticality": "low", "reliability": 0.95, "base_lead_days": 12, "notice": "No current service interruption is reported.", "contract_term": "Standard delivery terms apply."}
+  ]
+}

@@ -1,0 +1,298 @@
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+set -euo pipefail
+
+{
+  printf 'args='
+  printf '%q ' "$@"
+  printf '\n'
+} >>"$QUERY_CLAW_TEST_LOG"
+
+token_for_server() {
+  case "$1" in
+    retriever) printf '%s\n' NEMO_RETRIEVER_API_TOKEN ;;
+  esac
+}
+
+assert_token_isolation() {
+  local expected="$1" name
+  for name in NEMO_RETRIEVER_API_TOKEN; do
+    if [[ "$name" == "$expected" ]]; then
+      [[ -n "${!name:-}" ]]
+    else
+      [[ -z "${!name:-}" ]]
+    fi
+  done
+}
+
+registry_path() {
+  if [[ "${NEMOCLAW_GATEWAY_PORT:-8080}" == 8080 ]]; then
+    printf '%s\n' "$HOME/.nemoclaw/sandboxes.json"
+  else
+    printf '%s\n' "$HOME/.nemoclaw/gateways/$NEMOCLAW_GATEWAY_PORT/sandboxes.json"
+  fi
+}
+
+if [[ "${2:-}" == mcp && ("${3:-}" == add || "${3:-}" == restart) ]]; then
+  assert_token_isolation "$(token_for_server "${4:?missing server name}")"
+else
+  assert_token_isolation none
+fi
+
+if [[ "${1:-}" == "--version" ]]; then
+  printf 'nemohermes %s\n' "${QUERY_CLAW_TEST_VERSION:-v0.0.123}"
+  exit 0
+elif [[ "${2:-}" == "status" ]]; then
+  printf '%s\n' '{"found":true,"agent":"hermes","agentVersion":"0.20.6","nemoclawVersion":"0.0.123","openshellVersion":"0.0.106"}'
+elif [[ "${2:-}" == "skill" && "${3:-}" == "install" ]]; then
+  skill_path="${4:?missing skill path}"
+  skill_name="$(basename "$skill_path")"
+  [[ "${QUERY_CLAW_TEST_SKILL_FAIL:-}" != "$skill_name" ]] || exit 2
+  python3 -c 'import hashlib,pathlib,sys; r=pathlib.Path(sys.argv[1]); print(hashlib.sha256(b"".join(p.relative_to(r).as_posix().encode()+b"\0"+p.read_bytes()+b"\0" for p in sorted(r.rglob("*")) if p.is_file())).hexdigest())' \
+    "$skill_path" >"$QUERY_CLAW_TEST_STATE/skill-$skill_name"
+elif [[ "${2:-}" == "skill" && "${3:-}" == "remove" ]]; then
+  skill_name="${4:?missing skill name}"
+  if [[ ! -f "$QUERY_CLAW_TEST_STATE/skill-$skill_name" ]]; then
+    printf "  Skill '%s' is not installed in sandbox '%s'.\n" \
+      "$skill_name" "${1:-query-claw}" >&2
+    exit 1
+  fi
+  rm -f "$QUERY_CLAW_TEST_STATE/skill-$skill_name"
+elif [[ "${2:-}" == "policy" && "${3:-}" == "get" ]]; then
+  printf '%s\n' 'version: 1' 'network_policies: {}'
+elif [[ "${2:-}" == "exec" ]]; then
+  arguments=()
+  after_separator=0
+  for argument in "$@"; do
+    if (( after_separator )); then
+      arguments+=("$argument")
+    elif [[ "$argument" == -- ]]; then
+      after_separator=1
+    fi
+  done
+  if [[ "${arguments[0]:-}" == env ]]; then
+    arguments=("${arguments[@]:1}")
+    while [[ "${arguments[0]:-}" == *=* ]]; do
+      case "${arguments[0]}" in
+        QUERY_CLAW_GSF_MCP_URL=*)
+          [[ "${arguments[0]}" == "QUERY_CLAW_GSF_MCP_URL=https://query-claw.internal:9444/mcp" ]]
+          ;;
+        QUERY_CLAW_RETRIEVER_COLLECTIONS_JSON=*|\
+        QUERY_CLAW_RETRIEVER_PROVENANCE_JSON=*) ;;
+        QUERY_CLAW_PREDICTION_CONTEXT_JSON=*)
+          [[ -z "${QUERY_CLAW_TEST_EXPECTED_PREDICTION_CONTEXT_JSON:-}" ||
+            "${arguments[0]#*=}" == "$QUERY_CLAW_TEST_EXPECTED_PREDICTION_CONTEXT_JSON" ]]
+          ;;
+        QUERY_CLAW_ENABLE_GSF=*|QUERY_CLAW_ENABLE_RETRIEVER=*|QUERY_CLAW_ENABLE_PREDICTION=*)
+          [[ "${arguments[0]#*=}" == 0 || "${arguments[0]#*=}" == 1 ]]
+          ;;
+        *) exit 2 ;;
+      esac
+      arguments=("${arguments[@]:1}")
+    done
+  fi
+  if [[ "${arguments[0]:-}" == hermes &&
+    "${arguments[1]:-}" == mcp && "${arguments[2]:-}" == test &&
+    "${arguments[3]:-}" == gsf ]]; then
+    if [[ -f "$QUERY_CLAW_TEST_STATE/gsf-oauth" ]]; then
+      printf '%s\n' 'Connected (12ms)' 'Tools discovered: 9' \
+        '    ask_question    Ask a natural-language question'
+    else
+      printf '%s\n' 'Connection failed: no cached tokens found'
+      exit 1
+    fi
+  elif [[ "${arguments[0]:-}" == /opt/hermes/.venv/bin/python3 &&
+    "${arguments[1]:-}" == -I && "${arguments[2]:-}" == -c ]]; then
+    command cat >/dev/null
+    [[ "${QUERY_CLAW_TEST_OAUTH_FAIL:-0}" != 1 ]] || exit 2
+    touch "$QUERY_CLAW_TEST_STATE/gsf-oauth"
+  elif [[ "${arguments[0]:-}" == "python3" ]]; then
+    case "${arguments[3]:-}" in
+      state)
+        skill_name="${arguments[4]:?missing skill name}"
+        if [[ -f "$QUERY_CLAW_TEST_STATE/skill-$skill_name" ]]; then
+          cat "$QUERY_CLAW_TEST_STATE/skill-$skill_name"
+        else
+          printf 'absent\n'
+        fi
+        ;;
+      snapshot)
+        printf '%s\n' '{"schema_version":6,"before":{"fields":{},"sha256":"before"},"applied":{"fields":{},"sha256":"applied"}}'
+        ;;
+      prepare)
+        [[ "${QUERY_CLAW_TEST_PROFILE_PREPARE_FAIL:-0}" != 1 ]] || exit 2
+        python3 -c 'import base64,sys; print(base64.b64decode(sys.argv[1]).decode())' \
+          "${arguments[4]:?missing profile receipt}"
+        ;;
+      apply)
+        [[ "${QUERY_CLAW_TEST_PROFILE_APPLY_FAIL:-0}" != 1 ]] || exit 2
+        if [[ -f "$QUERY_CLAW_TEST_STATE/profile-applied" ]]; then
+          printf 'unchanged\n'
+        else
+          touch "$QUERY_CLAW_TEST_STATE/profile-applied"
+          printf 'changed\n'
+        fi
+        ;;
+      verify)
+        [[ -f "$QUERY_CLAW_TEST_STATE/profile-applied" ]]
+        ;;
+      restore-check)
+        [[ "${QUERY_CLAW_TEST_PROFILE_DRIFT:-0}" != 1 ]] || exit 2
+        if [[ -f "$QUERY_CLAW_TEST_STATE/profile-applied" ]]; then
+          printf 'restore-needed\n'
+        else
+          printf 'already-restored\n'
+        fi
+        ;;
+      restore)
+        [[ "${QUERY_CLAW_TEST_PROFILE_RESTORE_FAIL:-0}" != 1 ]] || exit 2
+        if [[ -f "$QUERY_CLAW_TEST_STATE/profile-applied" ]]; then
+          rm -f "$QUERY_CLAW_TEST_STATE/profile-applied"
+          touch "$QUERY_CLAW_TEST_STATE/profile-restored"
+          printf 'restored\n'
+        else
+          printf 'already-restored\n'
+        fi
+        ;;
+      policy-digest)
+        python3 -c 'import base64,hashlib,sys; print(hashlib.sha256(base64.b64decode(sys.argv[1])).hexdigest())' \
+          "${arguments[4]:?missing policy document}"
+        ;;
+      policy-classify)
+        if [[ -f "$QUERY_CLAW_TEST_STATE/gsf-policy-state" ]]; then
+          cat "$QUERY_CLAW_TEST_STATE/gsf-policy-state"
+        else
+          printf 'absent\n'
+        fi
+        ;;
+    esac
+  fi
+elif [[ "${2:-}" == "gateway" && "${3:-}" == "restart" ]]; then
+  [[ "${QUERY_CLAW_TEST_GATEWAY_FAIL:-0}" != 1 ]] || exit 2
+elif [[ "${2:-}" == "policy" && "${3:-}" == "add" ]]; then
+  [[ "${4:-}" == --from-file && "${6:-}" == --trusted-private-host && "${8:-}" == --yes ]]
+  printf 'match\n' >"$QUERY_CLAW_TEST_STATE/gsf-policy-state"
+elif [[ "${2:-}" == "policy" && "${3:-}" == "remove" ]]; then
+  [[ "${4:-}" == query-claw-gsf-oauth && "${5:-}" == --yes ]]
+  printf 'absent\n' >"$QUERY_CLAW_TEST_STATE/gsf-policy-state"
+  touch "$QUERY_CLAW_TEST_STATE/policy-removed"
+elif [[ "${2:-}" == "mcp" && "${3:-}" == "status" ]]; then
+  name="${4:?missing server name}"
+  state_path="$QUERY_CLAW_TEST_STATE/$name"
+  if [[ ! -f "$state_path" ]]; then
+    printf '%s\n' '{"server":"missing","agent":"hermes","support":{"supported":true,"mode":"bridge","adapter":"hermes-config"},"env":{"names":[],"missing":[],"ready":false},"provider":{"registryPresent":false},"policy":{"registryPresent":false},"adapter":{"registered":null}}'
+    exit 0
+  fi
+  if [[ " $* " == *" --tools "* ]]; then
+    case "$name" in
+      retriever)
+        if [[ "${QUERY_CLAW_TEST_EXTRA_RETRIEVER_TOOL:-0}" == 1 ]]; then
+          tools='["answer","get_document","get_job","health","list_job_documents","pipeline_config","query","delete_collection"]'
+        else
+          tools='["answer","get_document","get_job","health","list_job_documents","pipeline_config","query"]'
+        fi
+        ;;
+    esac
+  else
+    tools=''
+  fi
+  python3 - "$state_path" "$name" "$tools" "${QUERY_CLAW_TEST_PRIVATE_STATE:-match}" <<'PY'
+import json
+from pathlib import Path
+import sys
+
+state=json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+name,raw_tools,private_state=sys.argv[2:]
+payload={
+    "server": name,
+    "agent": state.get("agent", "hermes"),
+    "support": state.get("support", {"supported": True, "mode": "bridge", "adapter": "hermes-config"}),
+    "url": state["url"],
+    "env": {"names": [state["env"]], "missing": [], "ready": True},
+    "provider": {
+        "registryPresent": True,
+        "gatewayPresent": True,
+        "attached": True,
+        "credentialReady": True,
+    },
+    "policy": {"registryPresent": True, "gatewayPresent": True},
+    "adapter": {"registered": True},
+    "denyTools": state.get("deny_tools", []),
+}
+if state.get("add_state"):
+    payload["addState"] = state["add_state"]
+if state.get("private_host"):
+    payload["trustedPrivateTarget"] = {
+        "host": state["private_host"],
+        "recordedPins": ["127.0.0.1"],
+        "currentPins": ["127.0.0.1"],
+        "state": private_state,
+    }
+if raw_tools:
+    tools=json.loads(raw_tools)
+    payload["toolDiscovery"]={"ok": True, "count": len(tools), "tools": tools, "truncated": False}
+print(json.dumps(payload, separators=(",", ":")))
+PY
+elif [[ "${2:-}" == "mcp" && "${3:-}" == "add" ]]; then
+  sandbox="${1:-query-claw}"
+  name="${4:?missing server name}"
+  url=''
+  token_env=''
+  private_host=''
+  deny_tools=()
+  shift 4
+  while (( $# )); do
+    case "$1" in
+      --url) url="${2:?missing URL}"; shift 2 ;;
+      --env) token_env="${2:?missing credential environment}"; shift 2 ;;
+      --deny-tool) deny_tools+=("${2:?missing denied tool}"); shift 2 ;;
+      --trusted-private-host) private_host="${2:?missing private host}"; shift 2 ;;
+      --no-probe) shift ;;
+      *) exit 2 ;;
+    esac
+  done
+  python3 - "$QUERY_CLAW_TEST_STATE/$name" "$(registry_path)" \
+    "$sandbox" "$name" "$url" "$token_env" "$private_host" \
+    "${deny_tools[@]}" <<'PY'
+import json
+from pathlib import Path
+import sys
+state_path,registry_path,sandbox,name,url,env,private_host,*deny_tools=sys.argv[1:]
+Path(state_path).write_text(json.dumps({
+    "url":url,
+    "env":env,
+    "private_host":private_host,
+    "deny_tools":deny_tools,
+}), encoding="utf-8")
+path=Path(registry_path)
+registry=json.loads(path.read_text(encoding="utf-8"))
+entry=registry["sandboxes"][sandbox]
+entry.setdefault("mcp", {}).setdefault("bridges", {})[name]={"denyTools":deny_tools}
+path.write_text(json.dumps(registry), encoding="utf-8")
+PY
+  [[ "${QUERY_CLAW_TEST_ADD_FAIL:-}" != "$name" ]] || exit 2
+elif [[ "${2:-}" == "mcp" && "${3:-}" == "restart" ]]; then
+  name="${4:?missing server name}"
+  [[ -f "$QUERY_CLAW_TEST_STATE/$name" ]]
+  [[ "${QUERY_CLAW_TEST_RESTART_FAIL:-}" != "$name" ]] || exit 2
+elif [[ "${2:-}" == "mcp" && "${3:-}" == "remove" ]]; then
+  if [[ "${4:-}" == retriever && -f "$QUERY_CLAW_TEST_STATE/profile-applied" && \
+    "${5:-}" != --force ]]; then
+    printf "managed MCP registration '%s' differs from its native definition\n" \
+      "${4:-}" >&2
+    exit 2
+  fi
+  rm -f "$QUERY_CLAW_TEST_STATE/${4:?missing server name}"
+  python3 - "$(registry_path)" "${1:-query-claw}" "${4:?missing server name}" <<'PY'
+import json
+from pathlib import Path
+import sys
+path=Path(sys.argv[1])
+registry=json.loads(path.read_text(encoding="utf-8"))
+bridges=registry["sandboxes"][sys.argv[2]].get("mcp", {}).get("bridges", {})
+bridges.pop(sys.argv[3], None)
+path.write_text(json.dumps(registry), encoding="utf-8")
+PY
+fi

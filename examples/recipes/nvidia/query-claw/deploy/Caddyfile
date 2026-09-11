@@ -1,0 +1,50 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+https://{$QUERY_CLAW_PRIVATE_HOST}:9443 {
+	tls internal
+
+	# NeMo Retriever's FastMCP mount is /mcp/. Preserve that path so POST
+	# requests are not turned into framework redirects.
+	handle /mcp/ {
+		reverse_proxy retriever:7670
+	}
+
+	handle /mcp {
+		redir /mcp/ 308
+	}
+
+	# Private diagnostic used by setup/status checks.
+	handle /query-claw/health {
+		rewrite * /v1/health
+		reverse_proxy retriever:7670
+	}
+
+	handle {
+		respond "not found" 404
+	}
+}
+
+# GSF's MCP resource, UI, API, and OAuth server share one private origin. The
+# protected-resource document belongs to the MCP server; every other GSF route
+# belongs to the frontend/API service.
+https://{$QUERY_CLAW_PRIVATE_HOST}:9444 {
+	tls internal
+
+	# GSF's current FastMCP dependency serializes the authorization-server URL
+	# with a trailing slash, while GSF's own issuer has none. OAuth clients must
+	# compare those identifiers exactly, so normalize this discovery document
+	# until the official server emits its issuer verbatim.
+	handle /.well-known/oauth-protected-resource/mcp {
+		header Content-Type application/json
+		respond `{"resource":"https://{$QUERY_CLAW_PRIVATE_HOST}:9444/mcp","authorization_servers":["https://{$QUERY_CLAW_PRIVATE_HOST}:9444"]}` 200
+	}
+
+	@gsf_mcp path /mcp /mcp/*
+	handle @gsf_mcp {
+		reverse_proxy gsf-mcp:3003
+	}
+	handle {
+		reverse_proxy gsf-frontend:3000
+	}
+}

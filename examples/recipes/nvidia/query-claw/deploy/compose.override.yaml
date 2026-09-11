@@ -1,0 +1,159 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+services:
+  postgres:
+    container_name: query-claw-postgres
+    image: pgvector/pgvector@sha256:cf134a767f474095eeba57e0117be8e568e011a63f33fbf252f14c9b760f8e6f
+    ports: !override []
+    group_add: ["${QUERY_CLAW_HOST_GID}"]
+    environment:
+      GSF_QUERY_PASSWORD: ${GSF_QUERY_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ${QUERY_CLAW_STRUCTURED_DIR}:/query-claw-data:ro
+
+  pgadmin:
+    profiles: [operator-tools]
+    ports: !override []
+
+  gsf:
+    container_name: query-claw-gsf
+    env_file: !override []
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DATABASE: ${POSTGRES_DATABASE}
+      CONNECTION_STRINGS: ${CONNECTION_STRINGS}
+      DEFAULT_MODELS_API_KEY: ${DEFAULT_MODELS_API_KEY}
+      DEFAULT_MODELS_ENDPOINT: ${DEFAULT_MODELS_ENDPOINT}
+      DEFAULT_MODELS_MODEL: ${DEFAULT_MODELS_MODEL}
+      EMBED_API_KEY: ${EMBED_API_KEY}
+      EMBED_ENDPOINT: ${EMBED_ENDPOINT}
+      EMBED_MODEL: ${EMBED_MODEL}
+      KUMO_RFM_API_URL: ${QUERY_CLAW_KUMO_RFM_API_URL}
+      KUMO_RFM_API_KEY: ${QUERY_CLAW_KUMO_RFM_API_KEY}
+      KUMO_MAX_TABLES: "8"
+      KUMO_MAX_ROWS_PER_TABLE: "10000"
+      KUMO_MAX_PREVIEW_ROWS: "25"
+      KUMO_MAX_ENTITIES: "1000"
+      KUMO_MAX_PQL_EXAMPLES: "5"
+    ports: !override ["127.0.0.1:3001:3001"]
+    group_add: ["${QUERY_CLAW_HOST_GID}"]
+    volumes:
+      - ${QUERY_CLAW_DATA_DIR}:/query-claw-active:ro
+
+  ingestion-service:
+    container_name: query-claw-gsf-ingestion
+    env_file: !override []
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DATABASE: ${POSTGRES_DATABASE}
+      CONNECTION_STRINGS: ${CONNECTION_STRINGS}
+      DEFAULT_MODELS_API_KEY: ${DEFAULT_MODELS_API_KEY}
+      DEFAULT_MODELS_ENDPOINT: ${DEFAULT_MODELS_ENDPOINT}
+      DEFAULT_MODELS_MODEL: ${DEFAULT_MODELS_MODEL}
+      EMBED_API_KEY: ${EMBED_API_KEY}
+      EMBED_ENDPOINT: ${EMBED_ENDPOINT}
+      EMBED_MODEL: ${EMBED_MODEL}
+    ports: !override []
+    group_add: ["${QUERY_CLAW_HOST_GID}"]
+    volumes:
+      - ${QUERY_CLAW_DATA_DIR}:/query-claw-active:ro
+
+  gsf-migrate:
+    container_name: query-claw-gsf-backend-migrate
+    env_file: !override []
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DATABASE: ${POSTGRES_DATABASE}
+
+  frontend-migrate:
+    container_name: query-claw-gsf-frontend-migrate
+    env_file: !override []
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DATABASE: ${POSTGRES_DATABASE}
+
+  gsf-frontend:
+    container_name: query-claw-gsf-ui
+    env_file: !override []
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DATABASE: ${POSTGRES_DATABASE}
+      GSF_ADMIN_EMAIL: ${GSF_ADMIN_EMAIL}
+      GSF_ADMIN_PASSWORD: ${GSF_ADMIN_PASSWORD}
+      AUTH_SECRET: ${AUTH_SECRET}
+      APP_URL: ${APP_URL}
+    ports: !override ["127.0.0.1:3000:3000"]
+
+  gsf-mcp:
+    build:
+      context: ${GSF_SOURCE_DIR}
+      dockerfile: ${QUERY_CLAW_DEPLOY_DIR}/services/gsf-mcp/Dockerfile
+    image: query-claw-gsf-mcp:0.1.0
+    environment:
+      GSF_API_URL: ${GSF_PUBLIC_URL}
+      GSF_MCP_HOST: 0.0.0.0
+      GSF_MCP_PORT: "3003"
+      GSF_MCP_PUBLIC_URL: https://${QUERY_CLAW_PRIVATE_HOST}:9444
+      SSL_CERT_FILE: /etc/ssl/certs/query-claw-mcp-root.crt
+      # Finish inside Hermes's 900-second MCP deadline so GSF can return its
+      # own bounded ToolError instead of being canceled by the harness.
+      GSF_MCP_CHAT_TIMEOUT_S: "840"
+    expose: ["3003"]
+    volumes:
+      - ${QUERY_CLAW_DEPLOY_DIR}/../.runtime/query-claw-mcp-root.crt:/etc/ssl/certs/query-claw-mcp-root.crt:ro
+    depends_on:
+      gsf-frontend: {condition: service_healthy}
+    restart: unless-stopped
+
+  retriever:
+    image: ${NEMO_RETRIEVER_IMAGE}
+    group_add: ["${QUERY_CLAW_HOST_GID}"]
+    command: [retriever, service, start, --config, /etc/nemo-retriever/retriever-service.yaml, --launch-vectordb]
+    environment:
+      NVIDIA_API_KEY: ${NVIDIA_INFERENCE_API_KEY}
+      NVIDIA_EMBED_INVOKE_URL: ${NVIDIA_EMBED_INVOKE_URL}
+      NVIDIA_EMBED_MODEL: ${NVIDIA_EMBED_MODEL}
+      NVIDIA_EMBED_MODEL_PROVIDER_PREFIX: ${NVIDIA_EMBED_MODEL_PROVIDER_PREFIX}
+      NVIDIA_RERANK_INVOKE_URL: ${NVIDIA_RERANK_INVOKE_URL}
+      NVIDIA_RERANK_MODEL: ${NVIDIA_RERANK_MODEL}
+      NEMO_RETRIEVER_API_TOKEN: ${NEMO_RETRIEVER_API_TOKEN}
+      NRL_INTERNAL_VDB_TOKEN: ${NRL_INTERNAL_VDB_TOKEN}
+    volumes:
+      - ${QUERY_CLAW_DEPLOY_DIR}/retriever-service.yaml:/etc/nemo-retriever/retriever-service.yaml:ro
+      - ${QUERY_CLAW_DEPLOY_DIR}/retriever_collections.py:/opt/query-claw/retriever_collections.py:ro
+      - ${QUERY_CLAW_DATA_DIR}:/query-claw-active:ro
+      - retriever_data:/var/lib/nemo-retriever
+    ports: ["127.0.0.1:7670:7670"]
+    healthcheck:
+      test: [CMD, curl, --fail, --silent, http://127.0.0.1:7670/v1/health]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    restart: unless-stopped
+
+  mcp-ingress:
+    image: caddy@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d
+    environment:
+      QUERY_CLAW_PRIVATE_IP: ${QUERY_CLAW_PRIVATE_IP}
+      QUERY_CLAW_PRIVATE_HOST: ${QUERY_CLAW_PRIVATE_HOST}
+    volumes:
+      - ${QUERY_CLAW_DEPLOY_DIR}/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    ports:
+      - "${QUERY_CLAW_PRIVATE_IP}:9443:9443"
+      - "${QUERY_CLAW_PRIVATE_IP}:9444:9444"
+    restart: unless-stopped
+
+volumes:
+  retriever_data:
+  caddy_data:
+  caddy_config:
