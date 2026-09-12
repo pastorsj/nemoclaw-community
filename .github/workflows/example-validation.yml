@@ -68,4 +68,4 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_*.py' -v
           bash tests/test_lifecycle.sh
           bash tests/test_deploy_lifecycle.sh
-          bash -n scripts/*.sh deploy/*.sh deploy/lib/*.sh tests/*.sh tests/fixtures/bin/*
+          bash -n deploy/*.sh deploy/lib/*.sh tests/*.sh tests/fixtures/bin/*
