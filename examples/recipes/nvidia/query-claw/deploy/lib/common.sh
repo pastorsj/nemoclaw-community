@@ -293,6 +293,7 @@ export_runtime_env() {
   fi
   export QUERY_CLAW_ACTIVE_MANIFEST="$DATA_DIR/active-dataset.json"
   export QUERY_CLAW_STRUCTURED_DIR="$DATA_DIR/structured"
+  export QUERY_CLAW_DOCUMENTS_DIR="$DATA_DIR/documents"
   has_structured=0
   has_prediction=0
   has_documents=0
@@ -325,6 +326,12 @@ export_runtime_env() {
   export QUERY_CLAW_HAS_STRUCTURED="$has_structured"
   export QUERY_CLAW_HAS_PREDICTION="$has_prediction"
   export QUERY_CLAW_HAS_DOCUMENTS="$has_documents"
+  # The GSF service always has structured data when it is started. Reuse that
+  # safe view as an empty prediction mount unless a reviewed graph is active.
+  export QUERY_CLAW_PREDICTION_DIR="$QUERY_CLAW_STRUCTURED_DIR"
+  if [[ "$has_prediction" == 1 && "$database_engine" == duckdb ]]; then
+    export QUERY_CLAW_PREDICTION_DIR="$DATA_DIR/prediction"
+  fi
   # Keep operator credentials in deploy.env, but expose them to GSF only when
   # the active dataset declares a prediction contract. This makes dataset
   # activation—not stale host configuration—the capability boundary.
@@ -332,7 +339,7 @@ export_runtime_env() {
     export QUERY_CLAW_KUMO_RFM_API_URL="${KUMO_RFM_API_URL:-}"
     export QUERY_CLAW_KUMO_RFM_API_KEY="${KUMO_RFM_API_KEY:-}"
     if [[ "$database_engine" == duckdb ]]; then
-      export QUERY_CLAW_KUMO_GRAPH_CONTRACTS_FILE=/query-claw-active/prediction/graph.json
+      export QUERY_CLAW_KUMO_GRAPH_CONTRACTS_FILE=/query-claw-prediction/graph.json
     else
       export QUERY_CLAW_KUMO_GRAPH_CONTRACTS_FILE=''
     fi
@@ -377,7 +384,7 @@ PY
 )"
   case "$QUERY_CLAW_DATABASE_ENGINE" in
     duckdb)
-      export CONNECTION_STRINGS="duckdb:///query-claw-active/$QUERY_CLAW_DATABASE_PATH"
+      export CONNECTION_STRINGS="duckdb:///query-claw-structured/${database_path##*/}"
       ;;
     postgres-csv)
       export CONNECTION_STRINGS="postgresql://query_claw_reader:${encoded_gsf_query_password}@postgres:5432/query_claw"

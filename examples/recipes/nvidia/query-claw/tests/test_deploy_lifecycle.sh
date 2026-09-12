@@ -157,15 +157,34 @@ mkdir -p "$TEST_ROOT/active-reviewed/database" \
 cat >"$TEST_ROOT/active-reviewed/active-dataset.json" <<'JSON'
 {"schema_version":1,"id":"cloud","fingerprint":"0000000000000000000000000000000000000000000000000000000000000000","database":{"engine":"duckdb","name":"cloud","path":"database/cloud.duckdb"},"ontology":{"path":"ontology/model.gsf.yaml"},"documents":null,"prediction":{"mode":"reviewed","graph_path":"prediction/graph.json","pql_examples_path":"prediction/pql-examples.json"},"prediction_contract_exists":true}
 JSON
-reviewed_graph="$(KUMO_RFM_API_URL=https://prediction.example.test/v1 \
+reviewed_mounts="$(KUMO_RFM_API_URL=https://prediction.example.test/v1 \
   KUMO_RFM_API_KEY=secret bash -c '
   source "$1"
   DATA_DIR="$2"
   export_runtime_env
-  printf "%s\n" "$QUERY_CLAW_KUMO_GRAPH_CONTRACTS_FILE"
+  printf "%s\n%s\n%s\n%s\n%s\n" \
+    "$QUERY_CLAW_KUMO_GRAPH_CONTRACTS_FILE" "$CONNECTION_STRINGS" \
+    "$QUERY_CLAW_STRUCTURED_DIR" "$QUERY_CLAW_PREDICTION_DIR" \
+    "$QUERY_CLAW_DOCUMENTS_DIR"
 ' _ "$common" "$TEST_ROOT/active-reviewed")"
-[[ "$reviewed_graph" == /query-claw-active/prediction/graph.json ]] || \
-  fail "reviewed prediction graph was not passed to GSF"
+[[ "$reviewed_mounts" == \
+  $'/query-claw-prediction/graph.json\nduckdb:///query-claw-structured/cloud.duckdb\n'"$TEST_ROOT"$'/active-reviewed/database\n'"$TEST_ROOT"$'/active-reviewed/prediction\n'"$TEST_ROOT"'/active-reviewed/documents' ]] || \
+  fail "reviewed structured, prediction, and document mount paths are incomplete"
+
+compose_override="$EXAMPLE_DIR/deploy/compose.override.yaml"
+if grep -q '\${QUERY_CLAW_DATA_DIR}:/query-claw-active' "$compose_override"; then
+  fail "a service still receives the full active dataset bind mount"
+fi
+[[ "$(grep -c 'source: ${QUERY_CLAW_STRUCTURED_DIR}' "$compose_override")" == 3 ]] || \
+  fail "structured data is not isolated to its three intended consumers"
+[[ "$(grep -c 'source: ${QUERY_CLAW_PREDICTION_DIR}' "$compose_override")" == 1 ]] || \
+  fail "prediction assets are not isolated to GSF"
+[[ "$(grep -c 'source: ${QUERY_CLAW_DOCUMENTS_DIR}' "$compose_override")" == 1 ]] || \
+  fail "documents are not isolated to Retriever"
+[[ "$(grep -c 'source: ${QUERY_CLAW_ACTIVE_MANIFEST}' "$compose_override")" == 1 ]] || \
+  fail "only Retriever should receive the active dataset manifest"
+[[ "$(grep -c 'create_host_path: false' "$compose_override")" == 6 ]] || \
+  fail "dataset bind mounts may create undeclared host paths"
 
 for ip in 10.0.0.1 10.255.255.254 172.16.0.1 172.31.255.254 \
   192.168.0.1 192.168.255.254; do
@@ -432,6 +451,7 @@ import sys
 
 source = Path(sys.argv[1]).read_text(encoding="utf-8")
 stop = source.index("compose stop gsf-mcp gsf-frontend ingestion-service gsf")
+postgres = source.index("compose up -d --force-recreate postgres")
 backend_migration = source.index("compose run --rm --no-deps gsf-migrate")
 frontend_migration = source.index("compose run --rm --no-deps frontend-migrate")
 reset = source.index("delete_all_data")
@@ -442,7 +462,7 @@ postgres_csv = source.index("compose up -d --force-recreate --no-deps gsf ingest
 frontend = source.index("compose up -d --no-deps gsf-frontend")
 mcp = source.index("compose up -d --no-deps --force-recreate gsf-mcp")
 seed = source.index("seed-pql")
-assert stop < backend_migration < reset < backend < ontology < ingestion < seed < frontend < mcp
+assert stop < postgres < backend_migration < reset < backend < ontology < ingestion < seed < frontend < mcp
 assert reset < postgres_csv < frontend
 assert stop < frontend_migration < reset
 assert "delete_all_data()" in source

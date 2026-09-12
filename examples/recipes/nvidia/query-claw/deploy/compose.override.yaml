@@ -11,7 +11,12 @@ services:
       GSF_QUERY_PASSWORD: ${GSF_QUERY_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ${QUERY_CLAW_STRUCTURED_DIR}:/query-claw-data:ro
+      - type: bind
+        source: ${QUERY_CLAW_STRUCTURED_DIR}
+        target: /query-claw-data
+        read_only: true
+        bind:
+          create_host_path: false
 
   pgadmin:
     profiles: [operator-tools]
@@ -42,7 +47,18 @@ services:
     ports: !override ["127.0.0.1:3001:3001"]
     group_add: ["${QUERY_CLAW_HOST_GID}"]
     volumes:
-      - ${QUERY_CLAW_DATA_DIR}:/query-claw-active:ro
+      - type: bind
+        source: ${QUERY_CLAW_STRUCTURED_DIR}
+        target: /query-claw-structured
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${QUERY_CLAW_PREDICTION_DIR}
+        target: /query-claw-prediction
+        read_only: true
+        bind:
+          create_host_path: false
 
   ingestion-service:
     container_name: query-claw-gsf-ingestion
@@ -61,7 +77,12 @@ services:
     ports: !override []
     group_add: ["${QUERY_CLAW_HOST_GID}"]
     volumes:
-      - ${QUERY_CLAW_DATA_DIR}:/query-claw-active:ro
+      - type: bind
+        source: ${QUERY_CLAW_STRUCTURED_DIR}
+        target: /query-claw-structured
+        read_only: true
+        bind:
+          create_host_path: false
 
   gsf-migrate:
     container_name: query-claw-gsf-backend-migrate
@@ -129,7 +150,18 @@ services:
     volumes:
       - ${QUERY_CLAW_DEPLOY_DIR}/retriever-service.yaml:/etc/nemo-retriever/retriever-service.yaml:ro
       - ${QUERY_CLAW_DEPLOY_DIR}/retriever_collections.py:/opt/query-claw/retriever_collections.py:ro
-      - ${QUERY_CLAW_DATA_DIR}:/query-claw-active:ro
+      - type: bind
+        source: ${QUERY_CLAW_ACTIVE_MANIFEST}
+        target: /query-claw-active/active-dataset.json
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${QUERY_CLAW_DOCUMENTS_DIR}
+        target: /query-claw-active/documents
+        read_only: true
+        bind:
+          create_host_path: false
       - retriever_data:/var/lib/nemo-retriever
     ports: ["127.0.0.1:7670:7670"]
     healthcheck:

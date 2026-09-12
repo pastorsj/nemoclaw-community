@@ -14,7 +14,9 @@ compose build gsf gsf-frontend gsf-mcp
 # destructive catalog refresh. This also makes a rerun safe when an older
 # Query Claw deployment is still serving traffic.
 compose stop gsf-mcp gsf-frontend ingestion-service gsf
-compose up -d postgres
+# Dataset activation replaces the active tree atomically. Recreate Postgres so
+# its CSV bind follows the newly published structured-data directory inode.
+compose up -d --force-recreate postgres
 
 for _ in {1..60}; do
   if compose exec -T postgres pg_isready -U "$POSTGRES_USER" \
