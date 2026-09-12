@@ -80,6 +80,44 @@ class ReviewedCorpusTests(unittest.TestCase):
         files = RETRIEVER._reviewed_corpus_files(self.root, "reviewed-v1")
         self.assertEqual([self.first.resolve(), self.second.resolve()], files)
 
+    def test_accepts_only_the_fixed_legacy_ai_factory_contract(self) -> None:
+        collection = RETRIEVER._LEGACY_AIQ_FACTORY_COLLECTION
+        self.manifest.update(
+            {
+                "schema_version": 1,
+                "collection": collection,
+                "synthetic": True,
+                "review": {
+                    "policy": "grounding-and-booth-copy-v1",
+                    "status": "reviewed",
+                },
+                "source_dataset": {"id": "synthetic-ai-factory"},
+            }
+        )
+        self.write_manifest()
+
+        files = RETRIEVER._reviewed_corpus_files(self.root, collection)
+        self.assertEqual([self.first.resolve(), self.second.resolve()], files)
+
+        valid = copy.deepcopy(self.manifest)
+        invalid_contracts = (
+            {"collection": "other-v1"},
+            {"synthetic": False},
+            {"review": {"policy": "other", "status": "reviewed"}},
+            {"source_dataset": {"id": "other"}},
+        )
+        for changes in invalid_contracts:
+            with self.subTest(changes=changes):
+                self.manifest = valid | changes
+                self.write_manifest()
+                with self.assertRaisesRegex(RuntimeError, "manifest contract"):
+                    RETRIEVER._reviewed_corpus_files(self.root, collection)
+
+        self.manifest = valid
+        self.write_manifest()
+        with self.assertRaisesRegex(RuntimeError, "manifest contract"):
+            RETRIEVER._reviewed_corpus_files(self.root, "other-v1")
+
     def test_rejects_checksum_and_undeclared_file_drift(self) -> None:
         self.first.write_text("changed\n", encoding="utf-8")
         with self.assertRaisesRegex(RuntimeError, "checksum"):

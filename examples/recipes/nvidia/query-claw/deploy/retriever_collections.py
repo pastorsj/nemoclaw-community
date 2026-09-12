@@ -21,6 +21,25 @@ from nemo_retriever import RetrieverServiceClient
 
 _SHA256_RE = re.compile(r"sha256:[0-9a-f]{64}")
 _REVISION_RE = re.compile(r"[0-9a-f]{40}")
+_LEGACY_AIQ_FACTORY_COLLECTION = (
+    "aiq-booth-synthetic-ai-factory-nemotron3-embed-2048-v1"
+)
+
+
+def _supported_corpus_manifest(manifest: dict[str, Any], collection: str) -> bool:
+    if manifest.get("schema_version") == 2:
+        return manifest.get("collection") == collection
+    source = manifest.get("source_dataset")
+    return (
+        manifest.get("schema_version") == 1
+        and collection == _LEGACY_AIQ_FACTORY_COLLECTION
+        and manifest.get("collection") == _LEGACY_AIQ_FACTORY_COLLECTION
+        and manifest.get("synthetic") is True
+        and manifest.get("review")
+        == {"policy": "grounding-and-booth-copy-v1", "status": "reviewed"}
+        and isinstance(source, dict)
+        and source.get("id") == "synthetic-ai-factory"
+    )
 
 
 def _reviewed_corpus_files(path: Path, collection: str) -> list[Path]:
@@ -43,8 +62,7 @@ def _reviewed_corpus_files(path: Path, collection: str) -> list[Path]:
         raise RuntimeError("reviewed document manifest is invalid") from error
     documents = manifest.get("documents")
     if (
-        manifest.get("schema_version") != 2
-        or manifest.get("collection") != collection
+        not _supported_corpus_manifest(manifest, collection)
         or not isinstance(documents, list)
         or manifest.get("document_count") != len(documents)
         or not documents
