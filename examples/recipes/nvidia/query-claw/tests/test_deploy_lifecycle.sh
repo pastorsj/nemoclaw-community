@@ -63,6 +63,23 @@ retriever_defaults="$(env -u NVIDIA_EMBED_INVOKE_URL -u NVIDIA_EMBED_MODEL \
 [[ "$retriever_defaults" == $'https://inference-api.nvidia.com/v1/embeddings\nnvidia/nemotron-3-embed-1b\nnvidia\nhttps://inference-api.nvidia.com/v1/rerank\nnvidia/nvidia/llama-3.2-nv-rerankqa-1b-v2' ]] || \
   fail "NeMo Retriever hosted defaults differ from the live-qualified stack"
 
+gsf_defaults="$(env -u NVIDIA_BASE_URL -u LLM_MODEL -u ONTOLOGY_MODEL \
+  -u GSF_REASONING_MODEL -u GSF_NON_REASONING_MODEL \
+  -u GSF_EMBED_MODEL bash -c '
+  source "$1"
+  NVIDIA_INFERENCE_API_KEY=nvapi-test
+  export_runtime_env
+  [[ "$REASONING_API_KEY" == "$NVIDIA_INFERENCE_API_KEY" && \
+    "$NON_REASONING_API_KEY" == "$NVIDIA_INFERENCE_API_KEY" && \
+    "$EMBED_API_KEY" == "$NVIDIA_INFERENCE_API_KEY" ]]
+  printf "%s\n%s\n%s\n%s\n%s\n%s\n" \
+    "$REASONING_ENDPOINT" "$REASONING_MODEL" \
+    "$NON_REASONING_ENDPOINT" "$NON_REASONING_MODEL" \
+    "$EMBED_ENDPOINT" "$EMBED_MODEL"
+' _ "$common")"
+[[ "$gsf_defaults" == $'https://integrate.api.nvidia.com/v1\nnvidia/nemotron-3-super-120b-a12b\nhttps://integrate.api.nvidia.com/v1\nnvidia/nemotron-3-super-120b-a12b\nhttps://integrate.api.nvidia.com/v1\nnvidia/nemotron-3-embed-1b' ]] || \
+  fail "GSF public NVIDIA API defaults are incomplete"
+
 amd64_image="$(NEMO_RETRIEVER_IMAGE=operator-override bash -c '
   source "$1"
   uname() { printf "x86_64\n"; }
@@ -79,15 +96,23 @@ arm64_image="$(NEMO_RETRIEVER_IMAGE=operator-override bash -c '
 ' _ "$common")"
 [[ "$arm64_image" == query-claw-retriever:26.08.1-arm64 ]] || \
   fail "arm64 NeMo Retriever image is not code-owned"
-gsf_embed_model="$(NVIDIA_BASE_URL=https://inference.example.test/v1 \
-  NVIDIA_EMBED_MODEL=nvidia/nemotron-3-embed-1b \
-  NVIDIA_EMBED_MODEL_PROVIDER_PREFIX=nvidia bash -c '
+gsf_lanes="$(NVIDIA_INFERENCE_API_KEY=test \
+  NVIDIA_BASE_URL=https://default.example.test/v1 \
+  ONTOLOGY_MODEL=example/fallback \
+  GSF_REASONING_MODEL=example/reasoning \
+  GSF_NON_REASONING_MODEL=example/utility \
+  GSF_EMBED_MODEL=example/gsf-embedding \
+  NVIDIA_EMBED_MODEL=example/retriever-embedding \
+  NVIDIA_EMBED_MODEL_PROVIDER_PREFIX=example bash -c '
   source "$1"
   export_runtime_env
-  printf "%s\n" "$EMBED_MODEL"
+  printf "%s\n%s\n%s\n%s\n%s\n%s\n%s\n" \
+    "$DEFAULT_MODELS_MODEL" "$REASONING_ENDPOINT" "$REASONING_MODEL" \
+    "$NON_REASONING_ENDPOINT" "$NON_REASONING_MODEL" \
+    "$EMBED_ENDPOINT" "$EMBED_MODEL"
 ' _ "$common")"
-[[ "$gsf_embed_model" == nvidia/nvidia/nemotron-3-embed-1b ]] || \
-  fail "GSF did not receive the same provider-prefixed embedding model as Retriever"
+[[ "$gsf_lanes" == $'example/fallback\nhttps://default.example.test/v1\nexample/reasoning\nhttps://default.example.test/v1\nexample/utility\nhttps://default.example.test/v1\nexample/gsf-embedding' ]] || \
+  fail "GSF model-lane overrides are incomplete"
 grep -q '^  api_key: "${NVIDIA_API_KEY}"$' \
   "$EXAMPLE_DIR/deploy/retriever-service.yaml" || \
   fail "NeMo Retriever does not pass its NVIDIA key to the official reranker"

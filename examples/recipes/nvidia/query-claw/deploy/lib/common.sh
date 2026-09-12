@@ -355,6 +355,12 @@ export_runtime_env() {
   export DEFAULT_MODELS_API_KEY="${NVIDIA_INFERENCE_API_KEY:-}"
   export DEFAULT_MODELS_ENDPOINT="$inference_base"
   export DEFAULT_MODELS_MODEL="${ONTOLOGY_MODEL:-$inference_model}"
+  export REASONING_API_KEY="${NVIDIA_INFERENCE_API_KEY:-}"
+  export REASONING_ENDPOINT="$inference_base"
+  export REASONING_MODEL="${GSF_REASONING_MODEL:-$DEFAULT_MODELS_MODEL}"
+  export NON_REASONING_API_KEY="${NVIDIA_INFERENCE_API_KEY:-}"
+  export NON_REASONING_ENDPOINT="$inference_base"
+  export NON_REASONING_MODEL="${GSF_NON_REASONING_MODEL:-$DEFAULT_MODELS_MODEL}"
   if [[ -z "${NVIDIA_EMBED_INVOKE_URL:-}" ]]; then
     NVIDIA_EMBED_INVOKE_URL=https://inference-api.nvidia.com/v1/embeddings
     NVIDIA_EMBED_MODEL_PROVIDER_PREFIX="${NVIDIA_EMBED_MODEL_PROVIDER_PREFIX:-nvidia}"
@@ -367,14 +373,10 @@ export_runtime_env() {
   export NVIDIA_EMBED_MODEL_PROVIDER_PREFIX
   export NVIDIA_RERANK_INVOKE_URL NVIDIA_RERANK_MODEL
   export EMBED_API_KEY="${NVIDIA_INFERENCE_API_KEY:-}"
-  # GSF passes its endpoint to an OpenAI-compatible client that appends
-  # `/embeddings`; Retriever requires the complete invoke URL instead.
+  # GSF appends `/embeddings` to its endpoint and owns a model lane independent
+  # of Retriever's complete invoke URL, provider prefix, and model selection.
   export EMBED_ENDPOINT="$inference_base"
-  if [[ -n "$NVIDIA_EMBED_MODEL_PROVIDER_PREFIX" ]]; then
-    export EMBED_MODEL="${NVIDIA_EMBED_MODEL_PROVIDER_PREFIX%/}/$NVIDIA_EMBED_MODEL"
-  else
-    export EMBED_MODEL="$NVIDIA_EMBED_MODEL"
-  fi
+  export EMBED_MODEL="${GSF_EMBED_MODEL:-nvidia/nemotron-3-embed-1b}"
   encoded_gsf_query_password="$(python3 - "${GSF_QUERY_PASSWORD:-}" <<'PY'
 import sys
 from urllib.parse import quote

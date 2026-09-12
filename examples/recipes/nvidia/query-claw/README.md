@@ -194,7 +194,8 @@ Set the relevant operator inputs in `.runtime/deploy.env`:
 | --- | --- |
 | `GSF_SOURCE_DIR` | Required clean checkout of the reviewed GSF integration; setup enforces the code-owned commit. |
 | `NVIDIA_INFERENCE_API_KEY`, `NVIDIA_BASE_URL`, `LLM_MODEL` | Inference and default embedding route used by the stack. |
-| `ONTOLOGY_MODEL` | Optional lower-latency model for GSF text-to-SQL; blank uses `LLM_MODEL`. |
+| `ONTOLOGY_MODEL`, `GSF_REASONING_MODEL`, `GSF_NON_REASONING_MODEL` | Optional GSF model-lane overrides. Blank per-lane models use `ONTOLOGY_MODEL`, then `LLM_MODEL`; both lanes use `NVIDIA_BASE_URL`. |
+| `GSF_EMBED_MODEL` | Optional GSF-only embedding override. Blank uses the public NVIDIA API default; GSF never inherits Retriever's embedding selection. |
 | `NVIDIA_EMBED_INVOKE_URL`, `NVIDIA_EMBED_MODEL`, `NVIDIA_EMBED_MODEL_PROVIDER_PREFIX`, `NVIDIA_RERANK_INVOKE_URL`, `NVIDIA_RERANK_MODEL` | Optional NeMo Retriever overrides; blanks use the live-qualified NVIDIA-hosted defaults. Set the provider prefix only when the selected endpoint requires one. |
 | `KUMO_RFM_API_URL`, `KUMO_RFM_API_KEY` | Kumo API origin and optional credential consumed only by GSF. The URL is required only when the dataset declares prediction artifacts. |
 | `QUERY_CLAW_DATASET_REPOSITORY`, `QUERY_CLAW_DATASET_MANIFEST` | Optional pair selecting exactly one external AIQ3 dataset. Leave both blank for the bundled sample. |

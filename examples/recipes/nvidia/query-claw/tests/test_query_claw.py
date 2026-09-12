@@ -185,6 +185,9 @@ class QueryClawContractTests(unittest.TestCase):
         for name in (
             "GSF_SOURCE_DIR",
             "NVIDIA_INFERENCE_API_KEY",
+            "GSF_REASONING_MODEL",
+            "GSF_NON_REASONING_MODEL",
+            "GSF_EMBED_MODEL",
             "KUMO_RFM_API_URL",
             "KUMO_RFM_API_KEY",
             "NEMOCLAW_SANDBOX_NAME",
@@ -271,6 +274,19 @@ class QueryClawContractTests(unittest.TestCase):
         self.assertIn('GSF_MCP_CHAT_TIMEOUT_S: "840"', compose)
         self.assertIn("KUMO_RFM_API_URL: ${QUERY_CLAW_KUMO_RFM_API_URL}", compose)
         self.assertIn("KUMO_RFM_API_KEY: ${QUERY_CLAW_KUMO_RFM_API_KEY}", compose)
+        for assignment in (
+            "REASONING_API_KEY: ${REASONING_API_KEY}",
+            "REASONING_ENDPOINT: ${REASONING_ENDPOINT}",
+            "REASONING_MODEL: ${REASONING_MODEL}",
+            "NON_REASONING_API_KEY: ${NON_REASONING_API_KEY}",
+            "NON_REASONING_ENDPOINT: ${NON_REASONING_ENDPOINT}",
+            "NON_REASONING_MODEL: ${NON_REASONING_MODEL}",
+            "EMBED_API_KEY: ${EMBED_API_KEY}",
+            "EMBED_ENDPOINT: ${EMBED_ENDPOINT}",
+            "EMBED_MODEL: ${EMBED_MODEL}",
+            'LLM_INVOKE_TIMEOUT_S: "120"',
+        ):
+            self.assertEqual(2, compose.count(assignment), assignment)
         self.assertIn(
             "KUMO_GRAPH_CONTRACTS_FILE: ${QUERY_CLAW_KUMO_GRAPH_CONTRACTS_FILE}",
             compose,
