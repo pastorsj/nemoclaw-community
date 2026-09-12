@@ -107,6 +107,21 @@ def _judged_record(case_id: str, *, status: str, verdict: str) -> dict:
 
 
 class RunTests(unittest.TestCase):
+    def test_case_delay_rejects_values_outside_aiq_bounds(self) -> None:
+        for seconds in (float("nan"), float("inf"), -0.1, 300.1):
+            with self.subTest(seconds=seconds):
+                self.assertFalse(RUN._valid_case_delay(seconds))
+        for seconds in (0.0, 1.25, 300.0):
+            with self.subTest(seconds=seconds):
+                self.assertTrue(RUN._valid_case_delay(seconds))
+
+    @patch.object(RUN.time, "sleep")
+    def test_case_delay_runs_only_between_cases(self, sleep) -> None:
+        for position in (1, 2, 3):
+            RUN._sleep_between_cases(position, 3, 1.25)
+        RUN._sleep_between_cases(1, 2, 0.0)
+        self.assertEqual([call(1.25), call(1.25)], sleep.call_args_list)
+
     @patch.object(RUN.time, "sleep")
     @patch.object(RUN, "_bounded_request")
     def test_retries_completed_hermes_rate_limit_answer(self, request, sleep) -> None:

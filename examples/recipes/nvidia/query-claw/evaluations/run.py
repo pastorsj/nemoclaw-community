@@ -11,6 +11,7 @@ import hashlib
 import http.client
 import ipaddress
 import json
+import math
 import os
 import re
 import tempfile
@@ -59,6 +60,15 @@ class EvaluationError(RuntimeError):
 class _NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, request, file_pointer, code, message, headers, new_url):
         return None
+
+
+def _valid_case_delay(seconds: float) -> bool:
+    return math.isfinite(seconds) and 0.0 <= seconds <= 300.0
+
+
+def _sleep_between_cases(position: int, total: int, seconds: float) -> None:
+    if position < total and seconds:
+        time.sleep(seconds)
 
 
 @dataclass(frozen=True)
@@ -1148,8 +1158,16 @@ def main() -> int:
     parser.add_argument("--api-key", default=os.environ.get("API_SERVER_KEY", ""))
     parser.add_argument("--model", default="hermes-agent")
     parser.add_argument("--timeout", type=int, default=900)
+    parser.add_argument(
+        "--case-delay-seconds",
+        type=float,
+        default=0.0,
+        help="pause between cases to respect shared-provider rate limits",
+    )
     parser.add_argument("--case", action="append", default=[])
     args = parser.parse_args()
+    if not _valid_case_delay(args.case_delay_seconds):
+        parser.error("--case-delay-seconds must be a finite value from 0 through 300")
     if not args.api_key or args.timeout <= 0:
         parser.error("API_SERVER_KEY and a positive --timeout are required")
 
@@ -1317,6 +1335,7 @@ def main() -> int:
         print(
             f"[{position}/{len(cases)}] {case_id}: {records[-1]['status']}", flush=True
         )
+        _sleep_between_cases(position, len(cases), args.case_delay_seconds)
     passed = sum(record["status"] == "pass" for record in records)
     print(
         f"Completed {len(records)} cases: {passed} pass, {len(records) - passed} fail"
