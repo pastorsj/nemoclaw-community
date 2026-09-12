@@ -9,7 +9,7 @@ EXAMPLE_DIR="$(cd "$DEPLOY_DIR/.." && pwd)"
 RUNTIME_DIR="$EXAMPLE_DIR/.runtime"
 DEPLOY_ENV="${QUERY_CLAW_DEPLOY_ENV:-$RUNTIME_DIR/deploy.env}"
 DATA_DIR="$RUNTIME_DIR/active-data"
-readonly QUERY_CLAW_GSF_COMMIT=ae785d8995a026b417b834b01eb682a078d9630f
+readonly QUERY_CLAW_GSF_COMMIT=7f67a6bb0e1069df3f313db4ffffac1ff820f5c9
 readonly QUERY_CLAW_RETRIEVER_VERSION=26.08.1
 readonly QUERY_CLAW_RETRIEVER_COMMIT=1992e3f09746b9fc150a266567c9737746781fdd
 readonly QUERY_CLAW_RETRIEVER_AMD64_IMAGE=nvcr.io/nvidia/nemo-microservices/nrl-service@sha256:597f0ac7404329b600669f5ece03b65fc4158f2068c2892f3cfb3df2d75add58
@@ -331,9 +331,15 @@ export_runtime_env() {
   if [[ "$has_prediction" == 1 ]]; then
     export QUERY_CLAW_KUMO_RFM_API_URL="${KUMO_RFM_API_URL:-}"
     export QUERY_CLAW_KUMO_RFM_API_KEY="${KUMO_RFM_API_KEY:-}"
+    if [[ "$database_engine" == duckdb ]]; then
+      export QUERY_CLAW_KUMO_GRAPH_CONTRACTS_FILE=/query-claw-active/prediction/graph.json
+    else
+      export QUERY_CLAW_KUMO_GRAPH_CONTRACTS_FILE=''
+    fi
   else
     export QUERY_CLAW_KUMO_RFM_API_URL=''
     export QUERY_CLAW_KUMO_RFM_API_KEY=''
+    export QUERY_CLAW_KUMO_GRAPH_CONTRACTS_FILE=''
   fi
   export QUERY_CLAW_DEPLOY_ENV="$DEPLOY_ENV"
   NEMO_RETRIEVER_IMAGE="$(retriever_image_for_arch "$(uname -m)")"

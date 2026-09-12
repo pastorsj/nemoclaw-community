@@ -292,7 +292,7 @@ def seed_pql(active: ActiveDataset, base_url: str) -> int:
     for index, item in enumerate(examples):
         if not isinstance(item, dict):
             raise DatasetConfigurationError(f"PQL example {index} must be an object")
-        payload: dict[str, str] = {}
+        payload: dict[str, str] = {"database_name": active.database_name}
         for field in ("name", "description", "pql"):
             value = item.get(field)
             if not isinstance(value, str) or not value.strip():

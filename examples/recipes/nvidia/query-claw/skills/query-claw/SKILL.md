@@ -61,9 +61,10 @@ without a namespace or directory prefix.
 When present, the `gsf` registration is the upstream OAuth server, not a Query
 Claw facade. It exposes only `mcp__gsf__ask_question`. Pass that tool the
 complete records question, or a prediction question only when
-`query-claw-predictive` is installed. GSF owns semantic resolution, SQL
-generation, execution, and its internal choice of the Kumo-backed prediction
-path. The tool cannot modify the catalog, glossary, or business database,
+`query-claw-predictive` is installed. For predictions, that skill sets the
+tool's `prediction: true` argument. GSF owns semantic resolution, query
+generation, execution, and the Kumo-backed prediction path. The tool cannot
+modify the catalog, glossary, or business database,
 although it may persist a GSF conversation turn. A returned `sql` starting with
 `PREDICT` proves a Kumo attempt. Name the result as a Kumo prediction only when
 every returned prediction row also contains a finite numeric score; otherwise

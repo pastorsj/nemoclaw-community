@@ -4,7 +4,7 @@
 | --- | --- |
 | Description | Routes enterprise questions through structured facts, retrieved documents, and predictive analytics, then returns one evidence-led answer from Hermes inside OpenShell. |
 | Industry | 🏭 Manufacturing |
-| Requirements | Linux Docker host · Docker Compose 2.24.4+ · Bash · curl · Python 3.10+ · NVIDIA inference access · legacy KumoRFM endpoint supported by pinned GSF · clean pinned NVIDIA GSF checkout |
+| Requirements | Linux Docker host · Docker Compose 2.24.4+ · Bash · curl · Python 3.10+ · NVIDIA inference access · Kumo API access for prediction · clean pinned GSF integration checkout |
 | NemoClaw | v0.0.123 |
 | Harness | Hermes 0.20.6 |
 | OpenShell | 0.0.106 |
@@ -41,7 +41,7 @@ evidence that the complete current stack has been live-qualified.
 | Use this when | An enterprise question needs structured facts, document evidence, a prediction, or a deliberate combination of them. |
 | You will get | A concise answer that distinguishes observations, retrieved evidence, predictions, and recommendations. |
 | Runs on | A Linux Docker host capable of running NemoClaw with Docker Compose 2.24.4+. The deployment uses the released Retriever image on amd64 and builds its pinned CPU service target on arm64. |
-| Requires | NVIDIA inference and embedding access, a legacy KumoRFM endpoint supported by the pinned GSF revision for predictive datasets, and a clean checkout of that GSF revision. |
+| Requires | NVIDIA inference and embedding access, a Kumo API endpoint supported by the pinned GSF integration for predictive datasets, and a clean checkout of that exact GSF revision. |
 | Verified on | Credential-free checks on macOS 26.6.2 arm64 with Python 3.14.6; structured retrieval live-qualified through Hermes, OpenShell, and official GSF on a Brev CPU host. |
 | Evidence level | local/static checks plus live suite execution |
 | Support and maturity | Reference recipe with [best-effort community support](../../../../SUPPORT.md). |
@@ -69,11 +69,11 @@ NemoClaw v0.0.123 at commit
 and OpenShell 0.0.106. Query Claw does not patch Hermes, build a custom Hermes
 image, or install a separate relay connector.
 
-The deployment builds the official GSF MCP package unchanged from its pinned
-GSF checkout. It runs NeMo Retriever 26.08.1 and authorizes only the native
-`query` MCP tool for Hermes answers. Retriever's other six tools remain visible
-to MCP discovery because NemoClaw owns the native registration, but OpenShell
-blocks every call to them. Retriever ingestion is deployment-owned: the
+The deployment builds GSF's official OAuth MCP package from its pinned,
+reviewed integration checkout. It runs NeMo Retriever 26.08.1 and authorizes
+only the native `query` MCP tool for Hermes answers. Retriever's other six tools
+remain visible to MCP discovery because NemoClaw owns the native registration,
+but OpenShell blocks every call to them. Retriever ingestion is deployment-owned: the
 service parses, chunks, embeds, and stores each declared document corpus before
 Hermes starts. Queries return reranked, source-bearing hits. Hermes receives
 only a sanitized summary of the deployment-qualified parser, chunker,
@@ -172,11 +172,12 @@ python3 scripts/verify.py --local
 The full deployment targets one Linux Docker host, including a Brev instance.
 Before deployment:
 
-1. Place a clean checkout of [NVIDIA GSF](https://github.com/NVIDIA/GSF) at the
-   exact `QUERY_CLAW_GSF_COMMIT` in `deploy/lib/common.sh` on the host.
-2. Provision a legacy KumoRFM endpoint supported by the pinned GSF revision if
-   the active dataset has predictive data. Query Claw connects to that service;
-   it does not create a Kumo account, project, model, or endpoint.
+1. Place a clean checkout of the reviewed
+   [Query Claw GSF integration](https://github.com/pastorsj/GSF) at the exact
+   `QUERY_CLAW_GSF_COMMIT` in `deploy/lib/common.sh` on the host.
+2. Provision the Kumo API endpoint supported by that pinned GSF revision if the
+   active dataset has predictive data. Query Claw connects to that service; it
+   does not create a Kumo account, project, model, or endpoint.
 3. On amd64, authenticate Docker to `nvcr.io` so it can pull the pinned NeMo
    Retriever image.
 
@@ -191,11 +192,11 @@ Set the relevant operator inputs in `.runtime/deploy.env`:
 
 | Variables | Purpose |
 | --- | --- |
-| `GSF_SOURCE_DIR` | Required clean NVIDIA GSF checkout; setup enforces the code-owned commit. |
+| `GSF_SOURCE_DIR` | Required clean checkout of the reviewed GSF integration; setup enforces the code-owned commit. |
 | `NVIDIA_INFERENCE_API_KEY`, `NVIDIA_BASE_URL`, `LLM_MODEL` | Inference and default embedding route used by the stack. |
 | `ONTOLOGY_MODEL` | Optional lower-latency model for GSF text-to-SQL; blank uses `LLM_MODEL`. |
 | `NVIDIA_EMBED_INVOKE_URL`, `NVIDIA_EMBED_MODEL`, `NVIDIA_EMBED_MODEL_PROVIDER_PREFIX`, `NVIDIA_RERANK_INVOKE_URL`, `NVIDIA_RERANK_MODEL` | Optional NeMo Retriever overrides; blanks use the live-qualified NVIDIA-hosted defaults. Set the provider prefix only when the selected endpoint requires one. |
-| `KUMO_RFM_API_URL`, `KUMO_RFM_API_KEY` | Legacy KumoRFM service URL and optional credential consumed only by official GSF. The URL is required only when the dataset declares prediction artifacts. |
+| `KUMO_RFM_API_URL`, `KUMO_RFM_API_KEY` | Kumo API origin and optional credential consumed only by GSF. The URL is required only when the dataset declares prediction artifacts. |
 | `QUERY_CLAW_DATASET_REPOSITORY`, `QUERY_CLAW_DATASET_MANIFEST` | Optional pair selecting exactly one external AIQ3 dataset. Leave both blank for the bundled sample. |
 | `NEMOCLAW_SANDBOX_NAME`, `NEMOCLAW_GATEWAY_PORT`, `NEMOCLAW_DASHBOARD_PORT`, `NEMOCLAW_HERMES_API_PORT` | Optional deployment identity and collision-free host ports. |
 | `CHAT_UI_URL` | Optional authenticated HTTPS origin for a remote Hermes dashboard; blank keeps it loopback-only. |
@@ -222,7 +223,8 @@ Setup performs these reviewable stages:
    generated when no external manifest is selected.
 2. For structured data, it resets this deployment's GSF catalog, imports the
    reviewed ontology, and loads physical metadata. For predictive data it also
-   seeds reviewed PQL examples and configures GSF's Kumo route.
+   seeds database-scoped PQL examples and gives GSF the reviewed graph when one
+   is present.
 3. For documents, it creates one Retriever collection and submits the corpus
    through Retriever's native parse, chunk, embed, and store pipeline.
 4. It creates private TLS ingress for the enabled official MCP servers.
@@ -363,16 +365,14 @@ nemohermes "${NEMOCLAW_SANDBOX_NAME:-query-claw}" destroy
 
 ## Known Limitations And Security
 
-- A clean NVIDIA GSF checkout at the exact reviewed commit must already exist.
-  The recipe builds its official MCP package but does not vendor or silently
-  update GSF.
-- Kumo remains an external service behind GSF. The pinned GSF revision uses the
-  legacy KumoRFM client and does not support a Kumo Relational endpoint. The
-  [upstream migration](https://github.com/NVIDIA/GSF/pull/219) is still
-  unmerged, so Query Claw neither pins it nor adds a direct Kumo path. Returned
-  `sql` starting with `PREDICT` proves only that GSF attempted the route; finite
-  numeric scores are required before calling it successful. Query Claw does not
-  provision or train Kumo.
+- A clean checkout of the reviewed GSF integration at the exact pinned commit
+  must already exist. The recipe builds its official MCP package but does not
+  vendor or silently update GSF.
+- Kumo remains an external API behind GSF. Query Claw mounts a reviewed graph
+  only for the active dataset and calls Kumo only from GSF; it does not expose a
+  direct Kumo tool to Hermes. Returned `sql` starting with `PREDICT` proves only
+  that GSF attempted the route; finite numeric scores are required before
+  calling it successful. Query Claw does not provision or train Kumo.
 - The released Retriever 26.08.1 image is amd64-only. On arm64, setup validates
   a clean pinned source checkout and builds its CPU service target without the
   image's x86 CUDA installation block.

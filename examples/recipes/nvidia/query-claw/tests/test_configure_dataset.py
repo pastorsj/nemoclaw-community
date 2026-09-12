@@ -198,7 +198,7 @@ class ConfigureDatasetTests(unittest.TestCase):
         self.assertEqual(request.data, b"data_layer: {}\n")
         self.assertEqual(timeout, 900)
 
-    def test_seeds_database_matched_pql_without_extra_api_fields(self) -> None:
+    def test_seeds_database_scoped_pql(self) -> None:
         requests = []
 
         def send(request, timeout):
@@ -212,7 +212,12 @@ class ConfigureDatasetTests(unittest.TestCase):
         self.assertEqual(request.full_url, "http://localhost:3001/api/pql-analyses")
         self.assertEqual(
             json.loads(request.data),
-            {"name": "Delay", "description": "Predict delay", "pql": "PREDICT delay"},
+            {
+                "database_name": "cloud",
+                "name": "Delay",
+                "description": "Predict delay",
+                "pql": "PREDICT delay",
+            },
         )
         self.assertEqual(timeout, 900)
 

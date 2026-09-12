@@ -62,8 +62,9 @@ PREDICTION_PROMPT = """The active GSF data product also supports prediction.
 Before any data call, require an explicit outcome or target, entity or
 population, and forecast horizon or cutoff. If any is missing, ask one
 concise clarifying question and call no data tool. Otherwise call
-`mcp__gsf__ask_question`; GSF may route it internally to Kumo. Never claim Kumo
-produced a prediction unless returned `sql` starts with `PREDICT` and every
+`mcp__gsf__ask_question` with `prediction=true`; GSF routes that request
+internally to Kumo. Never claim Kumo produced a prediction unless returned
+`sql` starts with `PREDICT` and every
 prediction row contains a finite numeric score. A `PREDICT` response without
 usable scores proves only an attempted, unavailable route. Never construct PQL
 yourself. If an intended prediction returns ordinary SQL, retry once with the

@@ -85,10 +85,10 @@ evaluation paths, and a content fingerprint. It contains no credentials.
 
 For an external DuckDB activation, setup resets the entire GSF catalog owned
 by this Query Claw Compose project, imports the reviewed ontology, ingests only
-that database's metadata, and seeds reviewed PQL examples. The prediction graph
-is retained as activation provenance; the pinned GSF revision derives the
-operational graph from its catalog. For the bundled Postgres CSV source, setup loads the staged
-CSVs and uses GSF-native semantic compilation and GSF-mediated prediction.
+that database's metadata, seeds database-scoped PQL examples, and mounts the
+reviewed prediction graph into GSF as `KUMO_GRAPH_CONTRACTS_FILE`. For the
+bundled Postgres CSV source, setup loads the staged CSVs and uses GSF-native
+semantic compilation and GSF-mediated prediction.
 
 When prediction mode is `reviewed`, deployment derives a bounded scope summary
 for Hermes from the reviewed graph and PQL-example metadata. It contains only

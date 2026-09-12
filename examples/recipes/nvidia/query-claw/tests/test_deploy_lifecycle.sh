@@ -123,11 +123,12 @@ kumo_disabled="$(KUMO_RFM_API_URL=https://prediction.example.test/v1 \
   source "$1"
   DATA_DIR="$2"
   export_runtime_env
-  printf "<%s>\n<%s>\n" \
-    "$QUERY_CLAW_KUMO_RFM_API_URL" "$QUERY_CLAW_KUMO_RFM_API_KEY"
+  printf "<%s>\n<%s>\n<%s>\n" \
+    "$QUERY_CLAW_KUMO_RFM_API_URL" "$QUERY_CLAW_KUMO_RFM_API_KEY" \
+    "$QUERY_CLAW_KUMO_GRAPH_CONTRACTS_FILE"
 ' _ "$common" "$TEST_ROOT/active")"
-[[ "$kumo_disabled" == $'<>\n<>' ]] || \
-  fail "non-predictive activation exposed Kumo credentials to GSF"
+[[ "$kumo_disabled" == $'<>\n<>\n<>' ]] || \
+  fail "non-predictive activation exposed Kumo configuration to GSF"
 
 mkdir -p "$TEST_ROOT/active-prediction/structured"
 printf 'supplier_id\nSUP-001\n' > \
@@ -140,11 +141,31 @@ kumo_enabled="$(KUMO_RFM_API_URL=https://prediction.example.test/v1 \
   source "$1"
   DATA_DIR="$2"
   export_runtime_env
-  printf "%s\n%s\n" \
-    "$QUERY_CLAW_KUMO_RFM_API_URL" "$QUERY_CLAW_KUMO_RFM_API_KEY"
+  printf "%s\n%s\n<%s>\n" \
+    "$QUERY_CLAW_KUMO_RFM_API_URL" "$QUERY_CLAW_KUMO_RFM_API_KEY" \
+    "$QUERY_CLAW_KUMO_GRAPH_CONTRACTS_FILE"
 ' _ "$common" "$TEST_ROOT/active-prediction")"
-[[ "$kumo_enabled" == $'https://prediction.example.test/v1\nsecret' ]] || \
-  fail "predictive activation did not expose Kumo credentials to GSF"
+[[ "$kumo_enabled" == $'https://prediction.example.test/v1\nsecret\n<>' ]] || \
+  fail "native predictive activation received a reviewed graph path"
+
+mkdir -p "$TEST_ROOT/active-reviewed/database" \
+  "$TEST_ROOT/active-reviewed/ontology" "$TEST_ROOT/active-reviewed/prediction"
+: >"$TEST_ROOT/active-reviewed/database/cloud.duckdb"
+: >"$TEST_ROOT/active-reviewed/ontology/model.gsf.yaml"
+: >"$TEST_ROOT/active-reviewed/prediction/graph.json"
+: >"$TEST_ROOT/active-reviewed/prediction/pql-examples.json"
+cat >"$TEST_ROOT/active-reviewed/active-dataset.json" <<'JSON'
+{"schema_version":1,"id":"cloud","fingerprint":"0000000000000000000000000000000000000000000000000000000000000000","database":{"engine":"duckdb","name":"cloud","path":"database/cloud.duckdb"},"ontology":{"path":"ontology/model.gsf.yaml"},"documents":null,"prediction":{"mode":"reviewed","graph_path":"prediction/graph.json","pql_examples_path":"prediction/pql-examples.json"},"prediction_contract_exists":true}
+JSON
+reviewed_graph="$(KUMO_RFM_API_URL=https://prediction.example.test/v1 \
+  KUMO_RFM_API_KEY=secret bash -c '
+  source "$1"
+  DATA_DIR="$2"
+  export_runtime_env
+  printf "%s\n" "$QUERY_CLAW_KUMO_GRAPH_CONTRACTS_FILE"
+' _ "$common" "$TEST_ROOT/active-reviewed")"
+[[ "$reviewed_graph" == /query-claw-active/prediction/graph.json ]] || \
+  fail "reviewed prediction graph was not passed to GSF"
 
 for ip in 10.0.0.1 10.255.255.254 172.16.0.1 172.31.255.254 \
   192.168.0.1 192.168.255.254; do

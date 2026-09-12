@@ -5,17 +5,17 @@ description: Ask predictive questions against Query Claw's structured data produ
 
 # Query Claw predictions
 
-GSF may route a clearly predictive `ask_question` request through its configured
-Kumo integration. The official MCP server deliberately exposes no separate
-`predict` tool and no way to force that internal route. Never call Kumo
-directly, construct PQL, or claim Kumo was used without evidence returned by
-GSF.
+GSF routes an `ask_question` request with `prediction: true` through its
+configured Kumo integration. The official MCP server deliberately exposes no
+separate `predict` tool. Never call Kumo directly, construct PQL, or claim Kumo
+was used without evidence returned by GSF.
 
 1. Require a clear outcome or target, entity or population, and explicit
    forecast horizon or cutoff. Ask one concise clarifying question if any is
    missing.
-2. Call `mcp__gsf__ask_question` once with the complete predictive wording.
-   Official GSF tools do not accept `dataset_id`, `scope_token`, or `target_db`.
+2. Call `mcp__gsf__ask_question` once with the complete predictive wording and
+   `prediction: true`. The tool does not accept `dataset_id`, `scope_token`, or
+   `target_db`.
    Treat a returned service or PQL error as a completed attempt; do not repeat
    the same prediction through this tool. If GSF instead returns ordinary SQL,
    make at most one clearer retry that explicitly names the target, population,

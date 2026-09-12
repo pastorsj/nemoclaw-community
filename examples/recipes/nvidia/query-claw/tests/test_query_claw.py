@@ -240,6 +240,7 @@ class QueryClawContractTests(unittest.TestCase):
         predictive = (
             EXAMPLE_ROOT / "skills/query-claw-predictive/SKILL.md"
         ).read_text(encoding="utf-8")
+        self.assertIn("`prediction: true`", predictive)
         self.assertIn("Treat a returned service or PQL error", predictive)
         self.assertIn("follow\n   `query-claw-structured` once", predictive)
         self.assertIn("finite numeric score", predictive)
@@ -257,6 +258,10 @@ class QueryClawContractTests(unittest.TestCase):
         self.assertIn('GSF_MCP_CHAT_TIMEOUT_S: "840"', compose)
         self.assertIn("KUMO_RFM_API_URL: ${QUERY_CLAW_KUMO_RFM_API_URL}", compose)
         self.assertIn("KUMO_RFM_API_KEY: ${QUERY_CLAW_KUMO_RFM_API_KEY}", compose)
+        self.assertIn(
+            "KUMO_GRAPH_CONTRACTS_FILE: ${QUERY_CLAW_KUMO_GRAPH_CONTRACTS_FILE}",
+            compose,
+        )
         self.assertIn(
             "query-claw-mcp-root.crt:/etc/ssl/certs/query-claw-mcp-root.crt:ro",
             compose,

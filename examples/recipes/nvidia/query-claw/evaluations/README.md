@@ -50,8 +50,8 @@ not every alternate wording.
   built dataset outputs.
 - A Query Claw host with the requirements in the root
   [README](../README.md#quickstart).
-- An existing legacy KumoRFM endpoint supported by the pinned GSF revision,
-  only for datasets that declare prediction.
+- An existing Kumo API endpoint supported by the pinned GSF integration, only
+  for datasets that declare prediction.
 - Optional access to an approved Responses-compatible model for semantic
   judging.
 
@@ -93,9 +93,10 @@ bash deploy/setup.sh
 Setup atomically copies only that dataset's declared DuckDB, ontology,
 prediction support files, and documents into
 `.runtime/active-data/active-dataset.json`. It starts only the capabilities
-that exist, imports the reviewed ontology, seeds approved PQL examples, ingests
-one Retriever collection when documents exist, and applies the matching Hermes
-profile. This one-dataset activation is the evaluation's isolation boundary.
+that exist, imports the reviewed ontology, seeds database-scoped PQL examples,
+mounts the reviewed graph into GSF, ingests one Retriever collection when
+documents exist, and applies the matching Hermes profile. This one-dataset
+activation is the evaluation's isolation boundary.
 
 Setup also writes `.runtime/retriever-provenance.json` with mode `0600`. Keep
 this receipt with private evaluation results: it records the observed service
