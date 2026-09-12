@@ -800,6 +800,22 @@ class RunTests(unittest.TestCase):
 
 
 class JudgeTests(unittest.TestCase):
+    def test_record_delay_rejects_values_outside_bounds(self) -> None:
+        for value in ("nan", "inf", "-0.1", "300.1", "not-a-number"):
+            with self.subTest(value=value):
+                with self.assertRaises(JUDGE.argparse.ArgumentTypeError):
+                    JUDGE._record_delay(value)
+        for value in ("0", "1.25", "300"):
+            with self.subTest(value=value):
+                self.assertEqual(float(value), JUDGE._record_delay(value))
+
+    @patch.object(JUDGE.time, "sleep")
+    def test_record_delay_runs_only_between_records(self, sleep) -> None:
+        for position in (1, 2, 3):
+            JUDGE._sleep_between_records(position, 3, 1.25)
+        JUDGE._sleep_between_records(1, 2, 0.0)
+        self.assertEqual([call(1.25), call(1.25)], sleep.call_args_list)
+
     def test_uses_exact_aiq3_v3_rubric(self) -> None:
         self.assertEqual("enterprise_response_usefulness.v3", JUDGE.RUBRIC_ID)
         self.assertEqual(

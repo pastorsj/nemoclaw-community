@@ -61,6 +61,7 @@ MAX_OUTPUT_TOKENS = 512
 MAX_RESULTS = 1_000
 MAX_ATTEMPTS = 3
 RETRY_DELAYS_SECONDS = (0.25, 0.5)
+MAX_RECORD_DELAY_SECONDS = 300.0
 
 
 class JudgeError(RuntimeError):
@@ -70,6 +71,25 @@ class JudgeError(RuntimeError):
 class _NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, request, file_pointer, code, message, headers, new_url):
         return None
+
+
+def _record_delay(value: str) -> float:
+    try:
+        seconds = float(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(
+            "record delay must be a number from 0 through 300"
+        ) from exc
+    if not math.isfinite(seconds) or not 0 <= seconds <= MAX_RECORD_DELAY_SECONDS:
+        raise argparse.ArgumentTypeError(
+            "record delay must be a finite number from 0 through 300"
+        )
+    return seconds
+
+
+def _sleep_between_records(position: int, total: int, seconds: float) -> None:
+    if position < total and seconds:
+        time.sleep(seconds)
 
 
 @dataclass(frozen=True)
@@ -388,6 +408,12 @@ def main() -> int:
     parser.add_argument("--api-key", default=os.environ.get("AIQ_JUDGE_API_KEY", ""))
     parser.add_argument("--model", default=os.environ.get("AIQ_JUDGE_MODEL", ""))
     parser.add_argument("--timeout", type=float)
+    parser.add_argument(
+        "--record-delay-seconds",
+        type=_record_delay,
+        default=os.environ.get("AIQ_JUDGE_RECORD_DELAY_SECONDS") or "0",
+        help="pause between judged records to respect provider rate limits",
+    )
     args = parser.parse_args()
     if args.output.exists():
         parser.error(f"refusing to overwrite {args.output}")
@@ -418,6 +444,7 @@ def main() -> int:
                 f"{judged['semantic_judge']['status']}",
                 flush=True,
             )
+            _sleep_between_records(position, len(inputs), args.record_delay_seconds)
     except JudgeError as exc:
         parser.error(str(exc))
     return 0

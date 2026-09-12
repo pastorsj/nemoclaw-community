@@ -156,6 +156,9 @@ recorded explicitly while deterministic run results remain intact. The judge
 receives the question, answer, and selected source IDs; use only a provider
 approved for that data.
 
+Set `AIQ_JUDGE_RECORD_DELAY_SECONDS` or pass `--record-delay-seconds` (0–300,
+default 0) to pace provider requests between records.
+
 Run `evaluations/judge.py` even when no judge is configured if a report is
 needed. It records the unavailable status and stable rubric provenance for
 each result.
