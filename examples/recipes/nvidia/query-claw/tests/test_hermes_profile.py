@@ -180,6 +180,25 @@ class HermesProfileTests(unittest.TestCase):
         self.assertEqual(PROFILE.TARGET_TOOL_SEARCH, live["tools"]["tool_search"])
         self.assertEqual(PROFILE.target_system_prompt(), live["agent"]["system_prompt"])
         self.assertIn("call no data tool", live["agent"]["system_prompt"])
+        self.assertIn(
+            "capability and scope answers without calling a data tool",
+            live["agent"]["system_prompt"],
+        )
+        self.assertIn(
+            'A "prediction anchor"', live["agent"]["system_prompt"]
+        )
+        self.assertIn(
+            "is only a historical cutoff", live["agent"]["system_prompt"]
+        )
+        self.assertIn(
+            "is not by itself a\nforecast horizon or prediction request",
+            live["agent"]["system_prompt"],
+        )
+        self.assertIn(
+            "Do not attempt a prediction merely to test support",
+            live["agent"]["system_prompt"],
+        )
+        self.assertIn("discard the rows", live["agent"]["system_prompt"])
         self.assertIn("finite numeric score", live["agent"]["system_prompt"])
         self.assertIn("another Retriever tool", live["agent"]["system_prompt"])
         self.assertIn("no `rerank_top_k`", live["agent"]["system_prompt"])

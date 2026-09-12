@@ -237,6 +237,10 @@ class QueryClawContractTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         self.assertIn("still run each independent", coordinator)
         self.assertIn("pass its bare name exactly", coordinator)
+        self.assertIn('A named "prediction anchor"', coordinator)
+        self.assertIn("is a historical\n  cutoff", coordinator)
+        self.assertIn("do not test\n  a target by attempting a prediction", coordinator)
+        self.assertIn("observed historical records only", coordinator)
         predictive = (
             EXAMPLE_ROOT / "skills/query-claw-predictive/SKILL.md"
         ).read_text(encoding="utf-8")
@@ -245,10 +249,19 @@ class QueryClawContractTests(unittest.TestCase):
         self.assertIn("follow\n   `query-claw-structured` once", predictive)
         self.assertIn("finite numeric score", predictive)
         self.assertIn("attempted but unavailable", predictive)
+        self.assertIn("a prediction anchor alone is historical", predictive)
+        self.assertIn("capability or\n   evidence-scope question", predictive)
+        self.assertIn("call no data tool if any is missing", predictive)
+        self.assertIn("separate, explicitly records-only", predictive)
         structured = (
             EXAMPLE_ROOT / "skills/query-claw-structured/SKILL.md"
         ).read_text(encoding="utf-8")
+        self.assertIn("historical facts through or as of an anchor", structured)
         self.assertIn("never multiply an amount through join", structured)
+        self.assertIn("observed\n   historical records only", structured)
+        self.assertIn("response took the wrong route", structured)
+        self.assertIn("Discard its rows", structured)
+        self.assertIn("never use those rows as historical evidence", structured)
         gsf_setup = (EXAMPLE_ROOT / "deploy/setup-gsf.sh").read_text(encoding="utf-8")
         self.assertIn("delete_all_data()", gsf_setup)
         self.assertNotIn('delete_semantic_layer("query_claw")', gsf_setup)

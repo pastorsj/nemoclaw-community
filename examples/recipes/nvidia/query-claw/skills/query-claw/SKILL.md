@@ -26,6 +26,10 @@ without a namespace or directory prefix.
   "What evidence is available?", describe only the declared view types without
   inspecting their contents. Call no data-bearing tool unless the operator asks
   to retrieve evidence. End with `Sources used: none`.
+- Treat questions about supported or unsupported prediction targets,
+  populations, horizons, or evidence gaps as capability questions. Answer from
+  the deployment-reviewed prediction context and call no data tool; do not test
+  a target by attempting a prediction.
 - Treat the GSF deployment as one structured data product. Official GSF tools
   accept no `dataset_id`, `scope_token`, or `target_db`. Never offer a
   per-question structured database switch. A different structured product
@@ -45,13 +49,20 @@ without a namespace or directory prefix.
   request, ask which scope to use. Do not combine them silently.
 - Without an explicit source selection, use the fewest views that can answer
   the question. Policies and quoted text require documents; exact rows and
-  totals require records. Use prediction only for an explicit forecast,
-  likelihood, probability, predicted outcome, or future ranking; words such as
-  risk, readiness, or priority alone do not authorize a prediction.
+  totals require records. A named "prediction anchor", or wording such as
+  "through", "as of", "before", or "ending at" an anchor, is a historical
+  cutoff rather than a prediction request. Use prediction only for an explicit
+  forecast, likelihood, probability, predicted outcome, or future ranking;
+  words such as risk, readiness, or priority alone do not authorize a
+  prediction.
 - On a successful route, do not repeat a query merely to double-check it. For a
   multi-source request, give each tool only its complete route-specific
   subquestion, then synthesize after one successful response from each planned
   source. Retry only a failed, empty, or truncated call.
+- When a predictive request also has a historical records leg, make that leg a
+  separate question that explicitly asks for observed historical records only
+  and says not to forecast or predict. Follow `query-claw-structured` if GSF
+  nevertheless returns PQL for that leg.
 - If one route in a multi-source request fails, still run each independent
   required records and document leg once and return the evidence that succeeds
   as a scoped partial answer. A failed prediction never cancels those legs.

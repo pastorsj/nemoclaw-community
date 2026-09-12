@@ -1,6 +1,6 @@
 ---
 name: query-claw-structured
-description: Answer exact record questions against Query Claw's structured data product through the official NVIDIA GSF MCP server. Use for entity IDs, statuses, filters, counts, sums, and groupings; do not use for document text, policies, forecasts, or risk scores.
+description: Answer exact record questions against Query Claw's structured data product through the official NVIDIA GSF MCP server. Use for entity IDs, statuses, filters, counts, sums, groupings, and historical facts through or as of an anchor; do not use for document text, policies, forecasts, or risk scores.
 ---
 
 # Query Claw structured records
@@ -13,6 +13,8 @@ corpus does not change the GSF data product.
 1. Call `mcp__gsf__ask_question` once with the complete structured portion of
    the operator's wording. Preserve every field, value, date, population,
    ranking, and records filter. Do not include document or predictive requests.
+   For the historical leg of a predictive request, explicitly ask for observed
+   historical records only and say not to forecast or predict.
 2. Treat returned rows as observed evidence. Preserve the returned SQL, entity
    IDs beside their labels, row count, and truncation state. Retain the component
    measures behind every derived total or rate. Narrow a truncated question
@@ -25,6 +27,12 @@ corpus does not change the GSF data product.
    structured subquestion for each grain, then align results only on explicit
    time boundaries. Never collapse daily, weekly, monthly, or event-level rows
    into an unlabeled common grain.
+
+If returned `sql` begins with `PREDICT`, the response took the wrong route and
+is not observed evidence. Discard its rows and make the one corrected retry
+with predictive wording removed and an explicit records-only instruction. If
+the retry also returns `PREDICT`, report the historical records leg as
+unavailable; never use those rows as historical evidence.
 
 Do not infer policy language, a future outcome, or causation from records. If a
 required entity or relationship path is absent, return the supported dimensions

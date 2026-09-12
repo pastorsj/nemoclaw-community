@@ -57,10 +57,21 @@ GSF_PROMPT = """Use GSF for governed structured records. Call
 `mcp__gsf__ask_question` directly with the complete records question;
 deployment setup has already verified the active data product. Never include a
 prediction request unless the predictive capability is explicitly enabled.
+A "prediction anchor", or "through", "as of", "before", or "ending at" an
+anchor, is only a historical cutoff unless a future outcome or forecast is
+requested. Make every historical leg explicitly records-only. If it returns
+`PREDICT`, discard the rows and retry once without predictive wording; if that
+also returns `PREDICT`, report the historical leg as unavailable.
 """
 PREDICTION_PROMPT = """The active GSF data product also supports prediction.
+Questions about supported or unsupported prediction targets, scope, or needed
+evidence are capability questions. Answer them from the deployment-reviewed
+context below, or state that support is not declared, without calling a data
+tool. Do not attempt a prediction merely to test support.
+A historical cutoff—even when called a "prediction anchor"—is not by itself a
+forecast horizon or prediction request.
 Before any data call, require an explicit outcome or target, entity or
-population, and forecast horizon or cutoff. If any is missing, ask one
+population, and future forecast horizon or end date. If any is missing, ask one
 concise clarifying question and call no data tool. Otherwise call
 `mcp__gsf__ask_question` with `prediction=true`; GSF routes that request
 internally to Kumo. Never claim Kumo produced a prediction unless returned

@@ -1,6 +1,6 @@
 ---
 name: query-claw-predictive
-description: Ask predictive questions against Query Claw's structured data product through the official NVIDIA GSF MCP server. Use for future outcomes, probabilities, forecasts, and risk rankings; do not use for observed facts, document claims, or causal conclusions.
+description: Ask predictive questions against Query Claw's structured data product through the official NVIDIA GSF MCP server. Use only when a future outcome, probability, forecast, or risk ranking is requested; a prediction anchor alone is historical. Do not use for observed facts, document claims, or causal conclusions.
 ---
 
 # Query Claw predictions
@@ -10,9 +10,13 @@ configured Kumo integration. The official MCP server deliberately exposes no
 separate `predict` tool. Never call Kumo directly, construct PQL, or claim Kumo
 was used without evidence returned by GSF.
 
-1. Require a clear outcome or target, entity or population, and explicit
-   forecast horizon or cutoff. Ask one concise clarifying question if any is
-   missing.
+1. First distinguish an actual prediction request from a capability or
+   evidence-scope question. For questions about supported targets, populations,
+   horizons, or evidence missing for an unsupported target, answer from the
+   deployment-reviewed prediction context and call no data tool. For an actual
+   prediction, require a clear outcome or target, entity or population, and
+   explicit future forecast horizon or end date. Ask one concise clarifying
+   question and call no data tool if any is missing.
 2. Call `mcp__gsf__ask_question` once with the complete predictive wording and
    `prediction: true`. The tool does not accept `dataset_id`, `scope_token`, or
    `target_db`.
@@ -28,10 +32,11 @@ was used without evidence returned by GSF.
    Kumo prediction was attempted but unavailable. Otherwise say GSF answered
    but the predictive route is unconfirmed.
 4. If the original request also needs observed facts or calculations, follow
-   `query-claw-structured` once for those independent inputs even when the
-   prediction attempt fails. Also follow `retriever-mcp` when it independently
-   needs document evidence. Return a scoped partial answer without replacing a
-   missing prediction with historical values.
+   `query-claw-structured` once with a separate, explicitly records-only
+   question for those independent inputs even when the prediction attempt
+   fails. Also follow `retriever-mcp` when it independently needs document
+   evidence. Return a scoped partial answer without replacing a missing
+   prediction with historical values.
 
 Report the returned target, anchor time, horizon, population, score or
 probability, and material warnings when present. Never invent a model
