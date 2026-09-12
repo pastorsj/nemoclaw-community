@@ -43,6 +43,10 @@ MAX_RESULT_FIELDS = 40
 MAX_RESULT_TEXT_CHARS = 1_000
 MAX_ATTEMPTS = 3
 RETRY_DELAYS_SECONDS = (1.0, 2.0)
+UPSTREAM_RATE_LIMIT_DELAYS_SECONDS = (60.0, 120.0, 240.0)
+UPSTREAM_RATE_LIMIT_RESPONSE = re.compile(
+    r"^API call failed after \d+ retries:\s*HTTP 429\b", re.IGNORECASE
+)
 RESULT_VALUE_PREFIX = b"aiq-result-value-v1\0"
 DECIMAL_TEXT = re.compile(r"^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$")
 SOURCES_FOOTER = re.compile(r"\n+\s*Sources used:\s*[^\n]*\s*$", re.IGNORECASE)
@@ -160,6 +164,29 @@ def _bounded_request(
     if not isinstance(value, dict):
         raise EvaluationError("Hermes response must be an object")
     return value
+
+
+def _agent_request(
+    url: str, api_key: str, payload: Mapping[str, Any], timeout: int
+) -> dict[str, Any]:
+    """Retry a whole read-only agent turn when Hermes exhausts model retries."""
+
+    for attempt in range(len(UPSTREAM_RATE_LIMIT_DELAYS_SECONDS) + 1):
+        response = _bounded_request(url, api_key, payload, timeout)
+        if response.get("status") != "completed":
+            return response
+        try:
+            answer = response_text(response)
+        except EvaluationError:
+            return response
+        if not UPSTREAM_RATE_LIMIT_RESPONSE.search(answer):
+            return response
+        if attempt == len(UPSTREAM_RATE_LIMIT_DELAYS_SECONDS):
+            break
+        time.sleep(UPSTREAM_RATE_LIMIT_DELAYS_SECONDS[attempt])
+    raise EvaluationError(
+        "Hermes upstream model remained rate-limited after bounded retries"
+    )
 
 
 def _text_parts(value: Any) -> str:
@@ -1147,7 +1174,7 @@ def main() -> int:
         checks: list[dict[str, Any]] = []
         response_class = "missing"
         try:
-            response = _bounded_request(
+            response = _agent_request(
                 endpoint,
                 args.api_key,
                 {

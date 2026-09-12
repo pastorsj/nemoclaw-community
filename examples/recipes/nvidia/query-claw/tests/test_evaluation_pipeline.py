@@ -10,6 +10,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import call, patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -105,6 +106,54 @@ def _judged_record(case_id: str, *, status: str, verdict: str) -> dict:
 
 
 class RunTests(unittest.TestCase):
+    @patch.object(RUN.time, "sleep")
+    @patch.object(RUN, "_bounded_request")
+    def test_retries_completed_hermes_rate_limit_answer(self, request, sleep) -> None:
+        request.side_effect = [
+            {
+                "status": "completed",
+                "output_text": "API call failed after 3 retries: HTTP 429: Error code: 429",
+            },
+            {"status": "completed", "output_text": "Recovered answer"},
+        ]
+
+        response = RUN._agent_request(
+            "http://127.0.0.1:8644/v1/responses",
+            "test-key",
+            {"model": "hermes-agent", "input": "question"},
+            900,
+        )
+
+        self.assertEqual("Recovered answer", RUN.response_text(response))
+        sleep.assert_called_once_with(60.0)
+
+    @patch.object(RUN.time, "sleep")
+    @patch.object(RUN, "_bounded_request")
+    def test_rate_limit_retries_are_bounded(self, request, sleep) -> None:
+        request.return_value = {
+            "status": "completed",
+            "output_text": "API call failed after 3 retries: HTTP 429: Error code: 429",
+        }
+
+        with self.assertRaisesRegex(
+            RUN.EvaluationError, "remained rate-limited after bounded retries"
+        ):
+            RUN._agent_request(
+                "http://127.0.0.1:8644/v1/responses",
+                "test-key",
+                {"model": "hermes-agent", "input": "question"},
+                900,
+            )
+
+        self.assertEqual(
+            [
+                call(60.0),
+                call(120.0),
+                call(240.0),
+            ],
+            sleep.call_args_list,
+        )
+
     def test_evaluation_instructions_enforce_an_empty_source_selection(self) -> None:
         empty = RUN._evaluation_instructions("cloud-operations", [], "cloud-docs")
         documents = RUN._evaluation_instructions(
