@@ -66,6 +66,7 @@ def _judged_record(case_id: str, *, status: str, verdict: str) -> dict:
         "source_ids": ["cloud_structured"],
         "selected_views": ["records"],
         "expected_capabilities": [RUN.GSF_STRUCTURED],
+        "optional_capabilities": [],
         "attempted_capabilities": [RUN.GSF_STRUCTURED],
         "observed_capabilities": [RUN.GSF_STRUCTURED] if status == "pass" else [],
         "tool_sequence": ["mcp__gsf__ask_question"],
@@ -165,6 +166,44 @@ class RunTests(unittest.TestCase):
         self.assertNotIn("payload.collection_name", empty)
         self.assertNotIn("No evidence view is selected", documents)
         self.assertIn("collection 'cloud-docs'", documents)
+
+    def test_capability_contract_permits_only_declared_optional_routes(self) -> None:
+        prediction = {RUN.GSF_KUMO}
+        optional_sql = {RUN.GSF_STRUCTURED}
+
+        self.assertEqual(
+            [],
+            RUN._capability_contract_failures(
+                prediction, optional_sql, prediction, prediction
+            ),
+        )
+        self.assertEqual(
+            [],
+            RUN._capability_contract_failures(
+                prediction,
+                optional_sql,
+                prediction | optional_sql,
+                prediction | optional_sql,
+            ),
+        )
+        self.assertEqual(
+            [f"required capabilities not observed: {sorted(prediction)}"],
+            RUN._capability_contract_failures(
+                prediction, optional_sql, optional_sql, optional_sql
+            ),
+        )
+        self.assertEqual(
+            [
+                "capabilities attempted outside contract: "
+                f"{sorted({RUN.NEMO_RETRIEVER})}"
+            ],
+            RUN._capability_contract_failures(
+                prediction,
+                optional_sql,
+                prediction | {RUN.NEMO_RETRIEVER},
+                prediction | {RUN.NEMO_RETRIEVER},
+            ),
+        )
 
     def test_response_class_ignores_required_sources_footer(self) -> None:
         self.assertEqual(
@@ -629,6 +668,7 @@ class RunTests(unittest.TestCase):
                                         "profile": "source_help",
                                         "cohort": "core",
                                         "expected_capabilities": [],
+                                        "optional_capabilities": [],
                                         "evidence": {},
                                     }
                                 ],
@@ -644,6 +684,7 @@ class RunTests(unittest.TestCase):
         self.assertEqual("cloud-services", suite.industry_id)
         self.assertEqual("cloud-operations", suite.dataset_id)
         self.assertIn("case", suite.cases)
+        self.assertEqual((), suite.cases["case"].optional_capabilities)
 
 
 class JudgeTests(unittest.TestCase):
@@ -831,8 +872,9 @@ class ReportTests(unittest.TestCase):
         prediction = RUN.GSF_KUMO
         retriever = RUN.NEMO_RETRIEVER
         records[1]["expected_capabilities"] = [prediction]
-        records[1]["attempted_capabilities"] = [prediction]
-        records[1]["observed_capabilities"] = []
+        records[1]["optional_capabilities"] = [RUN.GSF_STRUCTURED]
+        records[1]["attempted_capabilities"] = [prediction, RUN.GSF_STRUCTURED]
+        records[1]["observed_capabilities"] = [RUN.GSF_STRUCTURED]
         records[2]["expected_capabilities"] = [retriever]
         records[2]["attempted_capabilities"] = []
         records[2]["observed_capabilities"] = []
@@ -858,7 +900,7 @@ class ReportTests(unittest.TestCase):
         )
         structured = report["routing"]["by_capability"][RUN.GSF_STRUCTURED]
         self.assertEqual(
-            {"count": 1, "rate": 0.3333}, structured["unexpected_attempt"]
+            {"count": 1, "rate": 0.5}, structured["unexpected_attempt"]
         )
         combinations = report["routing"]["by_expected_capabilities"]
         self.assertEqual(4, len(combinations))
@@ -875,6 +917,7 @@ class ReportTests(unittest.TestCase):
         self.assertIn("`PREDICT` is an attempt", markdown)
         self.assertIn("Judge not observable", markdown)
         self.assertNotIn("Judge unavailable/not run", markdown)
+        self.assertIn("Allowed optional capabilities", markdown)
 
     def test_routing_rejects_invalid_capability_sets(self) -> None:
         invalid_values = (
@@ -960,7 +1003,13 @@ class ReportTests(unittest.TestCase):
                 "expected capabilities differ from compiled contract",
             ):
                 REPORT.validate_coverage(records, index)
-
+            records[0]["expected_capabilities"] = [RUN.GSF_STRUCTURED]
+            records[0]["optional_capabilities"] = [RUN.GSF_KUMO]
+            with self.assertRaisesRegex(
+                REPORT.ReportError,
+                "optional capabilities differ from compiled contract",
+            ):
+                REPORT.validate_coverage(records, index)
 
 if __name__ == "__main__":
     unittest.main()

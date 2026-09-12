@@ -27,6 +27,11 @@ KEBAB_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 GSF_STRUCTURED = "gsf_structured_retrieval"
 GSF_KUMO_PREDICTIVE = "gsf_kumo_structured_prediction"
 NEMO_RETRIEVER = "nemo_retriever_unstructured_retrieval"
+CAPABILITY_VIEWS = {
+    GSF_STRUCTURED: "records",
+    GSF_KUMO_PREDICTIVE: "predictions",
+    NEMO_RETRIEVER: "documents",
+}
 
 
 @dataclass(frozen=True)
@@ -34,6 +39,7 @@ class ProfileContract:
     routes: tuple[str, ...]
     capabilities: tuple[str, ...]
     response: tuple[str, ...] = ("answer",)
+    optional_capabilities: tuple[str, ...] = ()
 
 
 PROFILE_CONTRACTS = {
@@ -46,9 +52,15 @@ PROFILE_CONTRACTS = {
     "structured_analytic": ProfileContract(("ontology",), (GSF_STRUCTURED,)),
     "multi_structured_analytic": ProfileContract(("ontology",), (GSF_STRUCTURED,)),
     "structured_analytic_optional_documents": ProfileContract(
-        ("ontology",), (GSF_STRUCTURED,)
+        ("ontology",),
+        (GSF_STRUCTURED,),
+        optional_capabilities=(NEMO_RETRIEVER,),
     ),
-    "structured_predictive": ProfileContract(("ontology",), (GSF_KUMO_PREDICTIVE,)),
+    "structured_predictive": ProfileContract(
+        ("ontology",),
+        (GSF_KUMO_PREDICTIVE,),
+        optional_capabilities=(GSF_STRUCTURED,),
+    ),
     "document_research": ProfileContract(("retriever",), (NEMO_RETRIEVER,)),
     "deep_document_research": ProfileContract(("retriever",), (NEMO_RETRIEVER,)),
     "multi_document_research": ProfileContract(("retriever",), (NEMO_RETRIEVER,)),
@@ -59,7 +71,9 @@ PROFILE_CONTRACTS = {
         ("ontology",), (GSF_STRUCTURED, GSF_KUMO_PREDICTIVE)
     ),
     "predictive_document": ProfileContract(
-        ("ontology", "retriever"), (GSF_KUMO_PREDICTIVE, NEMO_RETRIEVER)
+        ("ontology", "retriever"),
+        (GSF_KUMO_PREDICTIVE, NEMO_RETRIEVER),
+        optional_capabilities=(GSF_STRUCTURED,),
     ),
     "all_evidence_paths": ProfileContract(
         ("ontology", "retriever"),
@@ -293,6 +307,15 @@ def _case(
     } | ({"retriever"} if "documents" in views else set())
     if not set(contract.routes) <= available_routes:
         raise CompileError(f"task {task_id!r} cannot satisfy profile {profile!r}")
+    optional_capabilities = tuple(
+        capability
+        for capability in contract.optional_capabilities
+        if CAPABILITY_VIEWS[capability] in views
+    )
+    optional_routes = {
+        "retriever" if capability == NEMO_RETRIEVER else "ontology"
+        for capability in optional_capabilities
+    }
 
     case = {
         "schema_version": 3,
@@ -306,7 +329,9 @@ def _case(
         "datasets": ([{"id": dataset_id, "views": views}] if views else []),
         "expected": {
             "routes": list(contract.routes),
-            "forbidden_routes": sorted(QUERY_CLAW_ROUTES - set(contract.routes)),
+            "forbidden_routes": sorted(
+                QUERY_CLAW_ROUTES - set(contract.routes) - optional_routes
+            ),
             "route_only": True,
             "response": list(contract.response),
         },
@@ -317,6 +342,7 @@ def _case(
         "profile": profile,
         "cohort": cohort,
         "expected_capabilities": list(contract.capabilities),
+        "optional_capabilities": list(optional_capabilities),
     }
     return case, metadata
 
@@ -479,6 +505,7 @@ def compile_portfolio(aiq3_root: Path, output_dir: Path) -> dict[str, Any]:
             profile: {
                 "routes": list(contract.routes),
                 "expected_capabilities": list(contract.capabilities),
+                "optional_capabilities": list(contract.optional_capabilities),
                 "response": list(contract.response),
             }
             for profile, contract in sorted(PROFILE_CONTRACTS.items())

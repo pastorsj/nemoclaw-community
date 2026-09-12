@@ -193,6 +193,22 @@ class CompileAiq3PortfolioTests(unittest.TestCase):
             ["gsf_kumo_structured_prediction"],
             predictive_contract["expected_capabilities"],
         )
+        self.assertEqual(
+            ["gsf_structured_retrieval"],
+            predictive_contract["optional_capabilities"],
+        )
+        self.assertEqual(
+            ["nemo_retriever_unstructured_retrieval"],
+            index["profile_contracts"]["structured_analytic_optional_documents"][
+                "optional_capabilities"
+            ],
+        )
+        self.assertEqual(
+            ["gsf_structured_retrieval"],
+            index["profile_contracts"]["predictive_document"][
+                "optional_capabilities"
+            ],
+        )
         hybrid = suite["cases"][3]
         self.assertEqual(["ontology", "retriever"], hybrid["expected"]["routes"])
 

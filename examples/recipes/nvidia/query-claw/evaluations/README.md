@@ -125,7 +125,8 @@ Use `--case <case-id>` one or more times for focused diagnosis. The runner:
 - records the public answer, complete tool sequence, attempted and successfully
   observed capabilities, and non-sensitive tool counts/statuses; transient SQL,
   PQL, rows, entity IDs, and prediction scores are never retained;
-- verifies exact capability routing and bounded AIQ evidence contracts; and
+- verifies required capabilities, explicitly allowed optional capabilities,
+  and bounded AIQ evidence contracts; and
 - continues after a case failure, then exits nonzero when any case failed.
 
 Retriever cases require the active collection, `top_k=5`, `format="hits"`, and

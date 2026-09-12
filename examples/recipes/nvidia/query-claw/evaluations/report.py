@@ -38,9 +38,9 @@ class ReportError(ValueError):
 
 
 def _capability_set(
-    record: Mapping[str, Any], key: str, label: str
+    record: Mapping[str, Any], key: str, label: str, *, default_empty: bool = False
 ) -> frozenset[str]:
-    value = record.get(key)
+    value = record.get(key, [] if default_empty else None)
     if (
         not isinstance(value, list)
         or any(not isinstance(item, str) or item not in CAPABILITIES for item in value)
@@ -52,8 +52,8 @@ def _capability_set(
 
 def _capability_route(
     record: Mapping[str, Any], label: str
-) -> tuple[frozenset[str], frozenset[str], frozenset[str]]:
-    expected, attempted, observed = (
+) -> tuple[frozenset[str], frozenset[str], frozenset[str], frozenset[str]]:
+    required, attempted, observed = (
         _capability_set(record, key, label)
         for key in (
             "expected_capabilities",
@@ -61,9 +61,14 @@ def _capability_route(
             "observed_capabilities",
         )
     )
+    optional = _capability_set(
+        record, "optional_capabilities", label, default_empty=True
+    )
+    if required & optional:
+        raise ReportError(f"{label} repeats required capabilities as optional")
     if not observed <= attempted:
         raise ReportError(f"{label} has observed capabilities without attempts")
-    return expected, attempted, observed
+    return required, optional, attempted, observed
 
 
 def _required_text(record: Mapping[str, Any], key: str, label: str) -> str:
@@ -174,7 +179,9 @@ def validate_coverage(
         or not re.fullmatch(r"[0-9a-f]{40,64}", repository_commit)
     ):
         raise ReportError("compiled portfolio source commit is invalid")
-    expected: dict[str, tuple[str, str, frozenset[str]]] = {}
+    expected: dict[
+        str, tuple[str, str, frozenset[str], frozenset[str]]
+    ] = {}
     for suite in suites:
         if not isinstance(suite, dict) or not isinstance(
             suite.get("case_contracts"), list
@@ -191,7 +198,17 @@ def validate_coverage(
             capabilities = _capability_set(
                 contract, "expected_capabilities", f"compiled case {case_id!r}"
             )
-            expected[case_id] = (industry_id, dataset_id, capabilities)
+            optional = _capability_set(
+                contract,
+                "optional_capabilities",
+                f"compiled case {case_id!r}",
+                default_empty=True,
+            )
+            if capabilities & optional:
+                raise ReportError(
+                    f"compiled case {case_id!r} repeats required capabilities as optional"
+                )
+            expected[case_id] = (industry_id, dataset_id, capabilities, optional)
     totals = index.get("totals")
     declared_total = totals.get("cases") if isinstance(totals, dict) else None
     if declared_total != len(expected) or not expected:
@@ -220,6 +237,16 @@ def validate_coverage(
         if capabilities != expected[case_id][2]:
             raise ReportError(
                 f"result {case_id!r} expected capabilities differ from compiled contract"
+            )
+        optional = _capability_set(
+            record,
+            "optional_capabilities",
+            f"result {case_id!r}",
+            default_empty=True,
+        )
+        if optional != expected[case_id][3]:
+            raise ReportError(
+                f"result {case_id!r} optional capabilities differ from compiled contract"
             )
     if missing and not allow_partial:
         raise ReportError(
@@ -253,30 +280,40 @@ def _routing_analysis(records: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
         return {"count": count, "rate": round(count / total, 4) if total else None}
 
     def funnel(
-        group: list[tuple[frozenset[str], frozenset[str], frozenset[str]]]
+        group: list[
+            tuple[
+                frozenset[str],
+                frozenset[str],
+                frozenset[str],
+                frozenset[str],
+            ]
+        ]
     ) -> dict[str, Any]:
         tests = {
-            "exact_attempt": lambda e, a, o: a == e,
-            "exact_observation": lambda e, a, o: a == e == o,
-            "missing_attempt": lambda e, a, o: bool(e - a),
-            "attempted_not_observed": lambda e, a, o: bool(a - o),
-            "unexpected_attempt": lambda e, a, o: bool(a - e),
+            "exact_attempt": lambda r, p, a, o: r <= a <= r | p,
+            "exact_observation": lambda r, p, a, o: r <= o and a <= r | p,
+            "missing_attempt": lambda r, p, a, o: bool(r - a),
+            "attempted_not_observed": lambda r, p, a, o: bool(a - o),
+            "unexpected_attempt": lambda r, p, a, o: bool(a - r - p),
         }
         return {"cases": len(group)} | {name: stat(sum(test(*route) for route in group), len(group)) for name, test in tests.items()}
 
-    capabilities = sorted(set().union(*(e | a | o for e, a, o in routes)))
+    capabilities = sorted(
+        set().union(*(r | p | a | o for r, p, a, o in routes))
+    )
     by_capability: dict[str, Any] = {}
     for capability in capabilities:
         expected = sum(capability in route[0] for route in routes)
-        attempted = sum(capability in route[0] & route[1] for route in routes)
-        observed = sum(capability in route[0] & route[2] for route in routes)
-        unexpected = sum(capability in route[1] - route[0] for route in routes)
+        optional = sum(capability in route[1] for route in routes)
+        attempted = sum(capability in route[0] & route[2] for route in routes)
+        observed = sum(capability in route[0] & route[3] for route in routes)
+        unexpected = sum(capability in route[2] - route[0] - route[1] for route in routes)
         by_capability[capability] = {
             "expected": stat(expected, len(routes)),
             "attempted_when_expected": stat(attempted, expected),
             "observed_when_expected": stat(observed, expected),
             "attempt_to_observation": stat(observed, attempted),
-            "unexpected_attempt": stat(unexpected, len(routes) - expected),
+            "unexpected_attempt": stat(unexpected, len(routes) - expected - optional),
         }
     combinations = sorted({tuple(sorted(route[0])) for route in routes}, key=lambda value: (len(value), value))
     return {
@@ -338,6 +375,7 @@ def _case(record: Mapping[str, Any]) -> dict[str, Any]:
         "source_ids": list(record.get("source_ids", [])),
         "selected_views": list(record.get("selected_views", [])),
         "expected_capabilities": list(record.get("expected_capabilities", [])),
+        "optional_capabilities": list(record.get("optional_capabilities", [])),
         "attempted_capabilities": list(record.get("attempted_capabilities", [])),
         "observed_capabilities": list(record.get("observed_capabilities", [])),
         "tool_sequence": list(record.get("tool_sequence", [])),
@@ -497,7 +535,7 @@ def render_markdown(report: Mapping[str, Any]) -> str:
         "",
         "## Capability routing",
         "",
-        "Exact attempt means attempted capabilities equal the expected set. Exact observation additionally means every expected capability produced its required observable result.",
+        "Exact attempt means every required capability was attempted and any extra attempt was explicitly optional. Exact observation additionally means every required capability produced its required observable result.",
         "",
         "For prediction, a GSF result whose SQL begins with `PREDICT` is an attempt. It is observed only when it returns nonempty rows and every row contains a recognized finite numeric prediction. An unclassified GSF failure is not a prediction attempt; observation measures route/output success, not predictive accuracy.",
         "",
@@ -599,6 +637,7 @@ def render_markdown(report: Mapping[str, Any]) -> str:
                     [
                         f"Tools: `{_table_value(', '.join(case['tool_sequence']) or 'none')}`  ",
                         f"Expected capabilities: `{_table_value(', '.join(case['expected_capabilities']) or 'none')}`  ",
+                        f"Allowed optional capabilities: `{_table_value(', '.join(case['optional_capabilities']) or 'none')}`  ",
                         f"Attempted capabilities: `{_table_value(', '.join(case['attempted_capabilities']) or 'none')}`  ",
                         f"Observed capabilities: `{_table_value(', '.join(case['observed_capabilities']) or 'none')}`  ",
                         f"Not observable: `{_table_value(', '.join(unobserved) or 'none')}`  ",

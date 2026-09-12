@@ -77,6 +77,7 @@ class CaseContract:
     expected_capabilities: tuple[str, ...]
     evidence: Mapping[str, Any]
     prediction_population: tuple[str | int, ...] | None = None
+    optional_capabilities: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -984,8 +985,15 @@ def load_suite_contract(index_path: Path, suite_name: str) -> SuiteContract:
                     raise EvaluationError("AIQ3 case contract must be an object")
                 case_id = str(item.get("id", ""))
                 capabilities = tuple(item.get("expected_capabilities", []))
+                optional_capabilities = tuple(item.get("optional_capabilities", []))
                 if not case_id or any(
                     value not in CAPABILITIES for value in capabilities
+                ) or any(
+                    value not in CAPABILITIES for value in optional_capabilities
+                ) or len(capabilities) != len(set(capabilities)) or len(
+                    optional_capabilities
+                ) != len(set(optional_capabilities)) or set(capabilities) & set(
+                    optional_capabilities
                 ):
                     raise EvaluationError("AIQ3 case contract is invalid")
                 population = item.get("prediction_population")
@@ -1006,15 +1014,20 @@ def load_suite_contract(index_path: Path, suite_name: str) -> SuiteContract:
                 ):
                     raise EvaluationError("AIQ3 prediction population is invalid")
                 contracts[case_id] = CaseContract(
-                    case_id,
-                    tuple(str(value) for value in item.get("source_ids", [])),
-                    str(item.get("profile", "")),
-                    str(item.get("cohort", "")),
-                    capabilities,
-                    item.get("evidence", {})
+                    case_id=case_id,
+                    source_ids=tuple(
+                        str(value) for value in item.get("source_ids", [])
+                    ),
+                    profile=str(item.get("profile", "")),
+                    cohort=str(item.get("cohort", "")),
+                    expected_capabilities=capabilities,
+                    evidence=item.get("evidence", {})
                     if isinstance(item.get("evidence", {}), dict)
                     else {},
-                    tuple(population) if population is not None else None,
+                    prediction_population=(
+                        tuple(population) if population is not None else None
+                    ),
+                    optional_capabilities=optional_capabilities,
                 )
             fields = {
                 "industry_id": suite.get("industry_id"),
@@ -1053,6 +1066,26 @@ def _evaluation_instructions(
             "top_k=5, format='hits', and rerank=true. "
         )
     return instructions
+
+
+def _capability_contract_failures(
+    required: set[str],
+    optional: set[str],
+    attempted: set[str],
+    observed: set[str],
+) -> list[str]:
+    """Return routing failures while permitting declared optional capabilities."""
+
+    failures: list[str] = []
+    unexpected_attempts = attempted - required - optional
+    if unexpected_attempts:
+        failures.append(
+            f"capabilities attempted outside contract: {sorted(unexpected_attempts)}"
+        )
+    missing_required = required - observed
+    if missing_required:
+        failures.append(f"required capabilities not observed: {sorted(missing_required)}")
+    return failures
 
 
 def _atomic_jsonl(
@@ -1199,16 +1232,14 @@ def main() -> int:
             }
             failures.extend(flow_failures)
             expected = set(contract.expected_capabilities)
-            unexpected_attempts = attempted - expected
-            if unexpected_attempts:
-                failures.append(
-                    "capabilities attempted outside contract: "
-                    f"{sorted(unexpected_attempts)}"
+            failures.extend(
+                _capability_contract_failures(
+                    expected,
+                    set(contract.optional_capabilities),
+                    attempted,
+                    observed,
                 )
-            if observed != expected:
-                failures.append(
-                    f"capabilities differ: expected {sorted(expected)}, observed {sorted(observed)}"
-                )
+            )
             expected_responses = set(
                 case.get("expected", {}).get("response", ["answer"])
             )
@@ -1247,6 +1278,7 @@ def main() -> int:
                 "source_ids": list(contract.source_ids),
                 "selected_views": views,
                 "expected_capabilities": list(contract.expected_capabilities),
+                "optional_capabilities": list(contract.optional_capabilities),
                 "attempted_capabilities": sorted(attempted),
                 "observed_capabilities": sorted(observed),
                 "tool_sequence": [call.name for call in calls],
