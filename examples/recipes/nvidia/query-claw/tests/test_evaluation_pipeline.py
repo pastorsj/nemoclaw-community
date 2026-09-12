@@ -299,7 +299,7 @@ class RunTests(unittest.TestCase):
         )
         output += _call(
             "mcp__gsf__ask_question",
-            {"question": "forecast risk"},
+            {"question": "forecast risk", "prediction": True},
             {
                 "answer": "ranked",
                 "sql": " PREDICT risk FOR incidents",
@@ -340,7 +340,7 @@ class RunTests(unittest.TestCase):
                 calls = (
                     RUN.ToolCall(
                         "mcp__gsf__ask_question",
-                        {"question": "forecast risk"},
+                        {"question": "forecast risk", "prediction": True},
                         {
                             "answer": "prediction unavailable",
                             "sql": "PREDICT risk FOR incidents",
@@ -356,6 +356,101 @@ class RunTests(unittest.TestCase):
                 self.assertEqual([], failures)
                 self.assertEqual(RUN.GSF_KUMO, summaries[0]["attempted_capability"])
                 self.assertIsNone(summaries[0]["observed_capability"])
+
+    def test_prediction_requires_forced_mcp_argument(self) -> None:
+        call = RUN.ToolCall(
+            "mcp__gsf__ask_question",
+            {"question": "forecast risk"},
+            {
+                "answer": "ranked",
+                "sql": "PREDICT risk FOR incidents",
+                "rows": [{"true_prob": 0.7}],
+            },
+        )
+
+        observed, failures, summaries = RUN.observed_capabilities([call])
+
+        self.assertEqual({RUN.GSF_KUMO}, observed)
+        self.assertEqual(["GSF prediction did not set prediction=true"], failures)
+        self.assertFalse(summaries[0]["prediction_requested"])
+
+    def test_failed_forced_prediction_is_recorded_as_an_attempt(self) -> None:
+        for output in (
+            {"error": "prediction unavailable"},
+            {"answer": "prediction unavailable"},
+        ):
+            with self.subTest(output=output):
+                observed, failures, summaries = RUN.observed_capabilities(
+                    [
+                        RUN.ToolCall(
+                            "mcp__gsf__ask_question",
+                            {"question": "forecast risk", "prediction": True},
+                            output,
+                        )
+                    ]
+                )
+
+                self.assertEqual(set(), observed)
+                self.assertEqual(1, len(failures))
+                self.assertEqual(RUN.GSF_KUMO, summaries[0]["attempted_capability"])
+                self.assertIsNone(summaries[0]["observed_capability"])
+                self.assertTrue(summaries[0]["prediction_requested"])
+                durable = RUN._durable_tool_evidence(summaries)
+                self.assertEqual(RUN.GSF_KUMO, durable[0]["attempted_capability"])
+                self.assertTrue(durable[0]["prediction_requested"])
+
+    def test_forced_prediction_returning_sql_is_attempted_but_not_observed(self) -> None:
+        call = RUN.ToolCall(
+            "mcp__gsf__ask_question",
+            {"question": "forecast risk", "prediction": True},
+            {
+                "answer": "historical risk",
+                "sql": "SELECT risk FROM incidents",
+                "rows": [{"risk": 0.7}],
+            },
+        )
+
+        observed, failures, summaries = RUN.observed_capabilities([call])
+
+        self.assertEqual(set(), observed)
+        self.assertEqual([], failures)
+        self.assertEqual(RUN.GSF_KUMO, summaries[0]["attempted_capability"])
+        self.assertIsNone(summaries[0]["observed_capability"])
+        self.assertEqual("sql", summaries[0]["query_language"])
+        self.assertTrue(summaries[0]["prediction_requested"])
+
+    def test_separate_optional_sql_remains_permitted_with_forced_prediction(self) -> None:
+        calls = (
+            RUN.ToolCall(
+                "mcp__gsf__ask_question",
+                {"question": "current incidents"},
+                {
+                    "answer": "two",
+                    "sql": "SELECT * FROM incidents",
+                    "rows": [{"count": 2}],
+                },
+            ),
+            RUN.ToolCall(
+                "mcp__gsf__ask_question",
+                {"question": "forecast risk", "prediction": True},
+                {
+                    "answer": "ranked",
+                    "sql": "PREDICT risk FOR incidents",
+                    "rows": [{"true_prob": 0.7}],
+                },
+            ),
+        )
+
+        observed, failures, summaries = RUN.observed_capabilities(calls)
+        attempted = {summary["attempted_capability"] for summary in summaries}
+        failures.extend(
+            RUN._capability_contract_failures(
+                {RUN.GSF_KUMO}, {RUN.GSF_STRUCTURED}, attempted, observed
+            )
+        )
+
+        self.assertEqual([], failures)
+        self.assertEqual({RUN.GSF_STRUCTURED, RUN.GSF_KUMO}, observed)
 
     def test_prediction_accepts_probability_and_regression_outputs(self) -> None:
         for row in (
@@ -410,6 +505,7 @@ class RunTests(unittest.TestCase):
                     "observed_capability": RUN.GSF_KUMO,
                     "query_language": "pql",
                     "database_name": "supply_chain",
+                    "prediction_requested": True,
                     "row_count": 1,
                     "truncated": False,
                     "sql": "PREDICT late_receipt",
@@ -421,6 +517,7 @@ class RunTests(unittest.TestCase):
         )
 
         self.assertEqual(1, durable[0]["row_count"])
+        self.assertTrue(durable[0]["prediction_requested"])
         serialized = json.dumps(durable)
         self.assertNotIn("PREDICT", serialized)
         self.assertNotIn("PO-1", serialized)

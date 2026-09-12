@@ -548,20 +548,43 @@ def observed_capabilities(
                 }
             )
             continue
+        prediction_requested = call.arguments.get("prediction") is True
         result = _find_structured_result(call.output)
-        if result is None:
-            failures.append(f"{call.name} returned no structured result")
+        sql = str(result.get("sql") or "").lstrip() if result is not None else ""
+        if result is None or not sql:
+            failures.append(
+                f"{call.name} returned no structured result"
+                if result is None
+                else "GSF ask_question returned no SQL/PQL evidence"
+            )
+            if prediction_requested:
+                summaries.append(
+                    {
+                        "tool": call.name,
+                        "capability": GSF_KUMO,
+                        "attempted_capability": GSF_KUMO,
+                        "observed_capability": None,
+                        "database_name": active_database,
+                        "prediction_requested": True,
+                        "document_refs": [],
+                    }
+                )
             continue
-        sql = str(result.get("sql") or "").lstrip()
-        if not sql:
-            failures.append("GSF ask_question returned no SQL/PQL evidence")
-            continue
-        capability = GSF_KUMO if re.match(r"(?i)^PREDICT\b", sql) else GSF_STRUCTURED
+        returned_prediction = bool(re.match(r"(?i)^PREDICT\b", sql))
+        capability = (
+            GSF_KUMO
+            if prediction_requested or returned_prediction
+            else GSF_STRUCTURED
+        )
+        if returned_prediction and not prediction_requested:
+            failures.append("GSF prediction did not set prediction=true")
         rows = result.get("rows") if isinstance(result.get("rows"), list) else []
         row_count = result.get("row_count", len(rows))
         projected = rows[:MAX_RESULT_ROWS]
         successfully_observed = (
-            capability == GSF_STRUCTURED or _prediction_rows_are_scored(rows)
+            capability == GSF_STRUCTURED
+            or returned_prediction
+            and _prediction_rows_are_scored(rows)
         )
         if successfully_observed:
             observed.add(capability)
@@ -571,8 +594,9 @@ def observed_capabilities(
                 "capability": capability,
                 "attempted_capability": capability,
                 "observed_capability": capability if successfully_observed else None,
-                "query_language": "pql" if capability == GSF_KUMO else "sql",
+                "query_language": "pql" if returned_prediction else "sql",
                 "database_name": active_database,
+                "prediction_requested": prediction_requested,
                 "row_count": row_count,
                 "rows": projected,
                 "truncated": bool(result.get("truncated"))
@@ -611,7 +635,7 @@ def _durable_tool_evidence(
             value = summary.get(key)
             if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
                 item[key] = value
-        for key in ("truncated", "rerank", "exhaustive"):
+        for key in ("truncated", "rerank", "exhaustive", "prediction_requested"):
             value = summary.get(key)
             if isinstance(value, bool):
                 item[key] = value
