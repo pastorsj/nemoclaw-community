@@ -70,6 +70,7 @@ Standalone utilities that help developers build, evaluate, inspect, or operate N
 | [Harness Engineering Playground](tools/harness-engineering-playground/README.md) | ✨ Other | Provides an experimental loop for tuning DeepAgents harness profiles against behavioral evaluations, keeping fixes that pass verification and rolling back rejected edits. |
 | [Kubernetes Deployer](tools/kubernetes-deployer/README.md) | ✨ Other | Deploys the official NemoClaw-managed Hermes image behind an OpenShell gateway on Kubernetes or OpenShift, with the Hermes dashboard, OpenAI-compatible API, and terminal access, plus extension points that skill recipes build on. |
 | [NemoClaw Enterprise Assistant Harness Optimization](tools/enterprise-assistant-harness-optimization/README.md) | ✨ Other | Improve an Enterprise Personal Assistant NemoClaw agent using a trace-to-evaluation optimization loop |
+| [OpenShell Least-Privilege Policy Compiler](tools/openshell-policy-compiler/README.md) | ✨ Other | Compiles an Agent Spec agent definition or a plain-language use case into a least-privilege OpenShell network policy, a boundary policy, and a report that explains every rule. |
 | [Tracing Agent Harness Behavior with NVIDIA NeMo Relay](tools/hermes-relay-tracing/README.md) | ✨ Other | Runs verified Hermes Agent tool-use tasks and produces NeMo Relay traces for local inspection and evaluation. |
 
 ## Collections
