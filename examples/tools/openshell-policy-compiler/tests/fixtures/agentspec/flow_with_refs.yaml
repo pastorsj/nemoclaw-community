@@ -1,0 +1,141 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# A flow whose nodes are defined once in $referenced_components and referenced by ID.
+# The send_email tool is shared by a ToolNode and an agent.
+component_type: Flow
+id: order-flow
+name: Order Flow
+description: Looks up an order and notifies the customer.
+metadata: {}
+inputs: []
+outputs: []
+start_node:
+  $component_ref: start
+nodes:
+- $component_ref: start
+- $component_ref: lookup-order
+- $component_ref: notify
+- $component_ref: agent-node
+- $component_ref: regex
+- $component_ref: end
+control_flow_connections:
+- component_type: ControlFlowEdge
+  id: start-to-lookup
+  name: start->lookup
+  description: null
+  metadata: {}
+  from_node:
+    $component_ref: start
+  from_branch: null
+  to_node:
+    $component_ref: lookup-order
+- component_type: ControlFlowEdge
+  id: lookup-to-notify
+  name: lookup->notify
+  description: null
+  metadata: {}
+  from_node:
+    $component_ref: lookup-order
+  from_branch: null
+  to_node:
+    $component_ref: notify
+data_flow_connections: []
+$referenced_components:
+  start:
+    component_type: StartNode
+    id: start
+    name: start
+    description: null
+    metadata: {}
+    inputs: []
+    outputs: []
+    branches:
+    - next
+  lookup-order:
+    component_type: ApiNode
+    id: lookup-order
+    name: lookup_order
+    description: null
+    metadata: {}
+    inputs: []
+    outputs: []
+    branches:
+    - next
+    url: http://orders.internal:8080/orders/{{order_id}}
+    http_method: POST
+    headers: {}
+    sensitive_headers:
+      X-Api-Key: "{{orders_api_key}}"
+  notify:
+    component_type: ToolNode
+    id: notify
+    name: notify
+    description: null
+    metadata: {}
+    inputs: []
+    outputs: []
+    branches:
+    - next
+    tool:
+      $component_ref: send-email
+  agent-node:
+    component_type: AgentNode
+    id: agent-node
+    name: agent node
+    description: null
+    metadata: {}
+    inputs: []
+    outputs: []
+    branches:
+    - next
+    agent:
+      component_type: Agent
+      id: helper
+      name: helper
+      description: null
+      metadata: {}
+      system_prompt: Help the customer.
+      llm_config:
+        component_type: VllmConfig
+        id: helper-llm
+        name: helper-llm
+        description: null
+        metadata: {}
+        url: http://vllm.internal:8000/v1
+        model_id: meta/llama-3.3-70b-instruct
+      tools:
+      - $component_ref: send-email
+  send-email:
+    component_type: RemoteTool
+    id: send-email
+    name: send_email
+    description: Send an email through the mail API.
+    metadata: {}
+    inputs: []
+    outputs: []
+    url: https://mail.example.com/v1/messages
+    http_method: POST
+  regex:
+    component_type: PluginRegexNode
+    id: regex
+    name: regex
+    description: null
+    metadata: {}
+    inputs: []
+    outputs: []
+    branches:
+    - next
+    regex_pattern: <result>(.*)</result>
+    component_plugin_name: PydanticComponentPlugin
+    component_plugin_version: 25.3.0.dev2
+  end:
+    component_type: EndNode
+    id: end
+    name: end
+    description: null
+    metadata: {}
+    inputs: []
+    outputs: []
+    branches: []
+agentspec_version: 26.2.0

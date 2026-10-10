@@ -1,0 +1,127 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# A manager and workers that each use a different LLM configuration type.
+component_type: ManagerWorkers
+id: model-zoo
+name: Model Zoo
+description: Routes questions to agents that use different model providers.
+metadata: {}
+inputs: []
+outputs: []
+group_manager:
+  component_type: Agent
+  id: manager
+  name: manager
+  description: null
+  metadata: {}
+  system_prompt: Route the question to the right worker.
+  llm_config:
+    component_type: VllmConfig
+    id: vllm-local
+    name: vllm-local
+    description: null
+    metadata: {}
+    url: vllm.internal:8000
+    model_id: meta/llama-3.3-70b-instruct
+workers:
+- component_type: Agent
+  id: oci-worker
+  name: oci worker
+  description: null
+  metadata: {}
+  system_prompt: Answer with OCI.
+  llm_config:
+    component_type: OciGenAiConfig
+    id: oci-genai
+    name: oci-genai
+    description: null
+    metadata: {}
+    model_id: cohere.command-r-plus
+    compartment_id: ocid1.compartment.oc1..example
+    client_config:
+      component_type: OciClientConfigWithInstancePrincipal
+      id: oci-client
+      name: oci client
+      description: null
+      metadata: {}
+      service_endpoint: https://inference.generativeai.us-chicago-1.oci.oraclecloud.com
+      auth_type: INSTANCE_PRINCIPAL
+- component_type: Agent
+  id: gemini-worker
+  name: gemini worker
+  description: null
+  metadata: {}
+  system_prompt: Answer with Gemini.
+  llm_config:
+    component_type: GeminiConfig
+    id: gemini-studio
+    name: gemini-studio
+    description: null
+    metadata: {}
+    model_id: gemini-2.5-flash
+    auth:
+      component_type: GeminiAIStudioAuthConfig
+      id: studio-auth
+      name: studio auth
+      description: null
+      metadata: {}
+      api_key:
+        $component_ref: studio-auth.api_key
+- component_type: Agent
+  id: vertex-worker
+  name: vertex worker
+  description: null
+  metadata: {}
+  system_prompt: Answer with Vertex AI.
+  llm_config:
+    component_type: GeminiConfig
+    id: gemini-vertex
+    name: gemini-vertex
+    description: null
+    metadata: {}
+    model_id: gemini-2.5-pro
+    auth:
+      component_type: GeminiVertexAIAuthConfig
+      id: vertex-auth
+      name: vertex auth
+      description: null
+      metadata: {}
+      project_id: example-project
+      location: us-central1
+- component_type: Agent
+  id: database-worker
+  name: database worker
+  description: null
+  metadata: {}
+  system_prompt: Answer with the database.
+  llm_config:
+    component_type: DbmsVectorChainLlmConfig
+    id: in-database-llm
+    name: in-database llm
+    description: null
+    metadata: {}
+    provider: openai
+    url: https://api.openai.com/v1/chat/completions
+    credential_name: OPENAI_CRED
+    model_id: gpt-4o
+- component_type: Agent
+  id: compatible-worker
+  name: compatible worker
+  description: null
+  metadata: {}
+  system_prompt: Answer through the gateway.
+  llm_config:
+    component_type: OpenAiCompatibleConfig
+    id: gateway
+    name: gateway
+    description: null
+    metadata: {}
+    url: https://llm-gateway.example.com/api/v2
+    api_type: responses
+    model_id: gateway-model
+    key_file:
+      $component_ref: gateway.key_file
+    cert_file:
+      $component_ref: gateway.cert_file
+agentspec_version: 26.3.1

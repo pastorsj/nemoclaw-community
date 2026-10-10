@@ -1,0 +1,32 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# The main configuration of a disaggregated agent. The LLM configuration, the
+# client tool, and the forecast URL live in disaggregated_components.json.
+component_type: Agent
+id: weather-agent
+name: Weather Agent
+description: null
+metadata: {}
+inputs: []
+outputs: []
+llm_config:
+  $component_ref: llm_config
+system_prompt: You are a helpful weather assistant.
+tools:
+- $component_ref: client_weather_tool
+- $component_ref: forecast_tool
+- $component_ref: missing_tool
+$referenced_components:
+  forecast_tool:
+    component_type: RemoteTool
+    id: forecast_tool
+    name: get_forecast
+    description: Get the forecast for a city.
+    metadata: {}
+    inputs: []
+    outputs: []
+    url:
+      $component_ref: forecast_url
+    http_method: GET
+agentspec_version: 25.4.1

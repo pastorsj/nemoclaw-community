@@ -1,0 +1,86 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# An agent that reads the NVIDIA/OpenShell repository through the GitHub REST API.
+component_type: Agent
+id: github-explorer
+name: GitHub Explorer
+description: Answers questions about the NVIDIA/OpenShell repository on GitHub.
+metadata: {}
+inputs: []
+outputs: []
+llm_config:
+  component_type: OpenAiCompatibleConfig
+  id: nemotron
+  name: Nemotron on build.nvidia.com
+  description: null
+  metadata: {}
+  default_generation_parameters: null
+  url: https://integrate.api.nvidia.com/v1
+  model_id: nvidia/llama-3.3-nemotron-super-49b-v1
+  api_key:
+    $component_ref: nemotron.api_key
+system_prompt: Read the code in NVIDIA/OpenShell and explain how it works.
+tools:
+- component_type: RemoteTool
+  id: get-repository
+  name: get_repository
+  description: Fetch metadata for the NVIDIA/OpenShell repository.
+  metadata: {}
+  inputs: []
+  outputs: []
+  url: https://api.github.com/repos/NVIDIA/OpenShell
+  http_method: get
+  api_spec_uri: null
+  data: {}
+  query_params: {}
+  headers:
+    Accept: application/vnd.github+json
+    authorization: Bearer {{github_token}}
+- component_type: RemoteTool
+  id: get-file-contents
+  name: get_file_contents
+  description: Read one file from the NVIDIA/OpenShell repository.
+  metadata: {}
+  inputs:
+  - title: path
+    type: string
+  outputs: []
+  url: https://api.github.com/repos/NVIDIA/OpenShell/contents/{{path}}?ref={{ branch }}
+  http_method: GET
+  api_spec_uri: specs/github-subset.yaml
+  headers: {}
+  sensitive_headers:
+    $component_ref: get-file-contents.sensitive_headers
+  url_allow_list:
+  - https://api.github.com/repos/NVIDIA/OpenShell/
+  - https://uploads.github.com/
+- component_type: RemoteTool
+  id: update-issue
+  name: Update Issue
+  description: null
+  metadata: {}
+  inputs: []
+  outputs: []
+  url: https://api.github.com/repos/NVIDIA/OpenShell/issues/{{number}}
+  http_method: "{{method}}"
+  api_spec_uri: https://raw.githubusercontent.com/github/rest-api-description/main/descriptions/api.github.com/api.github.com.yaml
+  requires_confirmation: true
+  headers: {}
+  sensitive_headers:
+    Authorization: Bearer {{github_token}}
+- component_type: ServerTool
+  id: summarize-code
+  name: summarize_code
+  description: Summarize a source file with an internal code-search service.
+  metadata: {}
+  inputs: []
+  outputs: []
+- component_type: ClientTool
+  id: ask-user
+  name: ask_user
+  description: Ask the person for clarification.
+  metadata: {}
+  inputs: []
+  outputs: []
+agentspec_version: 26.2.0
