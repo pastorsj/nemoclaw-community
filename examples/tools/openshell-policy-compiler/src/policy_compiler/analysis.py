@@ -41,7 +41,13 @@ SCORE_WEIGHTS = {
     "binary_glob": 5,
     "opaque_endpoint": 5,
     "wildcard_host": 5,
+    "uncatalogued_rule": 1,
+    "uncatalogued_preset.read-only": 5,
+    "uncatalogued_preset.read-write": 10,
+    "uncatalogued_preset.full": 15,
 }
+"""Weights of the breadth score. Hosts the catalog does not know cannot be measured in operations, so
+their rules add a fixed amount instead: one per method and path rule, more for an access preset."""
 
 
 @dataclass
@@ -159,6 +165,11 @@ def breadth(access: AccessSet, graph: Graph, permitted: dict[str, PermittedOpera
             continue
         b.allow_rules += 1
         endpoints.setdefault((rule.group, rule.endpoint), rule)
+        if not _matching_operations(rule, graph) and not _rule_is_endpoint_wide(rule):
+            if rule.matcher is not None:
+                b.score += SCORE_WEIGHTS["uncatalogued_rule"]
+            elif rule.access_preset:
+                b.score += SCORE_WEIGHTS.get(f"uncatalogued_preset.{rule.access_preset}", 15)
         if rule.matcher is not None and rule.matcher.path in ("/**", "**"):
             b.match_all_paths += 1
         if rule.matcher is not None and rule.matcher.method == "*":
