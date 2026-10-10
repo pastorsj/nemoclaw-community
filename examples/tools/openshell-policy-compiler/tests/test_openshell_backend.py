@@ -40,9 +40,7 @@ def _repository_policy_files() -> list[Path]:
     found = []
     for dirpath, dirnames, filenames in os.walk(EXAMPLES):
         here = Path(dirpath)
-        dirnames[:] = sorted(
-            d for d in dirnames if d not in skip_dirs and (here / d).resolve() != TOOL_DIR
-        )
+        dirnames[:] = sorted(d for d in dirnames if d not in skip_dirs and (here / d).resolve() != TOOL_DIR)
         for name in sorted(filenames):
             path = here / name
             in_policies = here.name == "policies" and path.suffix in {".yaml", ".json"}
@@ -69,7 +67,9 @@ def _codes(access: AccessSet) -> set[str]:
 def test_golden_lower_github_read():
     access = AccessSet(
         rules=[
-            AccessRule(Effect.ALLOW, "github", PYTHON, GITHUB, Matcher(method="GET", path="/repos/NVIDIA/OpenShell/**")),
+            AccessRule(
+                Effect.ALLOW, "github", PYTHON, GITHUB, Matcher(method="GET", path="/repos/NVIDIA/OpenShell/**")
+            ),
             AccessRule(Effect.ALLOW, "github", PYTHON, GITHUB, Matcher(method="GET", path="/repos/NVIDIA/OpenShell")),
         ]
     )
@@ -185,17 +185,15 @@ def test_lower_l4_omits_protocol_and_tcp_omits_enforcement():
         ]
     )
     policies = lower(access)["network_policies"]
-    assert policies["discord"]["endpoints"] == [
-        {"host": "gateway.discord.gg", "port": 443, "enforcement": "enforce"}
-    ]
+    assert policies["discord"]["endpoints"] == [{"host": "gateway.discord.gg", "port": 443, "enforcement": "enforce"}]
     assert policies["postgres"]["endpoints"] == [{"host": "db.internal.example", "port": 5432, "protocol": "tcp"}]
 
 
 def test_lower_hostless_allowed_ips_endpoint():
     key = EndpointKey(host="", ports=(443,), protocol=Protocol.L4, allowed_ips=("10.0.0.0/8",))
-    endpoint = lower(AccessSet(rules=[AccessRule(Effect.ALLOW, "private", PYTHON, key)]))["network_policies"]["private"][
-        "endpoints"
-    ][0]
+    endpoint = lower(AccessSet(rules=[AccessRule(Effect.ALLOW, "private", PYTHON, key)]))["network_policies"][
+        "private"
+    ]["endpoints"][0]
     assert "host" not in endpoint
     assert endpoint["allowed_ips"] == ["10.0.0.0/8"]
 
@@ -356,6 +354,13 @@ def test_lower_rejects_empty_or_unbounded_clients(clients):
         lower(access)
 
 
+@pytest.mark.parametrize("normalize", [True, False])
+def test_lower_rejects_whole_endpoint_deny(normalize):
+    access = AccessSet(rules=[AccessRule(Effect.DENY, "github", PYTHON, GITHUB)])
+    with pytest.raises(ValueError, match="whole-endpoint deny"):
+        lower(access, normalize=normalize)
+
+
 def test_lower_without_normalize_keeps_empty_binaries():
     access = AccessSet(rules=[AccessRule(Effect.ALLOW, "github", ClientSet("none"), GITHUB)])
     assert lower(access, normalize=False)["network_policies"]["github"]["binaries"] == []
@@ -383,11 +388,21 @@ def test_lift_builds_rules_with_reasons_and_group_order():
                         ],
                         "deny_rules": [{"method": "POST", "path": "/v1/items/admin"}],
                     },
-                    {"host": "cdn.example.com", "port": 443, "protocol": "rest", "enforcement": "enforce", "access": "read-only"},
+                    {
+                        "host": "cdn.example.com",
+                        "port": 443,
+                        "protocol": "rest",
+                        "enforcement": "enforce",
+                        "access": "read-only",
+                    },
                 ],
                 "binaries": [{"path": "/usr/bin/curl"}],
             },
-            "alpha": {"name": "alpha", "endpoints": [{"host": "x.example.com", "port": 22}], "binaries": [{"path": "/usr/bin/ssh"}]},
+            "alpha": {
+                "name": "alpha",
+                "endpoints": [{"host": "x.example.com", "port": 22}],
+                "binaries": [{"path": "/usr/bin/ssh"}],
+            },
         },
     }
     access = lift(policy, source="p.yaml")
@@ -415,7 +430,11 @@ def test_lift_builds_rules_with_reasons_and_group_order():
 
 
 def test_lift_accepts_preset_and_fragment():
-    fragment = {"network_policies": {"g": {"endpoints": [{"host": "a.example.com", "port": 443}], "binaries": [{"path": "/bin/x"}]}}}
+    fragment = {
+        "network_policies": {
+            "g": {"endpoints": [{"host": "a.example.com", "port": 443}], "binaries": [{"path": "/bin/x"}]}
+        }
+    }
     assert lift(fragment).extras == {}
     preset = {"preset": {"name": "g", "description": "d"}, **fragment}
     access = lift(preset)
@@ -460,7 +479,10 @@ def test_lift_keeps_unknown_endpoint_fields_and_tls():
 def test_lift_tls_passthrough_normalizes_to_skip():
     policy = {
         "network_policies": {
-            "smtp": {"endpoints": [{"host": "smtp.example.com", "port": 465, "tls": "passthrough"}], "binaries": [{"path": "/usr/bin/msmtp"}]}
+            "smtp": {
+                "endpoints": [{"host": "smtp.example.com", "port": 465, "tls": "passthrough"}],
+                "binaries": [{"path": "/usr/bin/msmtp"}],
+            }
         }
     }
     access = lift(policy)
@@ -509,7 +531,11 @@ def test_lift_reports_missing_enforcement_and_preserves_omission():
 
 
 def test_lift_l4_endpoint_without_enforcement_is_not_missing_enforcement():
-    policy = {"network_policies": {"g": {"endpoints": [{"host": "a.example.com", "port": 443}], "binaries": [{"path": "/bin/x"}]}}}
+    policy = {
+        "network_policies": {
+            "g": {"endpoints": [{"host": "a.example.com", "port": 443}], "binaries": [{"path": "/bin/x"}]}
+        }
+    }
     access = lift(policy)
     assert "missing-enforcement" not in _codes(access)
     assert "l4-only" in _codes(access)
@@ -540,15 +566,30 @@ def test_lift_lint_diagnostics():
         "network_policies": {
             "wide": {
                 "endpoints": [
-                    {"host": "*.example.com", "port": 443, "protocol": "rest", "enforcement": "enforce", "access": "full"},
+                    {
+                        "host": "*.example.com",
+                        "port": 443,
+                        "protocol": "rest",
+                        "enforcement": "enforce",
+                        "access": "full",
+                    },
                     {
                         "host": "api.example.com",
                         "port": 443,
                         "protocol": "rest",
                         "enforcement": "enforce",
-                        "rules": [{"allow": {"method": "GET", "path": "/**"}}, {"allow": {"method": "GET", "path": "**"}}],
+                        "rules": [
+                            {"allow": {"method": "GET", "path": "/**"}},
+                            {"allow": {"method": "GET", "path": "**"}},
+                        ],
                     },
-                    {"host": "__API_HOST__", "port": "{port}", "protocol": "rest", "enforcement": "enforce", "access": "read-only"},
+                    {
+                        "host": "__API_HOST__",
+                        "port": "{port}",
+                        "protocol": "rest",
+                        "enforcement": "enforce",
+                        "access": "read-only",
+                    },
                     {"host": "tok.example.com", "port": 443, "tls": "skip"},
                 ],
                 "binaries": [{"path": "/opt/BINARY_PLACEHOLDER"}],
@@ -693,7 +734,13 @@ def test_lift_mcp_allow_all_known_methods_round_trips():
                 "protocol": "rest",
                 "enforcement": "enforce",
                 "rules": [
-                    {"allow": {"method": "GET", "path": "/api/v1/download", "query": {"platform": {"any": ["linux-*", "darwin-*"]}, "v": "1.*"}}}
+                    {
+                        "allow": {
+                            "method": "GET",
+                            "path": "/api/v1/download",
+                            "query": {"platform": {"any": ["linux-*", "darwin-*"]}, "v": "1.*"},
+                        }
+                    }
                 ],
                 "deny_rules": [{"method": "*", "path": "/repos/*/*/rulesets"}],
             },
@@ -731,7 +778,10 @@ def test_lift_mcp_allow_all_known_methods_round_trips():
                 "port": 443,
                 "protocol": "websocket",
                 "enforcement": "enforce",
-                "rules": [{"allow": {"method": "GET", "path": "/v1/realtime"}}, {"allow": {"method": "WEBSOCKET_TEXT", "path": "/v1/realtime"}}],
+                "rules": [
+                    {"allow": {"method": "GET", "path": "/v1/realtime"}},
+                    {"allow": {"method": "WEBSOCKET_TEXT", "path": "/v1/realtime"}},
+                ],
                 "deny_rules": [{"method": "*", "path": "/v1/admin/**"}],
             },
             id="websocket",
@@ -749,7 +799,13 @@ def test_lift_mcp_allow_all_known_methods_round_trips():
         ),
         pytest.param({"host": "db.internal.example", "port": 5432, "protocol": "tcp"}, id="tcp"),
         pytest.param(
-            {"allowed_ips": ["10.0.0.0/8"], "ports": [443, 8443], "protocol": "rest", "enforcement": "audit", "access": "read-only"},
+            {
+                "allowed_ips": ["10.0.0.0/8"],
+                "ports": [443, 8443],
+                "protocol": "rest",
+                "enforcement": "audit",
+                "access": "read-only",
+            },
             id="hostless-multi-port",
         ),
     ],
@@ -757,7 +813,9 @@ def test_lift_mcp_allow_all_known_methods_round_trips():
 def test_documented_forms_round_trip(endpoint):
     policy = {
         "version": 1,
-        "network_policies": {"rule": {"name": "rule", "endpoints": [endpoint], "binaries": [{"path": "/usr/bin/node"}]}},
+        "network_policies": {
+            "rule": {"name": "rule", "endpoints": [endpoint], "binaries": [{"path": "/usr/bin/node"}]}
+        },
     }
     access = lift(policy)
     assert not [d for d in access.diagnostics if d.level == "error"]
@@ -854,7 +912,9 @@ def test_dump_policy_yaml_quotes_and_order():
         "network_policies": {
             "z": {
                 "name": "z",
-                "endpoints": [{"host": "a.example.com", "port": 443, "rules": [{"allow": {"method": "*", "path": "/**"}}]}],
+                "endpoints": [
+                    {"host": "a.example.com", "port": 443, "rules": [{"allow": {"method": "*", "path": "/**"}}]}
+                ],
                 "binaries": [{"path": "/usr/bin/*"}],
             }
         },

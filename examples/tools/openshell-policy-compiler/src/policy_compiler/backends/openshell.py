@@ -285,6 +285,11 @@ def _lower_binaries(key: str, clients: ClientSet, normalize: bool) -> list[dict[
 
 
 def _lower_endpoint(key: EndpointKey, rules: list[AccessRule], normalize: bool) -> dict[str, Any]:
+    if any(rule.effect is Effect.DENY and rule.matcher is None for rule in rules):
+        raise ValueError(
+            f"endpoint {key.host or '*'}:{key.ports}: a whole-endpoint deny has no OpenShell form; "
+            "remove the allow rules for the endpoint instead"
+        )
     endpoint: dict[str, Any] = {}
     if key.host:
         endpoint["host"] = key.host
@@ -444,13 +449,20 @@ class _Lifter:
             return
         for field_name in entry:
             if field_name not in {"name", "endpoints", "binaries"}:
-                self.diag("error", "unknown-field", f"unknown network policy field {field_name!r} was dropped", f"{base}.{field_name}")
+                self.diag(
+                    "error",
+                    "unknown-field",
+                    f"unknown network policy field {field_name!r} was dropped",
+                    f"{base}.{field_name}",
+                )
         name = entry.get("name")
         rule_name = str(name) if name is not None and name != key else None
         clients = self.binaries(base, entry.get("binaries"))
         endpoints = entry.get("endpoints") or []
         if not endpoints:
-            self.diag("warning", "no-endpoints", "network policy has no endpoints and allows nothing", f"{base}.endpoints")
+            self.diag(
+                "warning", "no-endpoints", "network policy has no endpoints and allows nothing", f"{base}.endpoints"
+            )
         for index, endpoint in enumerate(endpoints):
             self.endpoint(key, index, endpoint, clients, rule_name)
 
@@ -471,7 +483,9 @@ class _Lifter:
                 self.diag("error", "invalid-binary", "binary entries need a non-empty 'path'", where)
                 continue
             if _GLOB_CHARS.search(path):
-                self.diag("warning", "binary-glob", f"binary glob {path!r} matches more executables than one path", where)
+                self.diag(
+                    "warning", "binary-glob", f"binary glob {path!r} matches more executables than one path", where
+                )
             self.placeholders(path, f"{where}.path")
             paths.append(path)
         return ClientSet("list", tuple(paths)) if paths else ClientSet("none")
@@ -551,11 +565,18 @@ class _Lifter:
             rule_where = f"{where}.rules[{j}]"
             allow = rule.get("allow") if isinstance(rule, dict) else None
             if not isinstance(allow, dict):
-                self.diag("error", "rule-without-allow", "each rules entry must wrap its matcher in 'allow'", rule_where)
+                self.diag(
+                    "error", "rule-without-allow", "each rules entry must wrap its matcher in 'allow'", rule_where
+                )
                 continue
             path = allow.get("path")
             if path in ("/**", "**"):
-                self.diag("warning", "path-wildcard-all", f"allow path {path!r} matches every path", f"{rule_where}.allow.path")
+                self.diag(
+                    "warning",
+                    "path-wildcard-all",
+                    f"allow path {path!r} matches every path",
+                    f"{rule_where}.allow.path",
+                )
             for matcher in self.matchers(allow, f"{rule_where}.allow", deny=False):
                 add(Effect.ALLOW, matcher)
         for j, rule in enumerate(deny_rules):
