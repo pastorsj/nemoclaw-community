@@ -1,0 +1,63 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# A small API with no security schemes. Privileges are inferred from the HTTP
+# method and capabilities from the first tag. It also covers path-level
+# parameters, a $ref parameter, and the three ways to mark a parameter as
+# multi-segment.
+
+openapi: 3.0.3
+info:
+  title: Inventory Service
+  version: 1.0.0
+servers:
+  - url: http://inventory.example.com/
+paths:
+  /items:
+    get:
+      tags: [Items]
+      summary: List items
+    post:
+      operationId: createItem
+      tags: [Items, Write]
+      description: Create an item.
+  /items/{item_id}:
+    parameters:
+      - name: item_id
+        in: path
+        required: true
+        schema: {type: string}
+    put:
+      tags: [Items]
+      summary: Replace an item
+    delete:
+      summary: Delete an item
+  /blobs/{blob_path}:
+    get:
+      operationId: getBlob
+      tags: [blobs]
+      parameters:
+        - $ref: '#/components/parameters/BlobPath'
+  /raw/{key}:
+    parameters:
+      - name: key
+        in: path
+        required: true
+        allowReserved: true
+        schema: {type: string}
+    get:
+      operationId: getRaw
+      tags: [blobs]
+  /docs/{doc_path}/history:
+    get:
+      operationId: getDocHistory
+      tags: [docs]
+      x-openshell-multi-segment: [doc_path]
+components:
+  parameters:
+    BlobPath:
+      name: blob_path
+      in: path
+      required: true
+      x-multi-segment: true
+      schema: {type: string}

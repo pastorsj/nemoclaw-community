@@ -1,0 +1,37 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# An internal API as its owners publish it: no security schemes and nothing
+# about privilege levels or private address ranges. orders-overlay.yaml adds
+# what the policy compiler needs.
+
+openapi: 3.0.3
+info:
+  title: ACME Orders
+  version: 1.4.0
+servers:
+  - url: https://orders.internal.example/api
+paths:
+  /orders:
+    get:
+      operationId: listOrders
+      summary: List orders
+      tags: [orders]
+    post:
+      operationId: createOrder
+      summary: Create an order
+      tags: [orders]
+  /orders/{order_id}:
+    get:
+      operationId: getOrder
+      summary: Get one order
+      tags: [orders]
+    delete:
+      operationId: cancelOrder
+      summary: Cancel an order
+      tags: [orders]
+  /orders/search:
+    post:
+      operationId: searchOrders
+      summary: Search orders with a JSON query body
+      tags: [orders]

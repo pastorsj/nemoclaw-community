@@ -1,0 +1,89 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# A small API secured with OAuth 2.0 and OpenID Connect scopes. It covers AND
+# requirements (two scopes in one requirement object), OR requirements (two
+# requirement objects), an anonymous alternative, a non-OAuth scheme, and an
+# operation-level override of the root security.
+
+openapi: 3.1.0
+info:
+  title: TaskCo Tasks API
+  version: 2.0.0
+servers:
+  - url: https://{region}.taskco.example:{port}/v2
+    variables:
+      region:
+        default: us
+        enum: [us, eu]
+      port:
+        default: "8443"
+x-openshell-scope-levels:
+  tasks:read: read
+  tasks:write: write
+security:
+  - oauth: [tasks:read]
+components:
+  securitySchemes:
+    oauth:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://auth.taskco.example/authorize
+          tokenUrl: https://auth.taskco.example/token
+          scopes:
+            tasks:read: Read tasks
+            tasks:write: Create and update tasks
+            projects.view: View projects
+            admin:org: Administer the organization
+    oidc:
+      type: openIdConnect
+      openIdConnectUrl: https://auth.taskco.example/.well-known/openid-configuration
+    api_key:
+      type: apiKey
+      in: header
+      name: X-API-Key
+paths:
+  /tasks:
+    get:
+      operationId: listTasks
+      summary: List tasks
+      tags: [tasks]
+    post:
+      operationId: Tasks/Create
+      description: Create a task in a project.
+      tags: [tasks]
+      security:
+        - oauth: [tasks:write, projects.view]
+  /tasks/{task_id}:
+    get:
+      operationId: getTask
+      summary: Get one task
+      security:
+        - {}
+        - oauth: [tasks:read]
+    delete:
+      operationId: deleteTask
+      summary: Delete a task
+      security:
+        - oauth: [admin:org]
+        - oauth: [tasks:write]
+          api_key: []
+  /me:
+    get:
+      operationId: getMe
+      summary: Current user profile
+      security:
+        - oidc: [profile.read]
+  /status:
+    get:
+      summary: Service status
+      tags: [status]
+      security: []
+  /exports:
+    post:
+      operationId: exportTasks
+      summary: Export tasks
+      tags: [Bulk Exports]
+      security:
+        - api_key: []
