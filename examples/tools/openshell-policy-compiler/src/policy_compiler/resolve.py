@@ -527,7 +527,7 @@ class _Resolver:
         if not text or self.index is None:
             return []
         matches = self.index.match(text, min_score=self.options.min_justification_score)
-        concepts = [m.concept for m in matches]
+        concepts = self._requested_concepts(text, matches)
         allowed = set(concepts) | ALWAYS_JUSTIFIED_CONCEPTS
         unjustified_needs: dict[str, list[str]] = {}
         for g in grants:
@@ -551,6 +551,31 @@ class _Resolver:
                     self.results[need_id].status = "excluded"
             grants[:] = kept
         return concepts
+
+    def _requested_concepts(self, text: str, matches: list) -> list[str]:
+        """Keep write-level concepts only when a requested (not negated) write verb matches them.
+
+        "Never change the repository" mentions a write verb, but asks for the opposite.
+        """
+        from policy_compiler.semantic import find_write_verbs, stem
+
+        asked, negated = find_write_verbs(text)
+        asked_stems = {stem(v) for v in asked}
+        kept: list[str] = []
+        dropped: list[str] = []
+        for m in matches:
+            concept = self.graph.concepts.get(m.concept)
+            if concept is not None and concept.privilege.at_least(Privilege.WRITE):
+                if not asked_stems & set(m.matched_terms):
+                    dropped.append(m.concept)
+                    continue
+            kept.append(m.concept)
+        if dropped:
+            note = "The use case does not ask for write access, so these concepts justify nothing: " + ", ".join(dropped)
+            if negated:
+                note += f" (negated: {', '.join(negated)})"
+            self._diag("info", "write-concept-not-requested", note + ".")
+        return kept
 
     # ------------------------------------------------------------ prohibitions
 

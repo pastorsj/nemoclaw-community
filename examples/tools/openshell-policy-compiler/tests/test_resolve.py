@@ -237,3 +237,18 @@ def test_wildcard_method_operation_does_not_widen_declared_method():
     result = resolve(contract, graph)
     assert result.needs[0].operations == ["mined.api.any"]  # matched the catalogued operation
     assert [(r.matcher.method, r.matcher.path) for r in result.access.rules] == [("GET", "/v1/a/b")]
+
+
+def test_negated_write_verb_does_not_justify_write_needs(graph):
+    from policy_compiler.semantic import SemanticIndex
+
+    contract = Contract(
+        agent="x",
+        default_clients=[PY],
+        use_case="Read the code of NVIDIA/OpenShell. Never change the repository.",
+        needs=[raw_need("n1", "api.github.com", "PUT", "/repos/NVIDIA/OpenShell/contents/{path}")],
+    )
+    result = resolve(contract, graph, ResolveOptions(strict_use_case=True), concept_index=SemanticIndex(graph))
+    assert "source-code.write" not in result.use_case_concepts
+    assert result.needs[0].status == "excluded"
+    assert result.access.rules == []

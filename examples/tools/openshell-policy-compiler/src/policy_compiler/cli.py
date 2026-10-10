@@ -246,7 +246,8 @@ def cmd_from_use_case(args) -> int:
         text, graph, default_clients=args.client, inference=args.inference, agent_name=args.name
     )
     contract.prohibitions.extend(_parse_forbid(args.forbid))
-    options = ResolveOptions(route_inference_local=False)
+    # The needs come from the text itself, so justifying them against it again adds nothing.
+    options = ResolveOptions(use_case="")
     out_dir = Path(args.out or f"out/{_slug(args.name)}")
     _write_outputs(contract, graph, options, out_dir, _load_base_policy(args.base_policy), _header(args))
     return 0

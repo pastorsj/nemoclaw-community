@@ -255,7 +255,13 @@ _IRREGULAR = {"write": ("wrote", "written")}
 _DETERMINERS = frozenset("a an the this these those each every any some its their my your our his her".split())
 """A write verb right after one of these is a noun or an adjective ("the open issues").
 "that" is left out because it usually starts a clause ("an agent that opens ...")."""
-_NOT_A_VERB_BEFORE = {"open": frozenset({"source", "sourced"})}
+_NOT_A_VERB_BEFORE = {
+    "open": frozenset({"source", "sourced"}),
+    # "commit history", "commit message": the noun, not the verb.
+    "commit": frozenset({"history", "histories", "log", "logs", "message", "messages", "hash", "sha", "id", "ids"}),
+    "change": frozenset({"history", "log", "logs", "list", "summary"}),
+    "update": frozenset({"history", "log", "logs"}),
+}
 _NEEDS_OBJECT = {"file": frozenset({"issue", "bug", "ticket", "report"})}
 """Verbs that count only with one of these objects ("file a bug", not "read file contents")."""
 _OBJECT_FILLERS = _DETERMINERS | {"new", "more"}

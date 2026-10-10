@@ -167,7 +167,7 @@ def render_compile_report(
         lines.append("None.")
     lines.append("")
 
-    if contract.use_case or resolution.use_case_concepts:
+    if resolution.use_case_concepts:
         lines += ["## Use-case justification", ""]
         lines.append(
             "Concepts matched by the use case: "

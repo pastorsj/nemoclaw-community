@@ -275,3 +275,12 @@ def test_write_verbs():
 )
 def test_find_write_verbs(text, asked, negated):
     assert find_write_verbs(text) == (asked, negated)
+
+
+def test_commit_history_is_not_a_write_request():
+    from policy_compiler.semantic import find_write_verbs
+
+    asked, _ = find_write_verbs("Read its files, README, and commit history. Never change the repository.")
+    assert asked == []
+    asked, _ = find_write_verbs("commit the fix and push it")
+    assert "commit" in asked
