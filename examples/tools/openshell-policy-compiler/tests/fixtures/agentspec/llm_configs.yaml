@@ -124,4 +124,42 @@ workers:
       $component_ref: gateway.key_file
     cert_file:
       $component_ref: gateway.cert_file
+- component_type: Agent
+  id: vertex-guess-worker
+  name: vertex guess worker
+  description: null
+  metadata: {}
+  system_prompt: Answer with Vertex AI in a region that is supplied later.
+  llm_config:
+    component_type: GeminiConfig
+    id: gemini-vertex-guess
+    name: gemini-vertex-guess
+    description: null
+    metadata: {}
+    model_id: gemini-2.5-pro
+    auth:
+      component_type: GeminiVertexAIAuthConfig
+      id: vertex-guess-auth
+      name: vertex guess auth
+      description: null
+      metadata: {}
+      project_id: example-project
+      location:
+        $component_ref: vertex-guess-auth.location
+      credentials:
+        $component_ref: vertex-guess-auth.credentials
+- component_type: Agent
+  id: direct-worker
+  name: direct worker
+  description: null
+  metadata: {}
+  system_prompt: Answer through a full endpoint URL.
+  llm_config:
+    component_type: OpenAiCompatibleConfig
+    id: direct-endpoint
+    name: direct-endpoint
+    description: null
+    metadata: {}
+    url: https://llm.example.net/v1/chat/completions
+    model_id: direct-model
 agentspec_version: 26.3.1

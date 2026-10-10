@@ -57,6 +57,8 @@ _SENSITIVE_FIELDS = frozenset(
         "auth_file_location",
         "ca_file",
         "cert_file",
+        "client_id",
+        "client_id_metadata_url",
         "client_secret",
         "credentials",
         "dsn",
@@ -76,26 +78,60 @@ _SENSITIVE_FIELDS = frozenset(
 
 _STRUCTURAL_TYPES = frozenset(
     {
-        "A2AConnectionConfig",
+        # Agents and their composition.
         "Agent",
         "AgentSpecializationParameters",
-        "ControlFlowEdge",
-        "DataFlowEdge",
-        "Flow",
-        "InMemoryCollectionDatastore",
-        "LlmGenerationConfig",
-        "MCPToolSpec",
         "ManagerWorkers",
-        "OAuthClientConfig",
-        "OAuthConfig",
-        "Property",
-        "RetryPolicy",
         "SpecializedAgent",
         "Swarm",
+        # Flows, nodes (ApiNode is mapped separately), and edges.
+        "AgentNode",
+        "BranchingNode",
+        "CatchExceptionNode",
+        "ControlFlowEdge",
+        "DataFlowEdge",
+        "EndNode",
+        "Flow",
+        "FlowNode",
+        "InputMessageNode",
+        "LlmNode",
+        "MapNode",
+        "OutputMessageNode",
+        "ParallelFlowNode",
+        "ParallelMapNode",
+        "StartNode",
+        "ToolNode",
+        # MCP transports and tool specs; the owning MCPTool or MCPToolBox reports them.
+        "MCPToolSpec",
+        "SSETransport",
+        "SSEmTLSTransport",
+        "StdioTransport",
+        "StreamableHTTPTransport",
+        "StreamableHTTPmTLSTransport",
+        # Transforms, in-memory storage, and settings read by the owning component.
+        "A2AConnectionConfig",
+        "ConversationSummarizationTransform",
+        "GeminiAIStudioAuthConfig",
+        "GeminiVertexAIAuthConfig",
+        "InMemoryCollectionDatastore",
+        "LlmGenerationConfig",
+        "MessageSummarizationTransform",
+        "OAuthClientConfig",
+        "OAuthConfig",
+        "OciClientConfigWithApiKey",
+        "OciClientConfigWithInstancePrincipal",
+        "OciClientConfigWithResourcePrincipal",
+        "OciClientConfigWithSecurityToken",
+        "Property",
+        "RetryPolicy",
         "ToolBox",
     }
 )
-_STRUCTURAL_SUFFIXES = ("Node", "Transport", "Transform", "AuthConfig")
+"""Component types that declare no destination of their own: the walk only recurses into them.
+
+Taken from the pyagentspec component registry (Agent Spec 26.4.0). Any other type,
+including an unknown ``*Node`` or ``*Transport``, is reported as unsupported.
+"""
 
 _HANDLERS = {
     "RemoteTool": "_remote_call",
@@ -310,6 +346,7 @@ class _Builder:
         self.specs: list[str] = []
         self._visited: set[int] = set()
         self._consumed: set[int] = set()
+        self._postgres_configs: set[int] = set()
         self._reported_refs: set[str] = set()
 
     # -- walking --
@@ -364,32 +401,40 @@ class _Builder:
             self._postgres(node, ctype, name, pointer)
         elif "Oracle" in ctype and ("Datastore" in ctype or "Database" in ctype):
             self._oracle(node, ctype, name, pointer)
-        elif not _is_structural(ctype):
+        elif ctype not in _STRUCTURAL_TYPES:
             self._unsupported(ctype, name, pointer, key)
 
     # -- REST tools and nodes --
 
     def _remote_call(self, node: dict, ctype: str, name: str, pointer: str) -> None:
         self._record_spec(node.get("api_spec_uri"))
-        notes: list[str] = []
-        base = _text(node.get("description")) or f"{ctype} {name}"
-        method = _method(node.get("http_method"), notes)
-        approval = Approval.CONFIRM if node.get("requires_confirmation") is True else Approval.NONE
-        credential = _header_credential(node.get("headers"), node.get("sensitive_headers"))
         raw_url = node.get("url")
-        if _is_ref(raw_url):
+        raw_method = node.get("http_method")
+        if _is_ref(raw_url) or _is_ref(raw_method):
             return  # reported by the walker as an unresolved reference
+        if not isinstance(raw_method, str) or not raw_method.strip():
+            self._unknown(
+                UnknownKind.UNSUPPORTED_COMPONENT,
+                name,
+                pointer,
+                f"{ctype} '{name}' is malformed: http_method is missing or not a string, so the"
+                " call cannot be described; no access was generated for it.",
+            )
+            return
         if not isinstance(raw_url, str) or not raw_url.strip():
             self._open_destination(ctype, name, pointer, "it has no url")
             return
+        notes: list[str] = []
+        base = _text(node.get("description")) or f"{ctype} {name}"
+        method = _method(raw_method, notes)
+        approval = Approval.CONFIRM if node.get("requires_confirmation") is True else Approval.NONE
+        credential = _header_credential(node.get("headers"), node.get("sensitive_headers"))
         allow_list = node.get("url_allow_list")
         if isinstance(allow_list, list) and not allow_list:
-            self.notes.append(
-                f"{ctype} '{name}' has an empty url_allow_list, so the runtime rejects every"
-                " request it makes; no access was generated for it."
-            )
+            self._no_access(ctype, name, "its url_allow_list is empty, so the runtime rejects every request")
             return
         entries = self._allow_list_entries(allow_list, ctype, name)
+
         if has_placeholder(_destination_part(raw_url)):
             if not isinstance(allow_list, list):
                 self._unknown(
@@ -400,7 +445,20 @@ class _Builder:
                     f" ({_redact(raw_url)}) and has no url_allow_list, so it can reach any host.",
                 )
                 return
+            scheme = _literal_scheme(raw_url)
+            usable = []
             for entry_text, entry in entries:
+                if scheme is not None and entry.scheme != scheme:
+                    self.notes.append(
+                        f"{ctype} '{name}': url_allow_list entry {_redact(entry_text)!r} uses"
+                        f" {entry.scheme}, but the URL always uses {scheme}, so it never matches."
+                    )
+                else:
+                    usable.append((entry_text, entry))
+            if not usable:
+                self._no_access(ctype, name, "none of its url_allow_list entries can match its templated URL")
+                return
+            for entry_text, entry in usable:
                 self._add_need(
                     subject=name,
                     endpoint=RawEndpoint(
@@ -425,14 +483,20 @@ class _Builder:
                     path_prefixes=[entry.path],
                 )
             return
+
         try:
             url = _parse_url(normalize_agentspec_template(raw_url), schemes=_HTTP, declared=raw_url)
         except _BadUrl as exc:
             self._open_destination(ctype, name, pointer, str(exc))
             return
-        prefixes = [e.path for _, e in entries if (e.scheme, e.host, e.port) == (url.scheme, url.host, url.port)]
-        if entries and not prefixes:
-            notes.append("no url_allow_list entry matches this URL, so the runtime rejects the call")
+        prefixes = [entry.path for _, entry in entries if _admits(entry, url)]
+        if isinstance(allow_list, list) and not prefixes:
+            self._no_access(
+                ctype,
+                name,
+                f"its url_allow_list does not admit {_redact(raw_url)}, so the runtime refuses the call",
+            )
+            return
         self._add_need(
             subject=name,
             endpoint=RawEndpoint(
@@ -461,6 +525,9 @@ class _Builder:
                 shown = repr(_redact(entry)) if isinstance(entry, str) else type(entry).__name__
                 self.notes.append(f"{ctype} '{name}': ignored url_allow_list entry {shown}: {exc}.")
         return entries
+
+    def _no_access(self, ctype: str, name: str, reason: str) -> None:
+        self.notes.append(f"{ctype} '{name}': {reason}; no access was generated for it.")
 
     # -- LLM configurations --
 
@@ -521,24 +588,56 @@ class _Builder:
         notes = []
         if isinstance(client, dict) and client.get("auth_type") in {"INSTANCE_PRINCIPAL", "RESOURCE_PRINCIPAL"}:
             notes.append("principal authentication also contacts OCI identity endpoints, which are not included")
+        # Every OCI request is signed; the signature travels in the Authorization header.
+        auth_file = client.get("auth_file_location") if isinstance(client, dict) else None
+        if auth_file is not None:
+            reference = _reference_name(auth_file, "client_config.auth_file_location")
+        else:
+            auth_type = client.get("auth_type") if isinstance(client, dict) else None
+            reference = f"OCI {auth_type or 'API'} request signing"
         self._add_need(
             subject=name,
             endpoint=RawEndpoint(host=url.host, port=url.port, scheme=url.scheme),
             rationale=_compose(_text(node.get("description")) or _llm_label(ctype, name, node), notes),
             pointer=pointer,
+            credential=Credential("header:Authorization", reference=reference),
         )
 
     def _gemini(self, node: dict, ctype: str, name: str, pointer: str) -> None:
         auth = node.get("auth")
         if isinstance(auth, dict) and auth.get("component_type") == "GeminiVertexAIAuthConfig":
-            location = auth.get("location") if isinstance(auth.get("location"), str) else "global"
+            location = auth.get("location", "global")
+            if location is None:
+                location = "global"  # the Agent Spec default
+            if isinstance(location, str):
+                how = "Vertex AI host inferred from auth.location"
+            else:
+                location = "global"
+                how = (
+                    "auth.location is not available, so the host is a guess (the global Vertex AI"
+                    " endpoint); a regional deployment uses <location>-aiplatform.googleapis.com"
+                )
             host = "aiplatform.googleapis.com" if location == "global" else f"{location}-aiplatform.googleapis.com"
-            how = "Vertex AI host inferred from auth.location; Google OAuth token endpoints are not included"
+            how += "; Google OAuth token endpoints are not included"
+            credentials = auth.get("credentials")
+            credential = Credential(
+                "header:Authorization",
+                reference=(
+                    _reference_name(credentials, "auth.credentials")
+                    if credentials is not None
+                    else "Google application default credentials"
+                ),
+            )
         else:
             host = "generativelanguage.googleapis.com"
             how = "Gemini API host inferred, because GeminiConfig has no url field"
             if _is_ref(auth):
                 how += "; auth is an unresolved reference, so AI Studio (not Vertex AI) was assumed"
+            api_key = auth.get("api_key") if isinstance(auth, dict) else None
+            credential = Credential(
+                "header:x-goog-api-key",
+                reference=_reference_name(api_key, "auth.api_key") if api_key is not None else "GEMINI_API_KEY",
+            )
         if not _valid_host(host):
             self._open_destination(ctype, name, pointer, f"the inferred host {host!r} is not valid")
             return
@@ -547,6 +646,7 @@ class _Builder:
             endpoint=RawEndpoint(host=host, port=443),
             rationale=_compose(_text(node.get("description")) or _llm_label(ctype, name, node), [how]),
             pointer=pointer,
+            credential=credential,
             evidence_kind=EvidenceKind.INFERRED,
             evidence_note=how,
         )
@@ -661,16 +761,32 @@ class _Builder:
             credential: Credential | None = Credential("mtls", reference="connection_config.key_file")
         else:
             credential = _header_credential(connection.get("headers"), None)
-        notes = [
-            "A2A clients also fetch the agent card (GET /.well-known/agent-card.json), and the card"
-            " can name another URL"
-        ]
+        notes = []
         if connection.get("verify") is False:
             notes.append("TLS certificate verification is disabled (connection_config.verify: false)")
+        base = _text(node.get("description")) or f"{ctype} {name}"
         self._add_need(
             subject=name,
             endpoint=RawEndpoint(host=url.host, port=url.port, scheme=url.scheme, method="POST", path=url.path),
-            rationale=_compose(_text(node.get("description")) or f"{ctype} {name}", notes),
+            rationale=_compose(base, notes),
+            pointer=pointer,
+            credential=credential,
+        )
+        # Clients fetch the agent card first. a2a-sdk's A2ACardResolver appends the
+        # well-known path to agent_url, so the card sits under the agent's own path.
+        card_path = url.path.rstrip("/") + "/.well-known/agent-card.json"
+        self._add_need(
+            subject=name,
+            endpoint=RawEndpoint(host=url.host, port=url.port, scheme=url.scheme, method="GET", path=card_path),
+            rationale=_compose(
+                f"Agent card of {ctype} {name}",
+                notes
+                + [
+                    "A2A clients fetch the agent card before the first request (a2a-sdk resolves it"
+                    " relative to agent_url)",
+                    "the card can point to other hosts for later requests; those hosts are not included",
+                ],
+            ),
             pointer=pointer,
             credential=credential,
         )
@@ -703,11 +819,17 @@ class _Builder:
         connection = node.get("connection_config")
         if isinstance(connection, dict) and "component_type" in connection:
             self._consumed.add(id(connection))  # reported once, as part of the datastore
-        raw_url = node.get("url")
-        if raw_url is None and isinstance(connection, dict):
+        config = node
+        if node.get("url") is None and isinstance(connection, dict):
             if _is_ref(connection):
                 return
-            raw_url = connection.get("url")
+            config = connection
+        # A connection config shared by several datastores, or met before its datastore,
+        # yields one need whatever the walk order.
+        if id(config) in self._postgres_configs:
+            return
+        self._postgres_configs.add(id(config))
+        raw_url = config.get("url")
         if _is_ref(raw_url):
             return
         if not isinstance(raw_url, str) or not raw_url.strip():
@@ -718,11 +840,19 @@ class _Builder:
         except _BadUrl as exc:
             self._open_destination(ctype, name, pointer, str(exc))
             return
+        credential = None
+        for field in ("password", "user"):
+            if config.get(field) is not None:
+                credential = Credential(
+                    f"database:{field}", reference=_reference_name(config[field], f"connection_config.{field}")
+                )
+                break
         self._add_need(
             subject=name,
             endpoint=RawEndpoint(host=url.host, port=url.port, scheme=url.scheme, protocol=Protocol.TCP),
             rationale=_text(node.get("description")) or f"{ctype} {name}",
             pointer=pointer,
+            credential=credential,
         )
 
     def _oracle(self, node: dict, ctype: str, name: str, pointer: str) -> None:
@@ -836,15 +966,6 @@ def _is_ref(value: Any) -> bool:
     return isinstance(value, dict) and REF in value
 
 
-def _is_structural(ctype: str) -> bool:
-    return (
-        ctype in _STRUCTURAL_TYPES
-        or ctype.endswith(_STRUCTURAL_SUFFIXES)
-        or "Message" in ctype
-        or ctype.startswith("OciClientConfig")
-    )
-
-
 def _text(value: Any) -> str:
     return value.strip() if isinstance(value, str) else ""
 
@@ -936,14 +1057,34 @@ def _parse_url(
     return _Url(scheme=scheme, host=host, port=port or _DEFAULT_PORTS[scheme], path=parts.path or "/")
 
 
-def _method(value: Any, notes: list[str]) -> str:
-    if isinstance(value, str) and value.strip():
-        if has_placeholder(value):
-            notes.append(f"http_method is templated ({value.strip()}), so every method is allowed")
-            return "*"
-        return value.strip().upper()
-    notes.append("http_method is missing or not a string, so every method is allowed")
-    return "*"
+def _method(value: str, notes: list[str]) -> str:
+    """Upper-case a declared method. Only a templated method widens to ``*``."""
+    if has_placeholder(value):
+        notes.append(f"http_method is templated ({value.strip()}), so every method is allowed")
+        return "*"
+    return value.strip().upper()
+
+
+def _literal_scheme(url: str) -> str | None:
+    """Return the scheme of a templated URL when it is written out, else ``None``."""
+    separator = url.find("://")
+    if separator == -1 or has_placeholder(url[:separator]):
+        return None
+    return url[:separator].strip().lower()
+
+
+def _admits(entry: _Url, url: _Url) -> bool:
+    """Whether an allow-list entry can admit a declared URL (exact origin, path prefix).
+
+    The runtime compares the rendered path, so a path template admits an entry when
+    the entry's prefix and the template's literal start can describe the same path.
+    """
+    if (entry.scheme, entry.host, entry.port) != (url.scheme, url.host, url.port):
+        return False
+    if "{" not in url.path:
+        return url.path.startswith(entry.path)
+    literal = url.path.split("{", 1)[0]
+    return literal.startswith(entry.path) or entry.path.startswith(literal)
 
 
 def _header_credential(headers: Any, sensitive_headers: Any) -> Credential | None:
@@ -989,6 +1130,10 @@ def _openai_path(path: str, api_type: Any, notes: list[str]) -> str:
     """
     trimmed = path.rstrip("/")
     if trimmed.endswith(("/chat/completions", "/responses")):
+        notes.append(
+            "the URL already names the endpoint; most adapters would append /v1 to it, so the"
+            " path was kept as declared"
+        )
         return trimmed
     endpoint = "/responses" if str(api_type) == "responses" else "/chat/completions"
     if trimmed.endswith("/v1"):

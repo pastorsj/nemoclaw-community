@@ -61,19 +61,19 @@ toolboxes:
     outputs: []
     requires_confirmation: true
 - component_type: MCPToolBox
-  id: payslip
-  name: Payslip MCP ToolBox
+  id: inventory
+  name: Inventory MCP
   description: null
   metadata: {}
   client_transport:
     component_type: SSETransport
-    id: payslip-transport
-    name: MCP Client
+    id: inventory-transport
+    name: inventory transport
     description: null
     metadata: {}
     session_parameters:
-      read_timeout_seconds: 60.0
-    url: http://localhost:8080/sse
+      read_timeout_seconds: 30.0
+    url: http://localhost:9090/sse
     headers: null
   tool_filter: null
 - component_type: MCPToolBox
@@ -115,4 +115,42 @@ toolboxes:
       $component_ref: secure-transport.ca_file
   tool_filter:
   - lookup
+- component_type: MCPToolBox
+  id: oauth
+  name: OAuth MCP
+  description: null
+  metadata: {}
+  client_transport:
+    component_type: StreamableHTTPTransport
+    id: tickets-transport
+    name: tickets transport
+    description: null
+    metadata: {}
+    url: https://mcp.tickets.example.net/mcp
+    headers: null
+    auth:
+      component_type: OAuthConfig
+      id: tickets-oauth
+      name: tickets oauth
+      description: null
+      metadata: {}
+      issuer: https://auth.tickets.example.net
+      redirect_uri: http://localhost:7777/callback
+      scopes:
+      - tickets.read
+      client:
+        component_type: OAuthClientConfig
+        id: tickets-client
+        name: tickets client
+        description: null
+        metadata: {}
+        type: pre_registered
+        client_id:
+          $component_ref: tickets-client.client_id
+        client_secret:
+          $component_ref: tickets-client.client_secret
+        client_id_metadata_url:
+          $component_ref: tickets-client.client_id_metadata_url
+  tool_filter:
+  - open_ticket
 agentspec_version: 26.2.0
