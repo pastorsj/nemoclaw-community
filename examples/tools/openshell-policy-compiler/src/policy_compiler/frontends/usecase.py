@@ -26,24 +26,37 @@ rephrase. The steps, in order:
    requested write verb, and not only words from operation summaries.
 5. **Privilege.** A concept at write level or above is kept only when an
    occurrence of a write verb requests it
-   (:func:`~policy_compiler.semantic.find_write_verb_uses`): the verb is one of
-   the concept's action verbs (its write-verb keywords, plus the leading verb of
-   the summaries of its write-level operations, such as "Comment on an issue or
-   pull request"), and the words that follow the verb in its clause include
-   another of the concept's keywords. "Open issues" keeps ``issues.write``;
-   "open the code" and "list open issues" keep no write concept.
-6. **Redundancy.** A concept is dropped only when another kept concept at the
+   (:func:`~policy_compiler.semantic.find_write_verb_uses`): either the verb is
+   one of the concept's write-verb keywords and the words that follow it in its
+   clause include another of the concept's keywords, or the verb leads the
+   summary of one of the concept's write-level operations and the words that
+   follow it include a word of that summary ("comment on pull requests" fits
+   "Comment on an issue or pull request"; "delete the repository" does not fit
+   "Delete a file"). "Open issues" keeps ``issues.write``; "open the code" and
+   "list open issues" keep no write concept.
+6. **Unmet requests.** A write request that no kept concept covers becomes a
+   ``NOT_IN_CATALOG`` unknown naming the request ("delete the repository"), and
+   read-level concepts that matched only the words of such a request are
+   dropped: asking to delete a repository is not asking to read it.
+7. **Redundancy.** A concept is dropped only when another kept concept at the
    same or a lower privilege level scored higher, matched every term it matched,
    and covers all of its capabilities (through ``implies``) for every provider
    that realizes it.
-7. **Provider.** One need per named provider that realizes the concept. With no
-   provider named, a concept that a single provider realizes uses it, and one
-   that several realize becomes an ``AMBIGUOUS`` unknown: the compiler asks
-   instead of granting the union. A concept whose only named provider is a rival
+8. **Provider.** One need per named provider that realizes the concept. The
+   compiler never picks a provider the text does not name, even when only one
+   realizes the concept: that becomes an ``AMBIGUOUS`` unknown, or a
+   ``NOT_IN_CATALOG`` unknown when the text names services that are not in the
+   catalog ("tickets in Jira"). A concept whose only named provider is a rival
    without a realization (``code-review.read`` "on GitLab") becomes a
    ``NOT_IN_CATALOG`` unknown rather than silently switching provider.
+9. **Repository.** When a provider's operations for the concept are scoped to a
+   repository (``{owner}/{repo}``, ``{namespace}/{project}``) and the text names
+   no repository or owner, the compiler asks for one (an ``AMBIGUOUS`` unknown)
+   instead of granting every repository.
 
-Every drop is recorded in the contract notes.
+A request for "full access" (or admin rights, all permissions, ...) is never
+granted: it becomes an ``AMBIGUOUS`` unknown that asks for the actions to be
+named. Every drop is recorded in the contract notes.
 """
 
 from __future__ import annotations
@@ -64,6 +77,7 @@ from policy_compiler.semantic import (
     WriteVerbUse,
     find_write_verb_uses,
     stem,
+    tokenize,
 )
 
 INFERENCE_CAPABILITIES: dict[str, str | None] = {
@@ -88,6 +102,28 @@ _OWNER_REPO = "owner-repo"
 """GitHub style: ``/{owner}/{repo}/...``; scope ``{owner, repo}``."""
 _NAMESPACE_PROJECT = "namespace-project"
 """GitLab style: ``/{namespace}/{project}.git`` and ``/projects/{id}``; scope ``{id, namespace, project}``."""
+
+_SCOPE_PARAMETERS = {
+    _OWNER_REPO: frozenset({"owner", "repo"}),
+    _NAMESPACE_PROJECT: frozenset({"id", "namespace", "project"}),
+}
+_SCOPE_EXAMPLES = {_OWNER_REPO: "<owner>/<repo>, such as NVIDIA/OpenShell", _NAMESPACE_PROJECT: "<group>/<project>"}
+
+_FULL_ACCESS = re.compile(
+    r"\b(?:(?:full|complete|unrestricted|unlimited|total|blanket|admin|administrator|administrative|root|owner"
+    r"|superuser)\s+(?:access|control|rights|permissions?|privileges?)"
+    r"|(?:all|every)\s+(?:the\s+)?(?:permissions?|privileges?|rights|scopes))\b",
+    re.IGNORECASE,
+)
+"""Requests for blanket access, which the compiler never grants."""
+_NAME_WORD = re.compile(r"[A-Za-z][A-Za-z0-9_-]*")
+_SENTENCE_BREAK = re.compile(r"(?<=[.!?;])\s+|\n+")
+_COMMON_ACRONYMS = frozenset("api apis url urls http https rest json yaml sdk cli pr prs ci cd llm ai id ui ux os".split())
+"""Capitalized words that are not service names."""
+
+_SUMMARY_WORD = re.compile(r"[a-z0-9]+")
+_PLACE_PREPOSITIONS = frozenset("from in into to at within under inside across for of".split())
+"""Prepositions that end the object of an operation summary ("Delete a file from a repository")."""
 
 _PARAMETER = re.compile(r"\{([^{}]+)\}")
 _SCHEME = re.compile(r"^(?:https?://)?(?:www\.)?", re.IGNORECASE)
@@ -183,9 +219,12 @@ class _UseCaseCompiler:
         matches = self.index.match(" ".join([rest, *asked]))
         mentioned = self.index.providers_mentioned(rest)
 
+        self.foreign_names = self._foreign_names(rest)
+        self._flag_full_access(rest, mentioned)
         kept = self._leave_inference_concepts(matches)
         kept = self._require_evidence(kept, set(asked))
         kept = self._apply_privilege(kept, uses)
+        kept = self._flag_unmet_requests(kept, uses, set(asked))
         kept = self._drop_redundant(kept)
         for match in kept:
             self._add_concept(match, mentioned, scopes)
@@ -210,10 +249,7 @@ class _UseCaseCompiler:
         """Keep concepts that matched a keyword naming what to access."""
         kept, dropped = [], []
         for match in matches:
-            subjects = self.index.keywords(match.concept) & set(match.matched_terms)
-            subjects -= asked
-            subjects -= {term for term in subjects if term in READ_VERBS}
-            (kept if subjects else dropped).append(match)
+            (kept if self._subjects(match, asked) else dropped).append(match)
         if dropped:
             names = ", ".join(match.concept for match in dropped)
             self.contract.notes.append(
@@ -221,6 +257,11 @@ class _UseCaseCompiler:
                 f"descriptions): {names}."
             )
         return kept
+
+    def _subjects(self, match: ConceptMatch, asked: set[str]) -> set[str]:
+        """The matched keywords that name what to access: not the requested write verbs, not read verbs."""
+        subjects = set(self.index.keywords(match.concept) & set(match.matched_terms)) - asked
+        return {term for term in subjects if term not in READ_VERBS}
 
     def _apply_privilege(self, matches: list[ConceptMatch], uses: list[WriteVerbUse]) -> list[ConceptMatch]:
         kept, dropped = [], []
@@ -244,19 +285,114 @@ class _UseCaseCompiler:
         return kept
 
     def _requests(self, use: WriteVerbUse, concept_id: str) -> bool:
-        """Whether one requested write verb asks for a concept: its verb and its object both fit."""
-        keywords = self.index.keywords(concept_id)
-        return use.verb in self._action_verbs(concept_id) and bool((keywords - {use.verb}) & set(use.objects))
+        """Whether one requested write verb asks for a concept: its verb and its object both fit.
 
-    def _action_verbs(self, concept_id: str) -> set[str]:
-        """Write verbs that ask for a concept: its write-verb keywords and its write operations' leading verbs."""
-        verbs = {term for term in self.index.keywords(concept_id) if term in WRITE_VERBS}
+        A write-verb keyword of the concept needs another of its keywords as the
+        object. A verb that only leads a write operation's summary ("Delete a
+        file from a repository") needs that summary's object ("file"), so
+        "delete the repository" does not ask for the concept that deletes files.
+        """
+        objects = set(use.objects)
+        keywords = self.index.keywords(concept_id)
+        if use.verb in keywords and use.verb in WRITE_VERBS and (keywords - {use.verb}) & objects:
+            return True
+        return any(found & objects for found in self._summary_objects(concept_id, use.verb))
+
+    def _summary_objects(self, concept_id: str, verb: str) -> list[set[str]]:
+        """What each of the concept's write-level operations led by ``verb`` acts on, from its summary.
+
+        The object is the words after the verb up to a preposition that names a
+        place: "Delete a file from a repository" acts on a file, not on the repository.
+        """
         capabilities = self.graph.capabilities_for_concept(concept_id)
+        found = []
         for operation in self.graph.operations_enabled_by(capabilities):
-            leading = operation.summary.split(maxsplit=1)[:1]
-            if operation.privilege.at_least(Privilege.WRITE) and leading and leading[0].lower() in WRITE_VERBS:
-                verbs.add(leading[0].lower())
-        return verbs
+            words = _SUMMARY_WORD.findall(operation.summary.lower())
+            if not operation.privilege.at_least(Privilege.WRITE) or words[:1] != [verb]:
+                continue
+            phrase = []
+            for word in words[1:]:
+                if word in _PLACE_PREPOSITIONS:
+                    break
+                phrase.append(word)
+            found.append(set(tokenize(" ".join(phrase))) - {verb})
+        return found
+
+    def _flag_unmet_requests(
+        self, matches: list[ConceptMatch], uses: list[WriteVerbUse], asked: set[str]
+    ) -> list[ConceptMatch]:
+        """Report write requests that no kept concept covers, and drop read concepts that only they named.
+
+        Only verbs that are no concept's keyword ("delete") are reported: a
+        keyword verb that asks for nothing ("open the code", "fix bugs") is
+        either a read phrasing or part of a kept concept's work, and the write
+        concepts it did not request are already noted as dropped.
+        """
+        writes = [match for match in matches if self._privilege(match).at_least(Privilege.WRITE)]
+        unmet: dict[str, WriteVerbUse] = {}
+        for use in uses:
+            if use.negated or use.verb in self.index.keyword_vocabulary:
+                continue
+            if any(self._requests(use, match.concept) for match in writes):
+                continue
+            unmet.setdefault(f"{use.verb} {' '.join(use.objects)}".strip(), use)
+        if not unmet:
+            return matches
+        for phrase in unmet:
+            self._add_plain_unknown(
+                UnknownKind.NOT_IN_CATALOG,
+                phrase,
+                f"The use case asks to {phrase!r}, but no concept in the catalog covers that request, so no access "
+                "was granted for it. The compiler grants only the catalog's named actions; if the agent needs this, "
+                "add a concept for it to the catalog.",
+            )
+        named_only_there = set().union(*(set(use.objects) for use in unmet.values()))
+        kept, dropped = [], []
+        for match in matches:
+            is_read = not self._privilege(match).at_least(Privilege.WRITE)
+            (dropped if is_read and self._subjects(match, asked) <= named_only_there else kept).append(match)
+        if dropped:
+            self.contract.notes.append(
+                "Dropped concepts that matched only the words of a request the catalog cannot satisfy: "
+                f"{', '.join(match.concept for match in dropped)}."
+            )
+        return kept
+
+    def _flag_full_access(self, text: str, mentioned: list[str]) -> None:
+        """Turn a request for blanket access into an unknown: the compiler grants only named actions."""
+        phrases = list(dict.fromkeys(found.group().lower() for found in _FULL_ACCESS.finditer(text)))
+        if not phrases:
+            return
+        where = f" on {', '.join(mentioned)}" if mentioned else ""
+        self._add_plain_unknown(
+            UnknownKind.AMBIGUOUS,
+            phrases[0],
+            f"The use case asks for {' and '.join(repr(p) for p in phrases)}{where}. Full access is never granted: "
+            "the compiler grants only the actions that a use case names. Name each action and the repository, for "
+            "example 'read the code of <owner>/<repo> on GitHub' or 'open issues in <owner>/<repo> on GitHub'.",
+        )
+
+    def _foreign_names(self, text: str) -> list[str]:
+        """Capitalized words that look like names of services outside the catalog ("Jira", "Slack").
+
+        The first word of a sentence, stopwords, concept keywords, verbs, common
+        acronyms, and catalog provider names are not counted.
+        """
+        vocabulary = self.index.keyword_vocabulary
+        names = []
+        for sentence in _SENTENCE_BREAK.split(text):
+            for position, found in enumerate(_NAME_WORD.finditer(sentence)):
+                word = found.group()
+                lowered = word.lower()
+                if position == 0 or word == lowered:
+                    continue
+                if lowered in STOPWORDS or lowered in _COMMON_ACRONYMS or lowered in READ_VERBS:
+                    continue
+                if lowered in WRITE_VERBS or lowered in vocabulary or stem(lowered) in vocabulary:
+                    continue
+                if not self.index.providers_mentioned(word):
+                    names.append(word)
+        return list(dict.fromkeys(names))
 
     def _drop_redundant(self, matches: list[ConceptMatch]) -> list[ConceptMatch]:
         kept, dropped = [], []
@@ -316,19 +452,40 @@ class _UseCaseCompiler:
                     "No access was granted.",
                 )
                 return
-            if len(realizers) > 1:
-                example = self.graph.providers[realizers[0]].name
+            if self.foreign_names:
+                self._add_unknown(
+                    UnknownKind.NOT_IN_CATALOG,
+                    match,
+                    f"The use case matches {concept.id} ({concept.name}), which the catalog realizes on "
+                    f"{', '.join(realizers)}, but the use case names no catalog provider; it mentions {', '.join(self.foreign_names)}, "
+                    "which are not providers in the catalog. No access was granted; add the service to the catalog "
+                    "or name a catalog provider.",
+                )
+                return
+            example = self.graph.providers[realizers[0]].name
+            which = "several providers realize" if len(realizers) > 1 else "only one provider in the catalog realizes"
+            ask = f"name the provider, for example 'on {example}'"
+            if not scopes and any(self._needs_repository(concept.id, provider) for provider in realizers):
+                ask += ", and the repository"
+            self._add_unknown(
+                UnknownKind.AMBIGUOUS,
+                match,
+                f"The use case matches {concept.id} ({concept.name}), which {which}: {', '.join(realizers)}. It names "
+                f"none of them, and the compiler never picks a provider on its own, so no access was granted; {ask}.",
+            )
+            return
+        for provider in providers:
+            bindings = self._scopes_for(provider, scopes)
+            if bindings == [{}] and self._needs_repository(concept.id, provider):
                 self._add_unknown(
                     UnknownKind.AMBIGUOUS,
                     match,
-                    f"The use case matches {concept.id} ({concept.name}), which several providers realize: "
-                    f"{', '.join(realizers)}. It names none of them, so no access was granted; name the provider, "
-                    f"for example 'on {example}'.",
+                    f"The use case asks for {concept.id} ({concept.name}) on {provider} but names no repository, so "
+                    "the grant would cover every repository that the credentials reach; no access was granted. Name "
+                    f"the repository, for example {_SCOPE_EXAMPLES[self.styles[provider]]}.",
                 )
-                return
-            providers = realizers
-        for provider in providers:
-            for scope in self._scopes_for(provider, scopes):
+                continue
+            for scope in bindings:
                 self._add_need(
                     Target(concept=concept.id, provider=provider, scope=scope),
                     concept.id,
@@ -340,6 +497,18 @@ class _UseCaseCompiler:
         """A named provider that shares a concept with a realizer, such as GitLab for GitHub."""
         offered = self.concepts_by_provider.get(provider, set())
         return any(offered & self.concepts_by_provider.get(realizer, set()) for realizer in realizers)
+
+    def _needs_repository(self, concept_id: str, provider: str) -> bool:
+        """Whether any of the provider's operations for the concept is scoped to a repository or an owner."""
+        style = self.styles.get(provider)
+        if style is None:
+            return False
+        names = _SCOPE_PARAMETERS[style]
+        capabilities = self.graph.capabilities_for_concept(concept_id, provider)
+        return any(
+            isinstance(operation.selector, RestSelector) and names & set(_PARAMETER.findall(operation.selector.path))
+            for operation in self.graph.operations_enabled_by(capabilities)
+        )
 
     def _scopes_for(self, provider: str, scopes: list[_Scope]) -> list[dict[str, str]]:
         style = self.styles.get(provider)
@@ -402,6 +571,17 @@ class _UseCaseCompiler:
                 target=target,
                 rationale=rationale,
                 evidence=[evidence],
+            )
+        )
+
+    def _add_plain_unknown(self, kind: UnknownKind, subject: str, description: str) -> None:
+        self.contract.unknowns.append(
+            Unknown(
+                id=self._next_id("unknown", self.contract.unknowns, subject),
+                kind=kind,
+                subject=subject,
+                description=description,
+                evidence=[self.evidence],
             )
         )
 

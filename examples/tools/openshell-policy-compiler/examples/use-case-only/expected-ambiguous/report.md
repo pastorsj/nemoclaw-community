@@ -40,7 +40,7 @@ The compiler cannot see what these components do on the network. Nothing is gran
 
 | Unknown | Kind | Subject | Description | Suggested concepts |
 | --- | --- | --- | --- | --- |
-| unknown-01-source-code-read | ambiguous | source-code.read | The use case matches source-code.read (Read source code), which several providers realize: github, gitlab. It names none of them, so no access was granted; name the provider, for example 'on GitHub'. | source-code.read (1.00) |
+| unknown-01-source-code-read | ambiguous | source-code.read | The use case matches source-code.read (Read source code), which several providers realize: github, gitlab. It names none of them, and the compiler never picks a provider on its own, so no access was granted; name the provider, for example 'on GitHub', and the repository. | source-code.read (1.00) |
 
 ## Notes
 

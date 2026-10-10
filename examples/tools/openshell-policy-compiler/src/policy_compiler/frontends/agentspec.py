@@ -169,6 +169,10 @@ _SCHEME_PREFIX = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*://")
 _HOST_LABEL = re.compile(r"^[a-z0-9_](?:[a-z0-9_-]*[a-z0-9_])?$")
 _IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _USERINFO = re.compile(r"^\s*([A-Za-z][A-Za-z0-9+.-]*://)?[^/@?#]*@")
+_QUERY_OR_FRAGMENT = re.compile(r"([?#])([^#]*)")
+_GLOB_CHARACTERS = re.compile(r"[*?\[\]]")
+"""Characters that OpenShell reads as glob syntax. In a declared value they are literal, never a wildcard."""
+_HTTP_METHODS = frozenset({"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"})
 
 
 # --- Loading and reference resolution --------------------------------------------------------
@@ -192,9 +196,7 @@ class _Loaded:
 
 
 def _load(path: Path, reference_files: list[Path]) -> _Loaded:
-    root = _read(path)
-    if not isinstance(root, dict):
-        raise ValueError(f"{path}: an Agent Spec configuration must be a mapping at the top level")
+    root = _read_mapping(path, "an Agent Spec configuration")
     if set(root) == {DEFINITIONS}:
         raise ValueError(
             f"{path}: contains only $referenced_components; pass it as a reference file instead"
@@ -202,9 +204,7 @@ def _load(path: Path, reference_files: list[Path]) -> _Loaded:
     definitions: dict[str, Any] = {}
     _collect_definitions(root, definitions, set())
     for reference in reference_files:
-        content = _read(reference)
-        if not isinstance(content, dict):
-            raise ValueError(f"{reference}: a reference file must be a mapping at the top level")
+        content = _read_mapping(reference, "a reference file")
         found: dict[str, Any] = {}
         _collect_definitions(content, found, set())
         definitions.update(found)
@@ -216,11 +216,24 @@ def _read(path: Path) -> Any:
     suffix = path.suffix.lower()
     if suffix not in {".yaml", ".yml", ".json"}:
         raise ValueError(f"{path}: unsupported file type {suffix!r}; expected .yaml, .yml, or .json")
-    text = path.read_text(encoding="utf-8")
     try:
-        return json.loads(text) if suffix == ".json" else yaml.safe_load(text)
+        text = path.read_text(encoding="utf-8")
+    except UnicodeDecodeError as exc:
+        raise ValueError(f"{path}: the file is not UTF-8 text: {exc}") from exc
+    try:
+        return json.loads(text) if suffix == ".json" and text.strip() else yaml.safe_load(text)
     except (yaml.YAMLError, json.JSONDecodeError) as exc:
         raise ValueError(f"{path}: cannot parse the Agent Spec configuration: {exc}") from exc
+
+
+def _read_mapping(path: Path, what: str) -> dict:
+    """Read a file whose top level must be a mapping, or raise ``ValueError`` saying why it is not."""
+    content = _read(path)
+    if content is None:
+        raise ValueError(f"{path}: the file is empty; {what} must be a mapping at the top level")
+    if not isinstance(content, dict):
+        raise ValueError(f"{path}: {what} must be a mapping at the top level, not a {type(content).__name__}")
+    return content
 
 
 def _collect_definitions(node: Any, into: dict[str, Any], visited: set[int]) -> None:
@@ -421,12 +434,21 @@ class _Builder:
                 " call cannot be described; no access was generated for it.",
             )
             return
+        notes: list[str] = []
+        method = _method(raw_method, notes)
+        if method is None:
+            self._unknown(
+                UnknownKind.UNSUPPORTED_COMPONENT,
+                name,
+                pointer,
+                f"{ctype} '{name}' declares http_method {raw_method.strip()!r}, which is not one of"
+                f" {', '.join(sorted(_HTTP_METHODS))} or a {{{{placeholder}}}}; no access was generated for it.",
+            )
+            return
         if not isinstance(raw_url, str) or not raw_url.strip():
             self._open_destination(ctype, name, pointer, "it has no url")
             return
-        notes: list[str] = []
         base = _text(node.get("description")) or f"{ctype} {name}"
-        method = _method(raw_method, notes)
         approval = Approval.CONFIRM if node.get("requires_confirmation") is True else Approval.NONE
         credential = _header_credential(node.get("headers"), node.get("sensitive_headers"))
         allow_list = node.get("url_allow_list")
@@ -468,6 +490,7 @@ class _Builder:
                         protocol=Protocol.REST,
                         method=method,
                         path=entry.path.rstrip("/") + "/**",
+                        path_is_glob=True,
                     ),
                     rationale=_compose(
                         base,
@@ -520,7 +543,10 @@ class _Builder:
             try:
                 if not isinstance(entry, str):
                     raise _BadUrl("it is not a string")
-                entries.append((entry, _parse_url(entry, schemes=_HTTP)))
+                parsed = _parse_url(entry, schemes=_HTTP)
+                if "{" in parsed.path or "}" in parsed.path:
+                    raise _BadUrl("the runtime compares entries literally, so a placeholder in one never matches")
+                entries.append((entry, parsed))
             except _BadUrl as exc:
                 shown = repr(_redact(entry)) if isinstance(entry, str) else type(entry).__name__
                 self.notes.append(f"{ctype} '{name}': ignored url_allow_list entry {shown}: {exc}.")
@@ -617,6 +643,7 @@ class _Builder:
                     "auth.location is not available, so the host is a guess (the global Vertex AI"
                     " endpoint); a regional deployment uses <location>-aiplatform.googleapis.com"
                 )
+            location = location.strip().lower()
             host = "aiplatform.googleapis.com" if location == "global" else f"{location}-aiplatform.googleapis.com"
             how += "; Google OAuth token endpoints are not included"
             credentials = auth.get("credentials")
@@ -698,13 +725,15 @@ class _Builder:
         tool_filter = node.get("tool_filter")
         if ctype == "MCPToolBox":
             specs = tool_filter if isinstance(tool_filter, list) else []
-            tools = tuple(_mcp_tool_name(item) for item in specs if _mcp_tool_name(item))
+            declared = [_mcp_tool_name(item) for item in specs if _mcp_tool_name(item)]
             confirm = node.get("requires_confirmation") is True or any(
                 isinstance(item, dict) and item.get("requires_confirmation") is True for item in specs
             )
         else:
-            tools = (name,)
+            declared = [name]
             confirm = node.get("requires_confirmation") is True
+        globbed = [tool for tool in declared if _GLOB_CHARACTERS.search(tool)]
+        tools = tuple(dict.fromkeys(tool for tool in declared if tool not in globbed))
         if transport_type in _MTLS_MCP_TRANSPORTS:
             credential: Credential | None = Credential("mtls", reference="key_file, cert_file")
         else:
@@ -732,6 +761,23 @@ class _Builder:
             approval=Approval.CONFIRM if confirm else Approval.NONE,
             credential=credential,
         )
+        if globbed:
+            self._unknown(
+                UnknownKind.UNSUPPORTED_COMPONENT,
+                name,
+                pointer,
+                f"{ctype} '{name}' names MCP tools with glob characters"
+                f" ({', '.join(repr(tool) for tool in globbed)}); OpenShell would read them as wildcards"
+                " that match other tools, so they were left out and calling them is denied.",
+            )
+            if not tools:
+                self._unknown(
+                    UnknownKind.OPEN_TOOLSET,
+                    name,
+                    pointer,
+                    f"{ctype} '{name}' names no MCP tool without glob characters, so the tools it calls on"
+                    f" the MCP server at {_redact(raw_url)} are unknown; the policy allows no tools/call.",
+                )
         if ctype == "MCPToolBox" and not isinstance(tool_filter, list):
             self._unknown(
                 UnknownKind.OPEN_TOOLSET,
@@ -950,7 +996,7 @@ class _Builder:
             return
         text = value.strip()
         if has_placeholder(text):
-            self.notes.append(f"api_spec_uri {text} is templated, so it was not imported.")
+            self.notes.append(f"api_spec_uri {_redact(text)} is templated, so it was not imported.")
             return
         entry = text if _SCHEME_PREFIX.match(text) else os.path.normpath(
             os.path.join(os.path.abspath(self.base_dir), text)
@@ -1001,8 +1047,28 @@ def _compose(base: str, notes: list[str]) -> str:
 
 
 def _redact(url: str) -> str:
-    """Hide any user name or password in a URL before it appears in a description."""
-    return _USERINFO.sub(lambda m: (m.group(1) or "") + "***@", url, count=1)
+    """Hide user info and query or fragment values in a URL before it appears in a description.
+
+    Query strings carry API keys and signatures as often as user info carries
+    passwords. Values that are only a ``{{placeholder}}`` are kept: they are not secrets.
+    """
+    text = _USERINFO.sub(lambda m: (m.group(1) or "") + "***@", url, count=1)
+    return _QUERY_OR_FRAGMENT.sub(lambda m: m.group(1) + _redact_parameters(m.group(2)), text)
+
+
+def _redact_parameters(text: str) -> str:
+    redacted = []
+    for parameter in text.split("&"):
+        key, equals, value = parameter.partition("=")
+        if not equals:
+            redacted.append(parameter if not parameter or _is_placeholder_only(parameter) else "***")
+        else:
+            redacted.append(f"{key}={value if _is_placeholder_only(value) else '***'}")
+    return "&".join(redacted)
+
+
+def _is_placeholder_only(value: str) -> bool:
+    return not value or bool(re.fullmatch(r"\{\{[^{}]+\}\}", value.strip()))
 
 
 def _destination_part(url: str) -> str:
@@ -1022,8 +1088,7 @@ def _valid_host(host: str) -> bool:
         return True
     except ValueError:
         pass
-    labels = host.rstrip(".").split(".")
-    return all(_HOST_LABEL.match(label) for label in labels)
+    return all(_HOST_LABEL.match(label) for label in host.split("."))
 
 
 def _parse_url(
@@ -1047,22 +1112,34 @@ def _parse_url(
     scheme = parts.scheme.lower()
     if scheme not in schemes:
         raise _BadUrl(f"the URL {shown!r} uses unsupported scheme {scheme!r}")
-    host = parts.hostname or ""
+    host = (parts.hostname or "").lower().removesuffix(".")  # the fully qualified form names the same host
+    path = parts.path or "/"
+    for part, text_part in (("host name", host), ("path", path)):
+        found = _GLOB_CHARACTERS.search(text_part)
+        if found:
+            raise _BadUrl(
+                f"the URL {shown!r} has the glob character {found.group()!r} in its {part}; a declared URL is"
+                " literal, and OpenShell would read the character as a wildcard"
+            )
     if not _valid_host(host):
         raise _BadUrl(f"the URL {shown!r} has no valid host name")
     try:
         port = parts.port
     except ValueError:
         raise _BadUrl(f"the port in {shown!r} is not a valid number") from None
-    return _Url(scheme=scheme, host=host, port=port or _DEFAULT_PORTS[scheme], path=parts.path or "/")
+    return _Url(scheme=scheme, host=host, port=port or _DEFAULT_PORTS[scheme], path=path)
 
 
-def _method(value: str, notes: list[str]) -> str:
-    """Upper-case a declared method. Only a templated method widens to ``*``."""
+def _method(value: str, notes: list[str]) -> str | None:
+    """Upper-case a declared method, or return ``None`` when it is not an HTTP method.
+
+    Only a templated method widens to ``*``; a literal ``*`` or ``D*`` is not a method.
+    """
     if has_placeholder(value):
         notes.append(f"http_method is templated ({value.strip()}), so every method is allowed")
         return "*"
-    return value.strip().upper()
+    method = value.strip().upper()
+    return method if method in _HTTP_METHODS else None
 
 
 def _literal_scheme(url: str) -> str | None:

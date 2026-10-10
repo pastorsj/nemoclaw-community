@@ -178,11 +178,11 @@ def test_templated_host_with_allow_list_emits_one_need_per_entry():
     first = need(contract, "need-02-fetch-doc")
     second = need(contract, "need-03-fetch-doc")
     assert raw(first) == RawEndpoint(
-        host="docs.example.com", port=443, scheme="https", method="GET", path="/api/**"
+        host="docs.example.com", port=443, scheme="https", method="GET", path="/api/**", path_is_glob=True
     )
     assert first.path_prefixes == ["/api/"]
     assert raw(second) == RawEndpoint(
-        host="intranet.example.com", port=8443, scheme="https", method="GET", path="/**"
+        host="intranet.example.com", port=8443, scheme="https", method="GET", path="/**", path_is_glob=True
     )
     assert second.path_prefixes == ["/"]
     assert first.evidence[0].pointer == second.evidence[0].pointer == "$.tools[0]"
@@ -835,6 +835,206 @@ def test_load_agentspec_rejects_unknown_suffix(tmp_path):
 def test_load_agentspec_rejects_a_components_only_file():
     with pytest.raises(ValueError, match="reference"):
         load_agentspec(FIXTURES / "disaggregated_components.json")
+
+
+@pytest.mark.parametrize(
+    ("content", "message"),
+    [
+        ("", "is empty"),
+        ("# only a comment\n", "is empty"),
+        ("[1, 2, 3]\n", "mapping at the top level.*list"),
+        ("hello\n", "mapping at the top level.*str"),
+    ],
+)
+def test_empty_or_non_mapping_files_raise_a_clear_value_error(tmp_path, content, message):
+    path = tmp_path / "agent.yaml"
+    path.write_text(content)
+    with pytest.raises(ValueError, match=message):
+        contract_from_agentspec(path, default_clients=CLIENTS)
+    reference = tmp_path / "components.yaml"
+    reference.write_text(content)
+    path.write_text("component_type: Agent\nname: a\n")
+    with pytest.raises(ValueError, match=re.escape(str(reference))):
+        contract_from_agentspec(path, default_clients=CLIENTS, reference_files=[reference])
+
+
+def test_undecodable_file_raises_a_value_error_naming_the_file(tmp_path):
+    path = tmp_path / "agent.yaml"
+    path.write_bytes(b"\xff\xfe\x00")
+    with pytest.raises(ValueError, match=re.escape(str(path))):
+        contract_from_agentspec(path, default_clients=CLIENTS)
+
+
+# --- Fail closed on literal glob characters and malformed values ------------------------------
+
+
+def _compile_tools(tmp_path: Path, *components: dict, llm: dict | None = None) -> Contract:
+    document: dict = {"component_type": "Agent", "name": "agent", "tools": list(components)}
+    if llm is not None:
+        document["llm_config"] = llm
+    path = tmp_path / "agent.yaml"
+    path.write_text(yaml.safe_dump(document))
+    return contract_from_agentspec(path, default_clients=CLIENTS)
+
+
+def _remote(name: str, url: str, method: str = "GET", **extra) -> dict:
+    return {"component_type": "RemoteTool", "name": name, "url": url, "http_method": method, **extra}
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://api.github.com/**",
+        "https://api.github.com/repos/NVIDIA/*",
+        "https://api.github.com/repos/NVIDIA/OpenShell/issues/[0-9]",
+        "https://api.github.com/repos/{{owner}}/*/issues",
+        "https://api.github.com/repos/NVIDIA/Open]Shell",
+    ],
+)
+def test_glob_characters_in_a_declared_url_path_grant_nothing(tmp_path, url):
+    contract = _compile_tools(tmp_path, _remote("globbed", url, "DELETE"))
+    assert contract.needs == []
+    [item] = contract.unknowns
+    assert item.kind == UnknownKind.OPEN_DESTINATION
+    assert "glob" in item.description
+
+
+@pytest.mark.parametrize(
+    "component",
+    [
+        {"component_type": "VllmConfig", "name": "llm", "model_id": "m", "url": "http://vllm.example:8000/**"},
+        {"component_type": "OpenAiCompatibleConfig", "name": "llm", "model_id": "m", "url": "https://x.example/*/v1"},
+        {
+            "component_type": "MCPToolBox",
+            "name": "llm",
+            "client_transport": {
+                "component_type": "StreamableHTTPTransport",
+                "name": "t",
+                "url": "https://mcp.example.com/*/mcp",
+            },
+            "tool_filter": ["read"],
+        },
+        {"component_type": "A2AAgent", "name": "llm", "agent_url": "https://agent.example.com/a2a/*"},
+    ],
+)
+def test_glob_characters_in_other_declared_urls_grant_nothing(tmp_path, component):
+    contract = _compile_tools(tmp_path, component)
+    assert contract.needs == []
+    assert [u.kind for u in contract.unknowns] == [UnknownKind.OPEN_DESTINATION]
+    assert "glob" in contract.unknowns[0].description
+
+
+def test_allow_list_entries_with_glob_characters_or_placeholders_are_ignored(tmp_path):
+    contract = _compile_tools(
+        tmp_path,
+        _remote(
+            "allow_globbed",
+            "https://api.github.com/{{p}}",
+            url_allow_list=["https://api.github.com/repos/*/", "https://api.github.com/repos/{{owner}}/"],
+        ),
+        _remote("allow_host_glob", "https://{{h}}/x", url_allow_list=["https://*.github.com/"]),
+    )
+    assert contract.needs == []
+    assert contract.unknowns == []
+    ignored = [note for note in contract.notes if "ignored url_allow_list entry" in note]
+    assert len(ignored) == 3
+    _note_for(contract, "allow_globbed")
+    _note_for(contract, "allow_host_glob")
+
+
+def test_only_allow_list_prefix_paths_are_marked_as_globs(tmp_path):
+    contract = _compile_tools(
+        tmp_path,
+        _remote("templated", "https://{{host}}/x", url_allow_list=["https://docs.example.com/api/"]),
+        _remote("literal", "https://docs.example.com/api/items/{{id}}"),
+    )
+    templated, literal = contract.needs
+    assert raw(templated).path == "/api/**" and raw(templated).path_is_glob is True
+    assert raw(literal).path == "/api/items/{id}" and raw(literal).path_is_glob is False
+
+
+def _mcp_box(name: str, tool_filter: list | None, url: str = "https://mcp.example.com/mcp") -> dict:
+    component: dict = {
+        "component_type": "MCPToolBox",
+        "name": name,
+        "client_transport": {"component_type": "StreamableHTTPTransport", "name": f"{name}-t", "url": url},
+    }
+    if tool_filter is not None:
+        component["tool_filter"] = tool_filter
+    return component
+
+
+def test_mcp_tool_names_with_glob_characters_are_excluded(tmp_path):
+    contract = _compile_tools(tmp_path, _mcp_box("box", ["*", "delete_*", "read", {"name": "get_[ab]"}]))
+    [item] = contract.needs
+    assert raw(item).mcp_tools == ("read",)
+    [excluded] = contract.unknowns
+    assert excluded.kind == UnknownKind.UNSUPPORTED_COMPONENT
+    assert all(name in excluded.description for name in ("'*'", "'delete_*'", "'get_[ab]'"))
+
+
+def test_mcp_filter_with_only_glob_names_is_an_open_toolset(tmp_path):
+    contract = _compile_tools(tmp_path, _mcp_box("box", ["*"]))
+    [item] = contract.needs
+    assert raw(item).mcp_tools == ()
+    assert [u.kind for u in contract.unknowns] == [UnknownKind.UNSUPPORTED_COMPONENT, UnknownKind.OPEN_TOOLSET]
+
+
+def test_mcp_tool_whose_name_is_a_glob_is_excluded(tmp_path):
+    tool = {
+        "component_type": "MCPTool",
+        "name": "delete_*",
+        "client_transport": {"component_type": "StreamableHTTPTransport", "name": "t", "url": "https://mcp.example.com/mcp"},
+    }
+    contract = _compile_tools(tmp_path, tool)
+    [item] = contract.needs
+    assert raw(item).mcp_tools == ()
+    assert [u.kind for u in contract.unknowns] == [UnknownKind.UNSUPPORTED_COMPONENT, UnknownKind.OPEN_TOOLSET]
+
+
+@pytest.mark.parametrize("method", ["*", "D*", "GET, DELETE", "FETCH", "CONNECT", "TRACE", "G?T"])
+def test_http_method_must_be_a_known_method(tmp_path, method):
+    contract = _compile_tools(tmp_path, _remote("odd", "https://api.github.com/repos/NVIDIA/OpenShell", method))
+    assert contract.needs == []
+    [item] = contract.unknowns
+    assert item.kind == UnknownKind.UNSUPPORTED_COMPONENT
+    assert "http_method" in item.description
+
+
+@pytest.mark.parametrize(
+    ("declared", "expected"),
+    [("get", "GET"), (" Options ", "OPTIONS"), ("head", "HEAD"), ("PATCH", "PATCH"), ("{{verb}}", "*")],
+)
+def test_known_and_templated_methods_are_kept(tmp_path, declared, expected):
+    contract = _compile_tools(tmp_path, _remote("ok", "https://api.github.com/repos/NVIDIA/OpenShell", declared))
+    assert [raw(n).method for n in contract.needs] == [expected]
+
+
+def test_hosts_are_lower_cased_without_a_trailing_dot(tmp_path):
+    contract = _compile_tools(
+        tmp_path,
+        _remote("upper", "https://API.GITHUB.COM./repos/NVIDIA/OpenShell"),
+        _remote("allowed", "https://{{h}}/x", url_allow_list=["https://Docs.Example.COM./api/"]),
+        llm={"component_type": "VllmConfig", "name": "llm", "model_id": "m", "url": "http://VLLM.Example.:8000"},
+    )
+    assert sorted(raw(n).host for n in contract.needs) == ["api.github.com", "docs.example.com", "vllm.example"]
+
+
+def test_query_string_secrets_are_redacted(tmp_path):
+    contract = _compile_tools(
+        tmp_path,
+        _remote("open", "https://{{host}}/x?api_key=hunter2&page={{page}}"),
+        _remote(
+            "refused",
+            "https://api.example.com/v1/items?token=hunter2",
+            url_allow_list=["https://api.example.com/v2/?sig=hunter2"],
+        ),
+        _mcp_box("box", None, url="https://mcp.example.com/sse?key=hunter2#access_token=hunter2"),
+    )
+    text = repr(contract)
+    assert "hunter2" not in text
+    assert "api_key=***" in text
+    assert "{{page}}" in text
 
 
 # --- Invariants across every fixture ---------------------------------------------------------

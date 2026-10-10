@@ -100,17 +100,96 @@ def test_no_provider_named_is_ambiguous(graph):
     assert unknown.id == "unknown-01-source-code-read"
     assert [s.concept for s in unknown.suggestions] == ["source-code.read"]
     assert unknown.evidence == [Evidence(EvidenceKind.USER, "use-case", note="access to code")]
+    assert "repository" in unknown.description
 
 
-def test_single_realizing_provider_is_used(graph):
-    # Only GitHub realizes code-review.read in the base catalog.
+def test_a_provider_is_never_chosen_silently(graph):
+    # Only GitHub realizes code-review.read in the base catalog, but the text does not name GitHub.
     contract = compile_text(graph, "review pull requests in NVIDIA/OpenShell")
-    assert concept_targets(contract) == [("code-review.read", "github", NVIDIA_OPENSHELL)]
+    assert concept_needs(contract) == []
+    assert capability_needs(contract) == ["openshell.inference:invoke"]
+    [unknown] = contract.unknowns
+    assert (unknown.kind, unknown.subject) == (UnknownKind.AMBIGUOUS, "code-review.read")
+    assert "github" in unknown.description and "names none" in unknown.description
+
+
+def test_services_outside_the_catalog_never_map_to_a_catalog_provider(graph):
+    contract = compile_text(graph, "Read tickets from Jira project ABC and post to Slack")
+    assert concept_needs(contract) == []
+    assert capability_needs(contract) == ["openshell.inference:invoke"]
+    assert contract.unknowns
+    assert {u.kind for u in contract.unknowns} == {UnknownKind.NOT_IN_CATALOG}
+    issues = next(u for u in contract.unknowns if u.subject == "issues.read")
+    assert "Jira" in issues.description and "Slack" in issues.description
+
+
+def test_a_concept_scoped_to_repositories_needs_a_repository(graph):
+    contract = compile_text(graph, "read the code on GitHub")
+    assert concept_needs(contract) == []
+    assert capability_needs(contract) == ["openshell.inference:invoke"]
+    [unknown] = contract.unknowns
+    assert (unknown.kind, unknown.subject) == (UnknownKind.AMBIGUOUS, "source-code.read")
+    assert "repository" in unknown.description and "github" in unknown.description
+
+
+def test_owner_only_scope_is_not_a_missing_repository(graph):
+    contract = compile_text(graph, "read the code of github.com/NVIDIA")
+    assert concept_targets(contract) == [("source-code.read", "github", {"owner": "NVIDIA"})]
+    assert contract.unknowns == []
+
+
+def test_deleting_a_repository_is_not_in_the_catalog(graph):
+    contract = compile_text(graph, "Delete the GitHub repository NVIDIA/OpenShell")
+    assert concept_needs(contract) == []
+    assert capability_needs(contract) == ["openshell.inference:invoke"]
+    [unknown] = contract.unknowns
+    assert unknown.kind == UnknownKind.NOT_IN_CATALOG
+    assert "delete" in unknown.description and "repository" in unknown.description
+
+
+def test_deleting_files_is_a_source_code_write(graph):
+    contract = compile_text(graph, "delete files in NVIDIA/OpenShell on GitHub")
+    assert ("source-code.write", "github", NVIDIA_OPENSHELL) in concept_targets(contract)
+    assert contract.unknowns == []
+
+
+def test_a_write_verb_from_an_operation_summary_needs_that_operations_object(graph):
+    # "Delete a file" lets "delete" ask for source-code.write, but only for files.
+    contract = compile_text(graph, "push commits and delete the repository NVIDIA/OpenShell on GitHub")
+    assert [c for c, _, _ in concept_targets(contract)] == ["source-code.write"]
+    assert [(u.kind, "delete" in u.description) for u in contract.unknowns] == [(UnknownKind.NOT_IN_CATALOG, True)]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "full access to GitHub NVIDIA/OpenShell",
+        "give the agent admin access to NVIDIA/OpenShell on GitHub",
+        "unrestricted access to GitHub",
+    ],
+)
+def test_full_access_is_never_granted(graph, text):
+    contract = compile_text(graph, text)
+    assert concept_needs(contract) == []
+    assert capability_needs(contract) == ["openshell.inference:invoke"]
+    [unknown] = contract.unknowns
+    assert unknown.kind == UnknownKind.AMBIGUOUS
+    assert "never granted" in unknown.description and "github" in unknown.description
+
+
+def test_full_access_with_named_actions_grants_only_those_actions(graph):
+    contract = compile_text(graph, "full access to read the code of NVIDIA/OpenShell on GitHub")
+    assert concept_targets(contract) == [("source-code.read", "github", NVIDIA_OPENSHELL)]
+    assert [u.kind for u in contract.unknowns] == [UnknownKind.AMBIGUOUS]
+    assert "never granted" in contract.unknowns[0].description
 
 
 def test_one_need_per_mentioned_provider(graph):
-    contract = compile_text(graph, "read code on GitHub and GitLab")
-    assert concept_targets(contract) == [("source-code.read", "github", {}), ("source-code.read", "gitlab", {})]
+    contract = compile_text(graph, "read code of NVIDIA/OpenShell on GitHub and GitLab")
+    assert concept_targets(contract) == [
+        ("source-code.read", "github", NVIDIA_OPENSHELL),
+        ("source-code.read", "gitlab", {"id": "NVIDIA%2FOpenShell", "namespace": "NVIDIA", "project": "OpenShell"}),
+    ]
     assert [n.id for n in contract.needs] == [
         "need-01-source-code-read",
         "need-02-source-code-read",
@@ -119,8 +198,8 @@ def test_one_need_per_mentioned_provider(graph):
 
 
 def test_mentioned_providers_that_do_not_realize_the_concept_are_skipped(graph):
-    contract = compile_text(graph, "use OpenAI models to understand code on GitHub", inference="openai")
-    assert concept_targets(contract) == [("source-code.read", "github", {})]
+    contract = compile_text(graph, "use OpenAI models to understand code of NVIDIA/OpenShell on GitHub", inference="openai")
+    assert concept_targets(contract) == [("source-code.read", "github", NVIDIA_OPENSHELL)]
 
 
 def test_naming_a_rival_provider_that_lacks_the_concept_is_reported(graph):
@@ -239,7 +318,7 @@ def test_redundancy_drops_a_concept_covered_by_capabilities(graph):
 
 def test_concepts_need_a_keyword_naming_what_to_access(graph):
     # "review" is a keyword of issues.read, but it is only a verb here.
-    contract = compile_text(graph, "review pull requests in NVIDIA/OpenShell")
+    contract = compile_text(graph, "review pull requests in NVIDIA/OpenShell on GitHub")
     assert [c for c, _, _ in concept_targets(contract)] == ["code-review.read"]
     assert any("issues.read" in note for note in contract.notes)
 
@@ -250,9 +329,9 @@ def test_explicit_write_request_keeps_write_concept(graph):
 
 
 def test_reading_source_files_is_not_a_write_request(graph):
-    text = "Summarizes the architecture of a repository by reading its source files on GitHub"
+    text = "Summarizes the architecture of NVIDIA/OpenShell by reading its source files on GitHub"
     contract = compile_text(graph, text)
-    assert concept_targets(contract) == [("source-code.read", "github", {})]
+    assert concept_targets(contract) == [("source-code.read", "github", NVIDIA_OPENSHELL)]
 
 
 def test_negated_write_verbs_grant_nothing(graph):
@@ -305,10 +384,10 @@ def test_bare_repository_on_gitlab(graph):
 
 def test_url_scope_applies_only_to_its_provider(graph):
     contract = compile_text(graph, "read the code in github.com/NVIDIA/OpenShell and on GitLab")
-    assert concept_targets(contract) == [
-        ("source-code.read", "github", NVIDIA_OPENSHELL),
-        ("source-code.read", "gitlab", {}),
-    ]
+    assert concept_targets(contract) == [("source-code.read", "github", NVIDIA_OPENSHELL)]
+    [unknown] = contract.unknowns
+    assert (unknown.kind, unknown.subject) == (UnknownKind.AMBIGUOUS, "source-code.read")
+    assert "gitlab" in unknown.description and "repository" in unknown.description
 
 
 def test_several_repositories_give_several_needs(graph):
@@ -338,9 +417,12 @@ def test_several_repositories_give_several_needs(graph):
     ],
 )
 def test_slash_words_are_not_repositories(graph, text):
+    # No repository is named, so nothing is granted and the compiler asks for one.
     contract = compile_text(graph, text)
-    assert ("source-code.read", "github", {}) in concept_targets(contract)
-    assert all(scope == {} for _, _, scope in concept_targets(contract))
+    assert concept_needs(contract) == []
+    asked = [u for u in contract.unknowns if u.subject == "source-code.read"]
+    assert [u.kind for u in asked] == [UnknownKind.AMBIGUOUS]
+    assert "names no repository" in asked[0].description
 
 
 def test_owner_only_url_scopes_to_the_owner_with_a_note(graph):
