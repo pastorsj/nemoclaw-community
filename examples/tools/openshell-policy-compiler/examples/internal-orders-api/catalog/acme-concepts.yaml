@@ -1,0 +1,18 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Concepts this organization uses in its own words. The imported API catalog in
+# this directory links its capabilities to them through the overlay's
+# x-openshell-concepts annotations.
+
+catalog_version: 1
+
+concepts:
+  - id: orders.read
+    name: Look up orders
+    privilege: read
+    keywords: [order, orders, status, lookup, look, find, search, track, tracking, shipment, history]
+  - id: orders.write
+    name: Create or cancel orders
+    privilege: write
+    keywords: [order, orders, create, place, cancel, refund, change, update]

@@ -1,0 +1,47 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# An OpenAPI Overlay 1.0.0 document that the API owner maintains next to the
+# spec. It records what the compiler cannot infer: the private network range,
+# which capability each operation belongs to, and that searching is a read even
+# though it is a POST.
+
+overlay: 1.0.0
+info:
+  title: ACME Orders API annotations for the OpenShell policy compiler
+  version: 1.0.0
+actions:
+  - target: $
+    description: The API is only reachable on the private 10.20.0.0/16 network.
+    update:
+      x-openshell-allowed-ips: [10.20.0.0/16]
+  - target: $.paths['/orders'].get
+    update:
+      x-openshell-capability: acme.orders:read
+      x-openshell-concepts: [orders.read]
+  - target: $.paths['/orders/{order_id}'].get
+    update:
+      x-openshell-capability: acme.orders:read
+      x-openshell-concepts: [orders.read]
+  - target: $.paths['/orders/search'].post
+    description: Search sends its filter in the body; it does not change data.
+    update:
+      x-openshell-privilege: read
+      x-openshell-capability: acme.orders:read
+      x-openshell-concepts: [orders.read]
+  - target: $.paths['/orders'].post
+    update:
+      x-openshell-capability: acme.orders:write
+      x-openshell-concepts: [orders.write]
+  - target: $.paths['/orders/{order_id}/cancel'].post
+    update:
+      x-openshell-capability: acme.orders:write
+      x-openshell-concepts: [orders.write]
+  - target: $.paths['/orders/{order_id}'].delete
+    update:
+      x-openshell-privilege: admin
+      x-openshell-capability: acme.orders:admin
+  - target: $.paths['/customers/{customer_id}'].get
+    description: Customer records contain personal data.
+    update:
+      x-openshell-capability: acme.customers:read

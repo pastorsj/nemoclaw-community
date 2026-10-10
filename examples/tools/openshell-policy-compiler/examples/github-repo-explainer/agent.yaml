@@ -1,0 +1,68 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# An Oracle Open Agent Spec definition of an agent that explains the structure
+# of one GitHub repository. It is an input to the policy compiler; it is not run
+# by this example.
+
+component_type: Agent
+id: github-repo-explainer
+name: GitHub Repository Explainer
+description: Explains how the NVIDIA/OpenShell project is structured by reading its source code on GitHub.
+metadata: {}
+agentspec_version: 26.1.2
+system_prompt: |
+  You help engineers understand the NVIDIA/OpenShell repository. Read its files,
+  README, and commit history to answer questions about its architecture. Never
+  change the repository.
+llm_config:
+  component_type: OpenAiCompatibleConfig
+  id: nemotron
+  name: Nemotron on NVIDIA API Catalog
+  model_id: nvidia/llama-3.3-nemotron-super-49b-v1
+  url: https://integrate.api.nvidia.com/v1
+  api_type: chat_completions
+tools:
+  - component_type: RemoteTool
+    id: get-repository
+    name: get_repository
+    description: Get the repository description, default branch, and statistics.
+    url: https://api.github.com/repos/NVIDIA/OpenShell
+    http_method: GET
+    url_allow_list:
+      - https://api.github.com/repos/NVIDIA/OpenShell
+  - component_type: RemoteTool
+    id: read-file
+    name: read_file
+    description: Read a file or list a directory in the repository.
+    inputs:
+      - title: path
+        type: string
+    url: https://api.github.com/repos/NVIDIA/OpenShell/contents/{{path}}
+    http_method: GET
+    url_allow_list:
+      - https://api.github.com/repos/NVIDIA/OpenShell/contents/
+  - component_type: RemoteTool
+    id: list-commits
+    name: list_commits
+    description: List recent commits to explain how the code changed.
+    url: https://api.github.com/repos/NVIDIA/OpenShell/commits
+    http_method: GET
+  - component_type: RemoteTool
+    id: search-code
+    name: search_code
+    description: Search code in the repository.
+    inputs:
+      - title: query
+        type: string
+    url: https://api.github.com/search/code
+    http_method: GET
+    query_params:
+      q: "{{query}} repo:NVIDIA/OpenShell"
+  - component_type: ServerTool
+    id: summarize-architecture
+    name: summarize_architecture
+    description: Summarizes the architecture of a repository by reading its source files and README.
+    inputs:
+      - title: focus
+        type: string

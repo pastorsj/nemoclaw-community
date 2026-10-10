@@ -1,0 +1,74 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# A fictional internal API that only one organization can reach. The spec is
+# written the way many internal specs are: no OAuth scopes, an API key header,
+# and a POST endpoint that only reads. The overlay in this directory adds what
+# the compiler needs without editing this file.
+
+openapi: 3.0.3
+info:
+  title: ACME Orders API
+  version: 1.4.0
+servers:
+  - url: https://orders.internal.example/v1
+components:
+  securitySchemes:
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+security:
+  - apiKey: []
+paths:
+  /orders:
+    get:
+      operationId: listOrders
+      summary: List orders, newest first.
+      tags: [orders]
+    post:
+      operationId: createOrder
+      summary: Create an order.
+      tags: [orders]
+  /orders/search:
+    post:
+      operationId: searchOrders
+      summary: Search orders by customer, status, or date range. The filter is sent in the request body.
+      tags: [orders]
+  /orders/{order_id}:
+    parameters:
+      - name: order_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: getOrder
+      summary: Get one order with its status and shipment tracking.
+      tags: [orders]
+    delete:
+      operationId: deleteOrder
+      summary: Permanently delete an order record.
+      tags: [orders]
+  /orders/{order_id}/cancel:
+    parameters:
+      - name: order_id
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      operationId: cancelOrder
+      summary: Cancel an order that has not shipped.
+      tags: [orders]
+  /customers/{customer_id}:
+    parameters:
+      - name: customer_id
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: getCustomer
+      summary: Get a customer's contact details and address.
+      tags: [customers]

@@ -1,0 +1,190 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+catalog_version: 1
+providers:
+- id: acme
+  name: ACME internal services
+  evidence:
+  - kind: documented
+    source: openapi:openapi.yaml
+    pointer: info
+services:
+- id: acme.orders-internal-example
+  provider: acme
+  name: ACME Orders API
+  origins:
+  - host: orders.internal.example
+  allowed_ips:
+  - 10.20.0.0/16
+  evidence:
+  - kind: documented
+    source: openapi:openapi.yaml
+    pointer: servers[0]
+capabilities:
+- id: acme.orders:read
+  provider: acme
+  name: orders:read
+  level: read
+  evidence:
+  - kind: documented
+    source: openapi:openapi.yaml
+    pointer: paths./orders.get
+    note: level from the capability ID
+- id: acme.orders:write
+  provider: acme
+  name: orders:write
+  level: write
+  evidence:
+  - kind: documented
+    source: openapi:openapi.yaml
+    pointer: paths./orders.post
+    note: level from the capability ID
+- id: acme.orders:admin
+  provider: acme
+  name: orders:admin
+  level: admin
+  evidence:
+  - kind: documented
+    source: openapi:openapi.yaml
+    pointer: paths./orders/{order_id}.delete
+    note: level from the capability ID
+- id: acme.customers:read
+  provider: acme
+  name: customers:read
+  level: read
+  evidence:
+  - kind: documented
+    source: openapi:openapi.yaml
+    pointer: paths./customers/{customer_id}.get
+    note: level from the capability ID
+operations:
+- id: acme.listorders
+  service: acme.orders-internal-example
+  method: GET
+  path: /v1/orders
+  privilege: read
+  requires:
+  - - acme.orders:read
+  summary: List orders, newest first.
+  tags:
+  - orders
+  evidence:
+  - kind: documented
+    source: openapi:openapi.yaml
+    pointer: paths./orders.get
+    note: privilege from the levels of its x-openshell-capability
+- id: acme.createorder
+  service: acme.orders-internal-example
+  method: POST
+  path: /v1/orders
+  privilege: write
+  requires:
+  - - acme.orders:write
+  summary: Create an order.
+  tags:
+  - orders
+  evidence:
+  - kind: documented
+    source: openapi:openapi.yaml
+    pointer: paths./orders.post
+    note: privilege from the levels of its x-openshell-capability
+- id: acme.searchorders
+  service: acme.orders-internal-example
+  method: POST
+  path: /v1/orders/search
+  privilege: read
+  requires:
+  - - acme.orders:read
+  summary: Search orders by customer, status, or date range. The filter is sent in
+    the request body.
+  tags:
+  - orders
+  evidence:
+  - kind: documented
+    source: openapi:openapi.yaml
+    pointer: paths./orders/search.post
+    note: privilege from x-openshell-privilege
+- id: acme.getorder
+  service: acme.orders-internal-example
+  method: GET
+  path: /v1/orders/{order_id}
+  privilege: read
+  requires:
+  - - acme.orders:read
+  summary: Get one order with its status and shipment tracking.
+  tags:
+  - orders
+  evidence:
+  - kind: documented
+    source: openapi:openapi.yaml
+    pointer: paths./orders/{order_id}.get
+    note: privilege from the levels of its x-openshell-capability
+- id: acme.deleteorder
+  service: acme.orders-internal-example
+  method: DELETE
+  path: /v1/orders/{order_id}
+  privilege: admin
+  requires:
+  - - acme.orders:admin
+  summary: Permanently delete an order record.
+  tags:
+  - orders
+  evidence:
+  - kind: documented
+    source: openapi:openapi.yaml
+    pointer: paths./orders/{order_id}.delete
+    note: privilege from x-openshell-privilege
+- id: acme.cancelorder
+  service: acme.orders-internal-example
+  method: POST
+  path: /v1/orders/{order_id}/cancel
+  privilege: write
+  requires:
+  - - acme.orders:write
+  summary: Cancel an order that has not shipped.
+  tags:
+  - orders
+  evidence:
+  - kind: documented
+    source: openapi:openapi.yaml
+    pointer: paths./orders/{order_id}/cancel.post
+    note: privilege from the levels of its x-openshell-capability
+- id: acme.getcustomer
+  service: acme.orders-internal-example
+  method: GET
+  path: /v1/customers/{customer_id}
+  privilege: read
+  requires:
+  - - acme.customers:read
+  summary: Get a customer's contact details and address.
+  tags:
+  - customers
+  evidence:
+  - kind: documented
+    source: openapi:openapi.yaml
+    pointer: paths./customers/{customer_id}.get
+    note: privilege from the levels of its x-openshell-capability
+concept_links:
+- concept: orders.read
+  realized_by:
+  - acme.orders:read
+  evidence:
+  - kind: documented
+    source: openapi:openapi.yaml
+    pointer: paths./orders.get
+  - kind: documented
+    source: openapi:openapi.yaml
+    pointer: paths./orders/search.post
+  - kind: documented
+    source: openapi:openapi.yaml
+    pointer: paths./orders/{order_id}.get
+- concept: orders.write
+  realized_by:
+  - acme.orders:write
+  evidence:
+  - kind: documented
+    source: openapi:openapi.yaml
+    pointer: paths./orders.post
+  - kind: documented
+    source: openapi:openapi.yaml
+    pointer: paths./orders/{order_id}/cancel.post

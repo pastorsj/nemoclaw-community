@@ -1,0 +1,52 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# An Agent Spec definition of a support agent that calls the internal ACME
+# Orders API. It uses OpenShell managed inference (inference.local), so model
+# traffic goes through the gateway's inference route instead of a provider host.
+
+component_type: Agent
+id: order-status-assistant
+name: Order Status Assistant
+description: Answers customer questions about order status by looking up and searching orders.
+metadata: {}
+agentspec_version: 26.1.2
+system_prompt: |
+  You answer questions about where an order is and when it will arrive. Look
+  up orders by ID or search for them by customer.
+llm_config:
+  component_type: OpenAiCompatibleConfig
+  id: managed-inference
+  name: OpenShell managed inference
+  model_id: nvidia/llama-3.3-nemotron-super-49b-v1
+  url: https://inference.local/v1
+tools:
+  - component_type: RemoteTool
+    id: get-order
+    name: get_order
+    description: Get one order with its status and tracking number.
+    inputs:
+      - title: order_id
+        type: string
+    url: https://orders.internal.example/v1/orders/{{order_id}}
+    http_method: GET
+    api_spec_uri: ./openapi.yaml
+    sensitive_headers:
+      X-API-Key: "{{ACME_ORDERS_API_KEY}}"
+  - component_type: RemoteTool
+    id: search-orders
+    name: search_orders
+    description: Search orders by customer or status.
+    url: https://orders.internal.example/v1/orders/search
+    http_method: POST
+    api_spec_uri: ./openapi.yaml
+    data:
+      customer: "{{customer}}"
+  - component_type: RemoteTool
+    id: cancel-order
+    name: cancel_order
+    description: Cancel an order that has not shipped.
+    url: https://orders.internal.example/v1/orders/{{order_id}}/cancel
+    http_method: POST
+    requires_confirmation: true
+    api_spec_uri: ./openapi.yaml
