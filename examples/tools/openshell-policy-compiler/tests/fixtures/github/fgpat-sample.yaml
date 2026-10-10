@@ -1,0 +1,134 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# A few records from GitHub's fine-grained personal access token permission
+# data (github/docs, src/github-apps/data/fpt-2022-11-28/), in the same shape.
+# Two endpoints are listed under more than one permission, and contents lists
+# the same endpoint twice.
+
+metadata:
+  title: Metadata
+  displayTitle: Repository permissions for "Metadata"
+  permissions:
+    - category: repos
+      slug: get-a-repository
+      subcategory: repos
+      verb: get
+      requestPath: /repos/{owner}/{repo}
+      additional-permissions: false
+      access: read
+contents:
+  title: Contents
+  displayTitle: Repository permissions for "Contents"
+  permissions:
+    - category: markdown
+      slug: render-a-markdown-document
+      subcategory: markdown
+      verb: post
+      requestPath: /markdown
+      additional-permissions: false
+      access: read
+    - category: repos
+      slug: get-repository-content
+      subcategory: contents
+      verb: get
+      requestPath: /repos/{owner}/{repo}/contents/{path}
+      additional-permissions: false
+      access: read
+    - category: repos
+      slug: create-or-update-file-contents
+      subcategory: contents
+      verb: put
+      requestPath: /repos/{owner}/{repo}/contents/{path}
+      additional-permissions: true
+      access: write
+    - category: repos
+      slug: create-or-update-file-contents
+      subcategory: contents
+      verb: put
+      requestPath: /repos/{owner}/{repo}/contents/{path}
+      additional-permissions: true
+      access: write
+issues:
+  title: Issues
+  displayTitle: Repository permissions for "Issues"
+  permissions:
+    - category: issues
+      slug: list-issue-comments
+      subcategory: comments
+      verb: get
+      requestPath: /repos/{owner}/{repo}/issues/{issue_number}/comments
+      additional-permissions: true
+      access: read
+    - category: issues
+      slug: create-an-issue-comment
+      subcategory: comments
+      verb: post
+      requestPath: /repos/{owner}/{repo}/issues/{issue_number}/comments
+      additional-permissions: true
+      access: write
+pull_requests:
+  title: Pull requests
+  displayTitle: Repository permissions for "Pull requests"
+  permissions:
+    - category: issues
+      slug: list-issue-comments
+      subcategory: comments
+      verb: get
+      requestPath: /repos/{owner}/{repo}/issues/{issue_number}/comments
+      additional-permissions: true
+      access: read
+    - category: issues
+      slug: create-an-issue-comment
+      subcategory: comments
+      verb: post
+      requestPath: /repos/{owner}/{repo}/issues/{issue_number}/comments
+      additional-permissions: true
+      access: write
+workflows:
+  title: Workflows
+  displayTitle: Repository permissions for "Workflows"
+  permissions:
+    - category: repos
+      slug: create-or-update-file-contents
+      subcategory: contents
+      verb: put
+      requestPath: /repos/{owner}/{repo}/contents/{path}
+      additional-permissions: true
+      access: write
+administration:
+  title: Administration
+  displayTitle: Repository permissions for "Administration"
+  permissions:
+    - category: actions
+      slug: get-github-actions-cache-retention-limit-for-a-repository
+      subcategory: cache
+      verb: get
+      requestPath: /repos/{owner}/{repo}/actions/cache/retention-limit
+      additional-permissions: false
+      access: read
+    - category: repos
+      slug: delete-a-repository
+      subcategory: repos
+      verb: delete
+      requestPath: /repos/{owner}/{repo}
+      additional-permissions: false
+      access: write
+organization_custom_properties:
+  title: Custom properties
+  displayTitle: Organization permissions for "Custom properties"
+  permissions:
+    - category: orgs
+      slug: get-all-custom-properties-for-an-organization
+      subcategory: custom-properties
+      verb: get
+      requestPath: /orgs/{org}/properties/schema
+      additional-permissions: false
+      access: read
+    - category: orgs
+      slug: create-or-update-custom-properties-for-an-organization
+      subcategory: custom-properties
+      verb: patch
+      requestPath: /orgs/{org}/properties/schema
+      additional-permissions: false
+      access: admin

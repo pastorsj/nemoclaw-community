@@ -1,0 +1,35 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# An OpenAPI Overlay 1.0.0 document that annotates orders.yaml with the
+# policy compiler's x-openshell-* fields. The API owner's spec stays untouched.
+
+overlay: 1.0.0
+info:
+  title: OpenShell annotations for ACME Orders
+  version: 1.0.0
+extends: orders.yaml
+actions:
+  - target: $
+    description: The service resolves to a private address range.
+    update:
+      x-openshell-allowed-ips: [10.20.0.0/16]
+  - target: $.paths['/orders/search'].post
+    description: Search only reads, even though it is a POST.
+    update:
+      x-openshell-privilege: read
+      x-openshell-concepts: [orders.read]
+  - target: $.paths.*.get
+    update:
+      x-openshell-concepts: [orders.read]
+  - target: $.paths.*[?(@.operationId == 'createOrder')]
+    update:
+      x-openshell-concepts: [orders.write]
+  - target: "$.paths['/orders/{order_id}'].delete"
+    description: Cancelling an order refunds the customer.
+    update:
+      x-openshell-privilege: admin
+  - target: $.paths['/legacy/orders'].get
+    description: Left over from an older version of the spec.
+    update:
+      deprecated: true
