@@ -73,7 +73,7 @@ None.
 
 ## Notes
 
-- Dropped write-level concepts that no write verb in the use case asks for: source-code.write. Say what the agent should change (for example 'open issues' or 'push commits') to grant them.
+- Dropped write-level concepts that no write request in the use case asks for: source-code.write. Say what the agent should change, as a request, to grant them (for example 'open issues for bugs' or 'push commits to <owner>/<repo>').
 
 ## Next steps
 

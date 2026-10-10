@@ -44,7 +44,8 @@ The compiler cannot see what these components do on the network. Nothing is gran
 
 ## Notes
 
-- Dropped write-level concepts that no write verb in the use case asks for: source-code.write, issues.write. Say what the agent should change (for example 'open issues' or 'push commits') to grant them.
+- Dropped concepts that matched no keyword naming what to access (only verbs or operation descriptions): issues.write.
+- Dropped write-level concepts that no write request in the use case asks for: source-code.write. Say what the agent should change, as a request, to grant them (for example 'open issues for bugs' or 'push commits to <owner>/<repo>').
 
 ## Next steps
 

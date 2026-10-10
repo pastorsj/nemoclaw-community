@@ -163,10 +163,85 @@ def test_write_verb_for_one_concept_does_not_license_another(graph):
     assert "code-review.write" not in concepts
 
 
-def test_concepts_explained_by_a_stronger_match_are_dropped(graph):
+def test_a_write_verb_needs_a_matching_object(graph):
+    # "open" is an action verb of code-review.write, but its object here is issues.
     contract = compile_text(graph, "open issues for bugs you find in NVIDIA/OpenShell on GitHub")
     assert "code-review.write" not in [c for c, _, _ in concept_targets(contract)]
-    assert any("code-review.write" in note and "issues.write" in note for note in contract.notes)
+    assert any("code-review.write" in note for note in contract.notes)
+
+
+READ_ONLY_PHRASINGS = [
+    "list open issues in NVIDIA/OpenShell on GitHub",
+    "summarize open pull requests in NVIDIA/OpenShell on GitHub",
+    "list merged pull requests in NVIDIA/OpenShell on GitHub",
+    "which issues were opened last week in NVIDIA/OpenShell on GitHub",
+    "find changed files in pull requests of NVIDIA/OpenShell on GitHub",
+    "opening issues is not allowed; read issues in NVIDIA/OpenShell on GitHub",
+    "show recently updated issues in NVIDIA/OpenShell on GitHub",
+    "open the code of NVIDIA/OpenShell on GitHub",
+    "I need read/write access to NVIDIA/OpenShell on GitHub",
+    "review the commit history of NVIDIA/OpenShell on GitHub",
+]
+
+
+@pytest.mark.parametrize("text", READ_ONLY_PHRASINGS)
+def test_read_only_phrasings_grant_no_write_concept(graph, text):
+    contract = compile_text(graph, text)
+    write_level = [
+        need.target.concept
+        for need in concept_needs(contract)
+        if graph.concepts[need.target.concept].privilege.at_least(Privilege.WRITE)
+    ]
+    assert write_level == []
+
+
+def test_open_the_code_keeps_source_code_read(graph):
+    contract = compile_text(graph, "open the code of NVIDIA/OpenShell on GitHub")
+    assert concept_targets(contract) == [("source-code.read", "github", NVIDIA_OPENSHELL)]
+
+
+def test_show_recently_updated_issues_keeps_issues_read(graph):
+    contract = compile_text(graph, "show recently updated issues in NVIDIA/OpenShell on GitHub")
+    assert concept_targets(contract) == [("issues.read", "github", NVIDIA_OPENSHELL)]
+
+
+def test_negation_applies_to_one_occurrence(graph):
+    contract = compile_text(graph, "open issues but never open pull requests in NVIDIA/OpenShell on GitHub")
+    concepts = [c for c, _, _ in concept_targets(contract)]
+    assert "issues.write" in concepts
+    assert "code-review.write" not in concepts
+    assert any("open pull request" in note for note in contract.notes)
+
+
+def test_comment_on_pull_requests_grants_code_review_write(graph):
+    # "Comment on an issue or pull request" is a write operation that pull
+    # request write access enables, so "comment" is an action verb of code-review.write.
+    contract = compile_text(graph, "comment on pull requests in NVIDIA/OpenShell on GitHub")
+    concepts = [c for c, _, _ in concept_targets(contract)]
+    assert "code-review.write" in concepts
+    assert "issues.write" not in concepts
+
+
+def test_redundancy_never_trades_read_for_write(graph):
+    contract = compile_text(graph, "edit the code of NVIDIA/OpenShell on GitHub")
+    concepts = [c for c, _, _ in concept_targets(contract)]
+    assert concepts == ["source-code.write", "source-code.read"]
+
+
+def test_redundancy_drops_a_concept_covered_by_capabilities(graph):
+    # contents:read implies metadata:read on GitHub, so source-code.read covers
+    # repository.metadata.read; "language" alone does not justify a second need.
+    text = "read the code and the languages of NVIDIA/OpenShell on GitHub"
+    contract = compile_text(graph, text)
+    assert [c for c, _, _ in concept_targets(contract)] == ["source-code.read"]
+    assert any("repository.metadata.read (covered by source-code.read)" in note for note in contract.notes)
+
+
+def test_concepts_need_a_keyword_naming_what_to_access(graph):
+    # "review" is a keyword of issues.read, but it is only a verb here.
+    contract = compile_text(graph, "review pull requests in NVIDIA/OpenShell")
+    assert [c for c, _, _ in concept_targets(contract)] == ["code-review.read"]
+    assert any("issues.read" in note for note in contract.notes)
 
 
 def test_explicit_write_request_keeps_write_concept(graph):
@@ -254,11 +329,40 @@ def test_several_repositories_give_several_needs(graph):
         "read code on GitHub via TCP/IP",
         "read code on GitHub (see example.com/docs)",
         "read code on GitHub w/ care",
+        "read code and issues/PRs on GitHub",
+        "read the code in docs/README on GitHub",
+        "read the code in lib/utils.py on GitHub",
+        "read the code in src/main on GitHub",
+        "read the code on GitHub, see github.com/settings/tokens",
+        "read the code on GitHub, see https://github.com/marketplace/actions",
     ],
 )
 def test_slash_words_are_not_repositories(graph, text):
     contract = compile_text(graph, text)
-    assert concept_targets(contract) == [("source-code.read", "github", {})]
+    assert ("source-code.read", "github", {}) in concept_targets(contract)
+    assert all(scope == {} for _, _, scope in concept_targets(contract))
+
+
+def test_owner_only_url_scopes_to_the_owner_with_a_note(graph):
+    contract = compile_text(graph, "read the code at https://github.com/NVIDIA")
+    assert concept_targets(contract) == [("source-code.read", "github", {"owner": "NVIDIA"})]
+    assert any("not limited to one repository" in note and "NVIDIA" in note for note in contract.notes)
+
+
+def test_org_url_scopes_to_the_owner(graph):
+    contract = compile_text(graph, "read the code at github.com/orgs/NVIDIA/repositories")
+    assert concept_targets(contract) == [("source-code.read", "github", {"owner": "NVIDIA"})]
+
+
+def test_owner_only_gitlab_url_scopes_to_the_group(graph):
+    contract = compile_text(graph, "read the code at https://gitlab.com/gitlab-org")
+    assert concept_targets(contract) == [("source-code.read", "gitlab", {"namespace": "gitlab-org"})]
+    assert any("not limited to one repository" in note for note in contract.notes)
+
+
+def test_repository_names_with_dots_are_kept(graph):
+    contract = compile_text(graph, "read the code of vercel/next.js on GitHub")
+    assert concept_targets(contract) == [("source-code.read", "github", {"owner": "vercel", "repo": "next.js"})]
 
 
 def test_possessive_and_punctuation_around_repository(graph):

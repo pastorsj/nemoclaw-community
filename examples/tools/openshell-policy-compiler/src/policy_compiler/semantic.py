@@ -146,6 +146,15 @@ class SemanticIndex:
         """The term bag of a concept (a copy), for explanations and debugging."""
         return dict(self._bags.get(concept_id, {}))
 
+    def keywords(self, concept_id: str) -> frozenset[str]:
+        """The stemmed keyword terms of a concept: the words a curator chose for it."""
+        return frozenset(term for term, weight in self._bags.get(concept_id, {}).items() if weight >= KEYWORD_WEIGHT)
+
+    @property
+    def keyword_vocabulary(self) -> frozenset[str]:
+        """Every concept's keyword terms."""
+        return frozenset(term for concept_id in self._bags for term in self.keywords(concept_id))
+
     def match(self, text: str, *, min_score: float = 0.15, top_k: int = 8) -> list[ConceptMatch]:
         """Rank the concepts that ``text`` describes.
 
@@ -249,12 +258,24 @@ WRITE_VERBS: frozenset[str] = frozenset(
 )
 """Verbs that ask for write access, in their base form."""
 
+
+READ_VERBS: frozenset[str] = frozenset(
+    """
+    list show summarize summarise find read get fetch review count display search
+    check see view explain understand study inspect explore analyze analyse
+    investigate browse describe
+    """.split()
+)
+"""Verbs that ask to look, not to change. A write verb right after one is an
+adjective ("list open issues"), and a concept keyword that is one of these says
+how something is accessed, not what."""
+
+_OTHER_VERBS = frozenset("triage clone answer help monitor track label test run build use".split())
+"""Further verbs that can start a request that a write verb then joins ("triage bugs and comment")."""
 _PLURAL_NOUNS = frozenset({"change", "comment", "commit", "edit", "file", "fix", "reply", "update"})
 """Verbs whose ``-s`` form is usually a plural noun ("read the comments")."""
-_IRREGULAR = {"write": ("wrote", "written")}
 _DETERMINERS = frozenset("a an the this these those each every any some its their my your our his her".split())
-"""A write verb right after one of these is a noun or an adjective ("the open issues").
-"that" is left out because it usually starts a clause ("an agent that opens ...")."""
+"""A write verb right after one of these is a noun or an adjective ("the open issues")."""
 _NOT_A_VERB_BEFORE = {
     "open": frozenset({"source", "sourced"}),
     # "commit history", "commit message": the noun, not the verb.
@@ -265,64 +286,156 @@ _NOT_A_VERB_BEFORE = {
 _NEEDS_OBJECT = {"file": frozenset({"issue", "bug", "ticket", "report"})}
 """Verbs that count only with one of these objects ("file a bug", not "read file contents")."""
 _OBJECT_FILLERS = _DETERMINERS | {"new", "more"}
+
+_MODALS = frozenset("to can could should must may might will would shall please do does don doesn".split())
+"""A base form after one of these is a request ("to open", "please merge", "can push")."""
+_SUBJECTS = frozenset("i you we".split())
+"""A base form after one of these states what the agent does ("you open issues")."""
+_RELATIVES = frozenset("that which who it".split())
+"""A third-person form after one of these describes the agent ("an agent that opens ...")."""
+_JOINERS = frozenset("and or then nor".split())
+"""A base or third-person form after one of these joins an earlier requested verb."""
+_ADVERBS = frozenset("also always just only first then automatically directly".split())
+"""Skipped when looking for the word before a verb ("you can also open")."""
+_CLAUSE_BREAKS = frozenset("but however although though while whereas because unless except".split())
 _NEGATIONS = frozenset({"not", "never", "no", "without", "nor", "cannot", "t"})
-"""``t`` is what remains of ``n't`` ("don't" splits into "don" and "t")."""
+"""Negations before a verb. ``t`` is what remains of ``n't`` ("don't" splits into "don" and "t")."""
+_NEGATIONS_AFTER = frozenset({"not", "never", "cannot", "t", "forbidden", "prohibited", "disallowed"})
+"""Negations later in the verb's clause ("pushing to main is not allowed"). "no" and
+"without" are left out: after a verb they usually qualify the object."""
 _NEGATION_WINDOW = 4
+_SKIPPED = _ADVERBS | _NEGATIONS
+_SENTENCE = re.compile(r"[.!?;]+(?=\s|$)|\n\s*\n")
+"""Sentence ends and blank lines. A single newline is line wrapping, not a sentence break."""
+_CLAUSE_TOKEN = re.compile(r"[^\W_]+|[,:()]")
 
 
-def _forms(verb: str) -> set[str]:
-    forms = {verb, *_IRREGULAR.get(verb, ())}
-    if verb.endswith("e"):
-        forms |= {verb + "d", verb[:-1] + "ing"}
-    elif verb.endswith("y") and verb[-2] not in "aeiou":
-        forms |= {verb[:-1] + "ied", verb + "ing"}
-    else:
-        forms |= {verb + "ed", verb + "ing"}
-        if len(verb) > 2 and verb[-1] not in "aeiouwxy" and verb[-2] in "aeiou" and verb[-3] not in "aeiou":
-            forms |= {verb + verb[-1] + "ed", verb + verb[-1] + "ing"}
-    if verb not in _PLURAL_NOUNS:
-        if verb.endswith(("s", "sh", "ch", "x", "z")):
-            forms.add(verb + "es")
-        elif verb.endswith("y") and verb[-2] not in "aeiou":
-            forms.add(verb[:-1] + "ies")
+def _verb_forms(verb: str) -> tuple[str, str | None]:
+    """The base form and, unless the plural is usually a noun, the third-person form."""
+    if verb in _PLURAL_NOUNS:
+        return verb, None
+    if verb.endswith(("s", "sh", "ch", "x", "z")):
+        return verb, verb + "es"
+    if verb.endswith("y") and verb[-2] not in "aeiou":
+        return verb, verb[:-1] + "ies"
+    return verb, verb + "s"
+
+
+_BASE_FORMS = {verb: verb for verb in WRITE_VERBS}
+_THIRD_PERSON_FORMS = {third: verb for verb in WRITE_VERBS if (third := _verb_forms(verb)[1]) is not None}
+
+
+@dataclass(frozen=True)
+class WriteVerbUse:
+    """One occurrence of a write verb used as a request, or negated."""
+
+    verb: str
+    """Base form."""
+    negated: bool
+    objects: tuple[str, ...]
+    """Tokens (see :func:`tokenize`) after the verb in its clause, up to the next verb: what it acts on."""
+
+
+def _clauses(sentence: str) -> list[tuple[str, int]]:
+    """Words of a sentence, lower-cased, each with the index of its clause."""
+    words: list[tuple[str, int]] = []
+    clause = 0
+    for token in _CLAUSE_TOKEN.findall(sentence.lower()):
+        if token in ",:()" or token in _CLAUSE_BREAKS:
+            clause += 1
         else:
-            forms.add(verb + "s")
-    return forms
+            words.append((token, clause))
+    return words
 
 
-_VERB_FORMS = {form: verb for verb in sorted(WRITE_VERBS) for form in _forms(verb)}
+def find_write_verb_uses(text: str) -> list[WriteVerbUse]:
+    """Find the write verbs that ``text`` uses as requests, one entry per occurrence.
+
+    Only base forms ("open") and third-person forms ("opens", but not
+    "comments" or "files", which are usually nouns) count; past and ``-ing``
+    forms describe state ("merged pull requests", "opening issues"). A form is
+    a request when the word before it (skipping adverbs and negations, within
+    its clause) is:
+
+    * nothing: the verb starts the sentence ("Open issues for bugs");
+    * for a base form, ``to``, a modal (``can``, ``must``, ``please``, ...), or a
+      subject (``I``, ``you``, ``we``);
+    * for a third-person form, ``that``, ``which``, ``who``, or ``it``;
+    * ``and``, ``or``, ``then``, or ``nor``, when an earlier verb in the same
+      sentence was requested ("read the code and open issues").
+
+    These never count: a form right after a determiner or a read verb ("the open
+    issues", "list open issues"); ``open`` before ``source`` and similar noun
+    uses ("commit history"); ``file`` without an issue-like object.
+
+    A request is negated when a negation is among the four words before it, or
+    anywhere after it, in the same clause ("never push", "push to main is not
+    allowed"). Negations never cross a sentence or a clause break (a comma,
+    "but", ...), and each occurrence is judged on its own. Negated occurrences
+    are reported even outside a request position ("do not open or comment").
+    """
+    uses: list[WriteVerbUse] = []
+    for sentence in _SENTENCE.split(text):
+        words = _clauses(sentence)
+        requested_earlier = False
+        for i, (word, clause) in enumerate(words):
+            before = [w for w, c in words[:i] if c == clause]
+            after = [w for w, c in words[i + 1 :] if c == clause]
+            context = next((w for w in reversed(before) if w not in _SKIPPED), None)
+            at_start = all(w in _SKIPPED for w, _ in words[:i])
+            third_person = word not in _BASE_FORMS
+            verb = _THIRD_PERSON_FORMS.get(word) if third_person else _BASE_FORMS[word]
+            if verb is None:
+                if _is_read_verb(word) or word in _OTHER_VERBS:
+                    requested_earlier |= _in_request_position(context, at_start, None, requested_earlier)
+                continue
+            if context in _DETERMINERS or (context is not None and _is_read_verb(context)):
+                continue
+            if after[:1] and after[0] in _NOT_A_VERB_BEFORE.get(verb, ()):
+                continue
+            objects_needed = _NEEDS_OBJECT.get(verb)
+            if objects_needed is not None:
+                noun = next((w for w in after if w not in _OBJECT_FILLERS), "")
+                if stem(noun) not in objects_needed:
+                    continue
+            negated = any(w in _NEGATIONS for w in before[-_NEGATION_WINDOW:]) or any(
+                w in _NEGATIONS_AFTER for w in after
+            )
+            requested = _in_request_position(context, at_start, third_person, requested_earlier)
+            if not (negated or requested):
+                continue
+            span: list[str] = []
+            for w in after:
+                is_verb = w in _BASE_FORMS or w in _THIRD_PERSON_FORMS or _is_read_verb(w)
+                if is_verb and not (span and span[-1] in _DETERMINERS):  # "commit the fix": a noun
+                    break
+                span.append(w)
+            uses.append(WriteVerbUse(verb, negated, tuple(tokenize(" ".join(span)))))
+            requested_earlier |= requested and not negated
+    return uses
+
+
+def _is_read_verb(word: str) -> bool:
+    return word in READ_VERBS or stem(word) in READ_VERBS
+
+
+def _in_request_position(context: str | None, at_start: bool, third_person: bool | None, joined: bool) -> bool:
+    """Whether a verb is requested, given the word before it. ``third_person=None`` accepts either form."""
+    if at_start or (context in _JOINERS and joined):
+        return True
+    if third_person is not False and context in _RELATIVES:
+        return True
+    return third_person is not True and (context in _MODALS or context in _SUBJECTS)
 
 
 def find_write_verbs(text: str) -> tuple[list[str], list[str]]:
-    """Find the write verbs in ``text``: ``(asked, negated)``, base forms, sorted.
+    """The write verbs that ``text`` requests and negates: ``(asked, negated)``, base forms, sorted.
 
-    Base, past, and ``-ing`` forms count ("update", "updated", "updating"), and
-    third-person forms count for verbs whose plural is rarely a noun ("opens",
-    "pushes"; not "comments" or "files"). These do not count:
-
-    * a form right after a determiner ("the open issues", "a commit");
-    * ``open`` before ``source``;
-    * ``file`` without an issue-like object ("read file contents").
-
-    A verb with a negation among the four words before it ("never push", "do not
-    open or comment") is reported as negated instead of asked. A negation after
-    the verb ("read/write is not needed") is not detected.
+    A summary of :func:`find_write_verb_uses`. A verb can be in both lists when
+    one occurrence asks for it and another is negated ("open issues but never
+    open pull requests").
     """
-    words = _words(text)
-    asked: set[str] = set()
-    negated: set[str] = set()
-    for i, word in enumerate(words):
-        verb = _VERB_FORMS.get(word)
-        if verb is None or (i and words[i - 1] in _DETERMINERS):
-            continue
-        following = words[i + 1] if i + 1 < len(words) else ""
-        if following in _NOT_A_VERB_BEFORE.get(verb, ()):
-            continue
-        objects = _NEEDS_OBJECT.get(verb)
-        if objects is not None:
-            noun = next((w for w in words[i + 1 :] if w not in _OBJECT_FILLERS), "")
-            if stem(noun) not in objects:
-                continue
-        before = words[max(0, i - _NEGATION_WINDOW) : i]
-        (negated if any(w in _NEGATIONS for w in before) else asked).add(verb)
-    return sorted(asked), sorted(negated)
+    uses = find_write_verb_uses(text)
+    asked = sorted({use.verb for use in uses if not use.negated})
+    negated = sorted({use.verb for use in uses if use.negated})
+    return asked, negated

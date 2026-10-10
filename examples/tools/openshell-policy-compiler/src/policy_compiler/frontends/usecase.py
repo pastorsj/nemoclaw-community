@@ -7,26 +7,36 @@
 becomes a need for ``source-code.read`` on ``github``, scoped to
 ``{owner: NVIDIA, repo: OpenShell}``, plus a need for model inference.
 
-The steps, in order:
+The front end fails safe: when it is unsure whether the text asks for write
+access, it grants none and says so in the contract notes, so the user can
+rephrase. The steps, in order:
 
 1. **Scope.** Repository references are taken out of the text first: web URLs on
    a provider's repository hosts (``github.com/<owner>/<repo>``,
    ``gitlab.com/<group>/<project>``) and bare ``<owner>/<repo>`` tokens. They
    name resources, not intent or providers, so "NVIDIA/OpenShell" does not name
-   the NVIDIA or OpenShell providers.
+   the NVIDIA or OpenShell providers. A URL with only an owner scopes the grant
+   to that owner, with a note.
 2. **Concepts.** The rest of the text is matched with
    :class:`~policy_compiler.semantic.SemanticIndex`.
 3. **Inference.** Concepts that the inference need already covers (such as
    ``llm.inference``) are left to it.
-4. **Privilege.** A concept at write level or above is kept only when the text
-   asks for it with a write verb that the concept itself matched: "open issues"
-   keeps ``issues.write`` but not ``source-code.write``, and "read the source
-   files" keeps neither. Negated verbs ("never push") ask for nothing.
-5. **Redundancy.** A concept is dropped when another kept concept matched every
-   term it matched, scored higher, and is at least as privileged ("open issues"
-   matches ``code-review.write`` only through "open" and "issue", which
-   ``issues.write`` explains better).
-6. **Provider.** One need per named provider that realizes the concept. With no
+4. **Evidence.** A concept is kept only when it matched one of its keywords that
+   names what to access ("code", "issue"), not only a read verb ("review") or the
+   requested write verb, and not only words from operation summaries.
+5. **Privilege.** A concept at write level or above is kept only when an
+   occurrence of a write verb requests it
+   (:func:`~policy_compiler.semantic.find_write_verb_uses`): the verb is one of
+   the concept's action verbs (its write-verb keywords, plus the leading verb of
+   the summaries of its write-level operations, such as "Comment on an issue or
+   pull request"), and the words that follow the verb in its clause include
+   another of the concept's keywords. "Open issues" keeps ``issues.write``;
+   "open the code" and "list open issues" keep no write concept.
+6. **Redundancy.** A concept is dropped only when another kept concept at the
+   same or a lower privilege level scored higher, matched every term it matched,
+   and covers all of its capabilities (through ``implies``) for every provider
+   that realizes it.
+7. **Provider.** One need per named provider that realizes the concept. With no
    provider named, a concept that a single provider realizes uses it, and one
    that several realize becomes an ``AMBIGUOUS`` unknown: the compiler asks
    instead of granting the union. A concept whose only named provider is a rival
@@ -45,7 +55,16 @@ from policy_compiler.graph.model import RestSelector
 from policy_compiler.graph.store import Graph
 from policy_compiler.ir.common import Evidence, EvidenceKind, Privilege
 from policy_compiler.ir.contract import Contract, Need, Suggestion, Target, Unknown, UnknownKind
-from policy_compiler.semantic import STOPWORDS, ConceptMatch, SemanticIndex, find_write_verbs
+from policy_compiler.semantic import (
+    READ_VERBS,
+    STOPWORDS,
+    WRITE_VERBS,
+    ConceptMatch,
+    SemanticIndex,
+    WriteVerbUse,
+    find_write_verb_uses,
+    stem,
+)
 
 INFERENCE_CAPABILITIES: dict[str, str | None] = {
     "local": "openshell.inference:invoke",
@@ -75,6 +94,13 @@ _SCHEME = re.compile(r"^(?:https?://)?(?:www\.)?", re.IGNORECASE)
 _IDENTIFIER = re.compile(r"[A-Za-z0-9_.-]{2,}")
 _LETTER = re.compile(r"[A-Za-z]")
 _TOP_LEVEL_DOMAIN = re.compile(r"\.[A-Za-z]{2,}$")
+_FILE_EXTENSION = re.compile(
+    r"\.(?:py|md|txt|json|ya?ml|toml|cfg|ini|rs|go|c|h|cc|cpp|hpp|java|kt|ts|tsx|jsx|sh|html|css|lock|xml|csv|rst"
+    r"|ipynb|sql|rb|php|swift|pdf|png|jpe?g|svg)$",
+    re.IGNORECASE,
+)
+"""File names, not repositories ("lib/utils.py"). ``.js`` and ``.io`` are left out:
+repositories such as ``vercel/next.js`` use them."""
 _LEADING_PUNCTUATION = "([{<\"'`"
 _TRAILING_PUNCTUATION = ")]}>\"'`.,;:!?"
 
@@ -84,9 +110,20 @@ _NOT_REPOSITORY_WORDS = STOPWORDS | frozenset(
     read write input output client server request response allow deny pass fail
     open close start stop before after src dst tcp ip udp http ui ux ci cd
     dev prod frontend backend
+    doc docs lib libs test tests bin script scripts example examples pkg cmd include
+    build dist config configs etc usr var tmp home opt assets static public vendor
+    readme license makefile dockerfile changelog
     """.split()
 )
-"""Words that make ``x/y`` a phrase ("and/or", "read/write") rather than a repository."""
+"""Words that make ``x/y`` a phrase ("and/or", "read/write") or a path ("docs/README")
+rather than a repository."""
+
+_OWNER_ROOTS = frozenset({"orgs", "users", "groups"})
+"""URL roots followed by an owner (``github.com/orgs/NVIDIA``)."""
+_RESERVED_ROOTS = frozenset(
+    "orgs users groups settings api marketplace apps sponsors topics explore - login logout new notifications".split()
+)
+"""URL roots that are site pages, not owners."""
 
 
 @dataclass(frozen=True)
@@ -95,8 +132,8 @@ class _Scope:
     """The provider whose URL named the repository, or ``None`` for a bare ``x/y`` token."""
     namespace: str
     """Owner, or GitLab group path (may contain ``/`` for subgroups)."""
-    name: str
-    """Repository or project."""
+    name: str | None
+    """Repository or project, or ``None`` when only the owner is known."""
 
 
 def contract_from_use_case(
@@ -139,14 +176,16 @@ class _UseCaseCompiler:
         self.concepts_by_provider = _concepts_by_provider(graph)
 
     def run(self) -> None:
-        scopes, rest = _extract_scopes(self.text, self.repository_hosts, self.styles)
-        asked, negated = find_write_verbs(rest)
-        # Base forms let "created" match the keyword "create", which stemming misses.
+        scopes, rest = _extract_scopes(self.text, self.repository_hosts, self.styles, self.index.keyword_vocabulary)
+        uses = find_write_verb_uses(rest)
+        asked = sorted({use.verb for use in uses if not use.negated})
+        # Base forms let "pushes" match the keyword "push", which stemming misses.
         matches = self.index.match(" ".join([rest, *asked]))
         mentioned = self.index.providers_mentioned(rest)
 
         kept = self._leave_inference_concepts(matches)
-        kept = self._apply_privilege(kept, asked, negated)
+        kept = self._require_evidence(kept, set(asked))
+        kept = self._apply_privilege(kept, uses)
         kept = self._drop_redundant(kept)
         for match in kept:
             self._add_concept(match, mentioned, scopes)
@@ -167,46 +206,85 @@ class _UseCaseCompiler:
                 )
         return [match for match in matches if match.concept not in covered]
 
-    def _apply_privilege(self, matches: list[ConceptMatch], asked: list[str], negated: list[str]) -> list[ConceptMatch]:
+    def _require_evidence(self, matches: list[ConceptMatch], asked: set[str]) -> list[ConceptMatch]:
+        """Keep concepts that matched a keyword naming what to access."""
         kept, dropped = [], []
         for match in matches:
-            if self._privilege(match).at_least(Privilege.WRITE) and not set(asked) & set(match.matched_terms):
-                dropped.append(match.concept)
-            else:
+            subjects = self.index.keywords(match.concept) & set(match.matched_terms)
+            subjects -= asked
+            subjects -= {term for term in subjects if term in READ_VERBS}
+            (kept if subjects else dropped).append(match)
+        if dropped:
+            names = ", ".join(match.concept for match in dropped)
+            self.contract.notes.append(
+                f"Dropped concepts that matched no keyword naming what to access (only verbs or operation "
+                f"descriptions): {names}."
+            )
+        return kept
+
+    def _apply_privilege(self, matches: list[ConceptMatch], uses: list[WriteVerbUse]) -> list[ConceptMatch]:
+        kept, dropped = [], []
+        requests = [use for use in uses if not use.negated]
+        for match in matches:
+            if not self._privilege(match).at_least(Privilege.WRITE) or any(
+                self._requests(use, match.concept) for use in requests
+            ):
                 kept.append(match)
+            else:
+                dropped.append(match.concept)
         if dropped:
             self.contract.notes.append(
-                f"Dropped write-level concepts that no write verb in the use case asks for: {', '.join(dropped)}. "
-                "Say what the agent should change (for example 'open issues' or 'push commits') to grant them."
+                f"Dropped write-level concepts that no write request in the use case asks for: {', '.join(dropped)}. "
+                "Say what the agent should change, as a request, to grant them (for example 'open issues for bugs' "
+                "or 'push commits to <owner>/<repo>')."
             )
-        ignored = [verb for verb in negated if verb not in asked]
+        ignored = [f"{use.verb} {' '.join(use.objects)}".strip() for use in uses if use.negated]
         if ignored:
-            self.contract.notes.append(f"Ignored negated write verbs: {', '.join(ignored)}.")
+            self.contract.notes.append(f"Ignored negated write requests: {'; '.join(dict.fromkeys(ignored))}.")
         return kept
+
+    def _requests(self, use: WriteVerbUse, concept_id: str) -> bool:
+        """Whether one requested write verb asks for a concept: its verb and its object both fit."""
+        keywords = self.index.keywords(concept_id)
+        return use.verb in self._action_verbs(concept_id) and bool((keywords - {use.verb}) & set(use.objects))
+
+    def _action_verbs(self, concept_id: str) -> set[str]:
+        """Write verbs that ask for a concept: its write-verb keywords and its write operations' leading verbs."""
+        verbs = {term for term in self.index.keywords(concept_id) if term in WRITE_VERBS}
+        capabilities = self.graph.capabilities_for_concept(concept_id)
+        for operation in self.graph.operations_enabled_by(capabilities):
+            leading = operation.summary.split(maxsplit=1)[:1]
+            if operation.privilege.at_least(Privilege.WRITE) and leading and leading[0].lower() in WRITE_VERBS:
+                verbs.add(leading[0].lower())
+        return verbs
 
     def _drop_redundant(self, matches: list[ConceptMatch]) -> list[ConceptMatch]:
         kept, dropped = [], []
         for match in matches:
-            terms = set(match.matched_terms)
-            stronger = next(
-                (
-                    other
-                    for other in matches
-                    if other.score > match.score
-                    and terms <= set(other.matched_terms)
-                    and self._privilege(other).rank >= self._privilege(match).rank
-                ),
-                None,
-            )
+            stronger = next((other for other in matches if self._covers(other, match)), None)
             if stronger is None:
                 kept.append(match)
             else:
-                dropped.append(f"{match.concept} (explained by {stronger.concept})")
+                dropped.append(f"{match.concept} (covered by {stronger.concept})")
         if dropped:
             self.contract.notes.append(
-                f"Dropped concepts whose matched terms a stronger match explains: {', '.join(dropped)}."
+                f"Dropped concepts that a stronger match covers for every provider: {', '.join(dropped)}."
             )
         return kept
+
+    def _covers(self, other: ConceptMatch, match: ConceptMatch) -> bool:
+        if other.concept == match.concept or other.score <= match.score:
+            return False
+        if self._privilege(other).rank > self._privilege(match).rank:
+            return False  # never trade a lower-privilege concept for a higher one
+        if not set(match.matched_terms) <= set(other.matched_terms):
+            return False
+        for provider in _providers_realizing(self.graph, match.concept):
+            needed = self.graph.capabilities_for_concept(match.concept, provider)
+            granted = self.graph.capability_closure(self.graph.capabilities_for_concept(other.concept, provider))
+            if not set(needed) <= granted:
+                return False
+        return True
 
     def _privilege(self, match: ConceptMatch) -> Privilege:
         return self.graph.concepts[match.concept].privilege
@@ -274,10 +352,21 @@ class _UseCaseCompiler:
             if style == _OWNER_REPO:
                 if "/" in scope.namespace:
                     continue
-                binding = {"owner": scope.namespace, "repo": scope.name}
+                binding = {"owner": scope.namespace}
+                if scope.name is not None:
+                    binding["repo"] = scope.name
+            elif scope.name is None:
+                binding = {"namespace": scope.namespace}
             else:
                 full_path = f"{scope.namespace}/{scope.name}"
                 binding = {"id": full_path.replace("/", "%2F"), "namespace": scope.namespace, "project": scope.name}
+            if scope.name is None:
+                note = (
+                    f"The use case names {scope.namespace} on {provider} without a repository, so the grant is "
+                    f"not limited to one repository: it covers every repository of {scope.namespace}."
+                )
+                if note not in self.contract.notes:
+                    self.contract.notes.append(note)
             if binding not in found:
                 found.append(binding)
         return found or [{}]
@@ -391,11 +480,14 @@ def _providers_realizing(graph: Graph, concept_id: str) -> list[str]:
 # --- Scope extraction ------------------------------------------------------------
 
 
-def _extract_scopes(text: str, repository_hosts: dict[str, str], styles: dict[str, str]) -> tuple[list[_Scope], str]:
+def _extract_scopes(
+    text: str, repository_hosts: dict[str, str], styles: dict[str, str], vocabulary: frozenset[str]
+) -> tuple[list[_Scope], str]:
     """Find repository references and return them with the text they are blanked out of.
 
     Only the ``<owner>/<repo>`` part is blanked: the host still names the
     provider, and a trailing path such as ``/issues`` still describes intent.
+    ``vocabulary`` holds concept keyword terms: ``issues/PRs`` is not a repository.
     """
     scopes: list[_Scope] = []
     blanked = list(text)
@@ -411,7 +503,7 @@ def _extract_scopes(text: str, repository_hosts: dict[str, str], styles: dict[st
             continue
         span = _parse_url(token, repository_hosts, styles, scopes)
         if span is None and "://" not in token:
-            span = _parse_bare(token, scopes)
+            span = _parse_bare(token, vocabulary, scopes)
         if span is not None:
             first, last = span
             blanked[start + first : start + last] = " " * (last - first)
@@ -422,7 +514,12 @@ def _extract_scopes(text: str, repository_hosts: dict[str, str], styles: dict[st
 def _parse_url(
     token: str, repository_hosts: dict[str, str], styles: dict[str, str], scopes: list[_Scope]
 ) -> tuple[int, int] | None:
-    """Parse ``[https://]host/<path>`` on a repository host; return the span of the repository part."""
+    """Parse ``[https://]host/<path>`` on a repository host; return the span of the owner and repository part.
+
+    A path under a reserved root (``settings``, ``marketplace``, ``-``, ...)
+    names no repository; ``orgs/<owner>`` and ``users/<owner>`` name an owner.
+    A path with only an owner gives an owner-only scope.
+    """
     prefix = _SCHEME.match(token).end()
     slash = token.find("/", prefix)
     if slash <= prefix:
@@ -431,8 +528,14 @@ def _parse_url(
     provider = repository_hosts.get(host)
     if provider is None:
         return None
-    path = re.split(r"[?#]", token[slash + 1 :])[0]
-    segments = path.split("/")
+    nothing = (0, 0)  # A repository host without a repository: nothing to scope, nothing to blank.
+    path_start = slash + 1
+    segments = re.split(r"[?#]", token[path_start:])[0].split("/")
+    if segments[0].lower() in _OWNER_ROOTS and len(segments) > 1:
+        path_start += len(segments[0]) + 1
+        segments = segments[1:2]
+    elif segments[0].lower() in _RESERVED_ROOTS:
+        return nothing
     if styles[provider] == _OWNER_REPO:
         used = segments[:2]
     else:
@@ -441,34 +544,41 @@ def _parse_url(
             if segment == "-":
                 break
             used.append(segment)
-        while used and not used[-1]:
-            used.pop()
-    if len(used) < 2 or not all(_IDENTIFIER.fullmatch(segment) for segment in used):
-        return (0, 0)  # A repository host without a repository: nothing to scope, nothing to blank.
-    name = _strip_git(used[-1])
-    if not _IDENTIFIER.fullmatch(name):
-        return (0, 0)
-    scopes.append(_Scope(provider, "/".join(used[:-1]), name))
-    return slash + 1, slash + 1 + len("/".join(used))
+    while used and not used[-1]:
+        used.pop()
+    if not used or not all(_IDENTIFIER.fullmatch(segment) for segment in used):
+        return nothing
+    if len(used) == 1:
+        scopes.append(_Scope(provider, used[0], None))
+    else:
+        name = _strip_git(used[-1])
+        if not _IDENTIFIER.fullmatch(name):
+            return nothing
+        scopes.append(_Scope(provider, "/".join(used[:-1]), name))
+    return path_start, path_start + len("/".join(used))
 
 
-def _parse_bare(token: str, scopes: list[_Scope]) -> tuple[int, int] | None:
+def _parse_bare(token: str, vocabulary: frozenset[str], scopes: list[_Scope]) -> tuple[int, int] | None:
     """Parse a bare ``<owner>/<repo>`` token; return its span."""
     if token.count("/") != 1:
         return None
     owner, name = token.split("/")
     name = _strip_git(name)
-    if not (_looks_like_name(owner) and _looks_like_name(name)) or _TOP_LEVEL_DOMAIN.search(owner):
+    if _TOP_LEVEL_DOMAIN.search(owner) or not all(_looks_like_name(part, vocabulary) for part in (owner, name)):
         return None
     scopes.append(_Scope(None, owner, name))
     return 0, len(token)
 
 
-def _looks_like_name(part: str) -> bool:
+def _looks_like_name(part: str, vocabulary: frozenset[str]) -> bool:
+    lowered = part.lower()
     return (
         _IDENTIFIER.fullmatch(part) is not None
         and _LETTER.search(part) is not None
-        and part.lower() not in _NOT_REPOSITORY_WORDS
+        and lowered not in _NOT_REPOSITORY_WORDS
+        and lowered not in vocabulary
+        and stem(lowered) not in vocabulary
+        and _FILE_EXTENSION.search(part) is None
     )
 
 
