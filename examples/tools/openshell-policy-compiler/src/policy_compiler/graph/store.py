@@ -13,10 +13,12 @@ reference resolves, and builds the lookup indexes the queries use.
 from __future__ import annotations
 
 import copy
+import dataclasses
 import os
+import re
 from collections.abc import Callable, Iterable
-from pathlib import Path
 from enum import StrEnum
+from pathlib import Path
 from typing import Any, TypeVar
 
 import yaml
@@ -48,6 +50,11 @@ CATALOG_VERSION = 1
 _T = TypeVar("_T")
 _E = TypeVar("_E", bound=StrEnum)
 
+_REST_METHOD = re.compile(r"[A-Z]+|\*")
+"""Matched with ``fullmatch`` against the upper-cased method."""
+_SCHEMES = ("https", "http")
+_CAPABILITY_LEVELS = (Privilege.READ, Privilege.WRITE, Privilege.ADMIN)
+
 
 class CatalogError(Exception):
     """A catalog file is malformed, or the merged graph is inconsistent.
@@ -65,6 +72,30 @@ def base_catalog_dir() -> Path:
     """Return the base catalog directory, honoring ``POLICY_COMPILER_BASE_CATALOG``."""
     override = os.environ.get(BASE_CATALOG_ENV)
     return Path(override) if override else BASE_CATALOG_DIR
+
+
+class _UniqueKeyLoader(yaml.SafeLoader):
+    """A safe YAML loader that rejects a key repeated in one mapping.
+
+    PyYAML otherwise keeps the last value silently, so a second ``requires:``
+    would replace the first without notice. Merge keys (``<<``) are allowed.
+    """
+
+    def construct_mapping(self, node: yaml.MappingNode, deep: bool = False) -> dict:
+        seen: set[Any] = set()
+        for key_node, _value in node.value:
+            if not isinstance(key_node, yaml.ScalarNode) or key_node.tag == "tag:yaml.org,2002:merge":
+                continue
+            key = self.construct_object(key_node, deep=deep)
+            if key in seen:
+                raise yaml.constructor.ConstructorError(
+                    "while constructing a mapping",
+                    node.start_mark,
+                    f"found duplicate key {key!r}",
+                    key_node.start_mark,
+                )
+            seen.add(key)
+        return super().construct_mapping(node, deep=deep)
 
 
 # --- Parsing -------------------------------------------------------------------
@@ -137,11 +168,14 @@ class _Fields:
             raise self.error(f"must be a number from {low} to {high}", key)
         return float(value)
 
-    def choice(self, key: str, enum_type: type[_E], default: _E | None = None) -> _E:
+    def choice(
+        self, key: str, enum_type: type[_E], default: _E | None = None, *, only: Iterable[_E] | None = None
+    ) -> _E:
+        """An enum value, limited to the members in ``only`` when given."""
         if default is None and key not in self.data:
             raise self.error("is required", key)
         value = self.raw(key, default)
-        allowed = [member.value for member in enum_type]
+        allowed = [member.value for member in (only if only is not None else enum_type)]
         if value not in allowed:
             raise self.error(f"invalid value {value!r} (expected {' | '.join(allowed)})", key)
         return enum_type(value)
@@ -194,11 +228,12 @@ def _parse_provider(f: _Fields, layer: Layer) -> Provider:
 
 
 def _parse_origin(f: _Fields) -> Origin:
-    return Origin(
-        host=f.text("host", required=True),
-        port=f.integer("port", 443, 1, 65535),
-        scheme=f.text("scheme") or "https",
-    )
+    host = f.text("host", required=True)
+    port = f.integer("port", 443, 1, 65535)
+    scheme = f.text("scheme") or "https"
+    if scheme not in _SCHEMES:
+        raise f.error(f"invalid value {scheme!r} (expected {' | '.join(_SCHEMES)})", "scheme")
+    return Origin(host=host, port=port, scheme=scheme)
 
 
 def _parse_service(f: _Fields, layer: Layer) -> Service:
@@ -221,7 +256,7 @@ def _parse_capability(f: _Fields, layer: Layer) -> Capability:
         id=f.text("id", required=True),
         provider=f.text("provider", required=True),
         name=f.text("name", required=True),
-        level=f.choice("level", Privilege),
+        level=f.choice("level", Privilege, only=_CAPABILITY_LEVELS),
         implies=f.texts("implies"),
         description=f.text("description"),
         layer=layer,
@@ -238,6 +273,8 @@ def _parse_selector(f: _Fields) -> RestSelector | McpSelector:
     if not is_rest:
         raise f.error("needs mcp_tool, or method and path")
     method = f.text("method", required=True).upper()
+    if not _REST_METHOD.fullmatch(method):
+        raise f.error(f"invalid value {method!r} (expected an HTTP method such as GET, or *)", "method")
     path = f.text("path", required=True)
     if not path.startswith("/"):
         raise f.error("must start with '/'", "path")
@@ -345,14 +382,19 @@ def parse_catalog_document(data: dict, *, source: str, layer: Layer) -> CatalogD
     return doc
 
 
-def load_catalog_file(path: Path, *, layer: Layer) -> CatalogDocument:
-    """Read and parse one catalog file. Its source label is ``<directory name>/<file name>``."""
+def load_catalog_file(path: Path, *, layer: Layer, source: str | None = None) -> CatalogDocument:
+    """Read and parse one catalog file, rejecting keys repeated in one YAML mapping.
+
+    ``source`` labels the file and defaults to ``<directory name>/<file name>``.
+    ``load_graph`` passes labels that stay unique across catalog directories.
+    """
     path = Path(path)
     try:
-        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        with path.open(encoding="utf-8") as stream:
+            data = yaml.load(stream, Loader=_UniqueKeyLoader)  # a SafeLoader subclass
     except (OSError, yaml.YAMLError) as exc:
         raise CatalogError(f"{path}: cannot read catalog file: {exc}") from exc
-    return parse_catalog_document(data, source=f"{path.parent.name}/{path.name}", layer=layer)
+    return parse_catalog_document(data, source=source or f"{path.parent.name}/{path.name}", layer=layer)
 
 
 # --- Dumping -------------------------------------------------------------------
@@ -506,7 +548,13 @@ _SEMANTIC_FIELDS: dict[str, tuple[str, ...]] = {
     "capability": ("provider", "level"),
     "operation": ("service", "selector", "privilege"),
 }
-"""Fields that must agree for a repeated ID to merge. Concepts and clients never merge."""
+"""Fields that must agree for a repeated ID to merge. Concepts and clients never merge.
+
+When other fields differ, the first definition wins and an ``ignored-redefinition``
+warning names the fields that were ignored.
+"""
+
+_NOT_COMPARED = frozenset({"id", "layer", "evidence"})
 
 
 class Graph:
@@ -525,7 +573,8 @@ class Graph:
         self.concepts: dict[str, Concept] = {}
         self.clients: dict[str, Client] = {}
         self.diagnostics: list[Diagnostic] = []
-        """Info diagnostics from the last ``finalize()``."""
+        """Warnings and info diagnostics from the last ``finalize()``."""
+        self._redefinitions: list[Diagnostic] = []
         self._sources: dict[tuple[str, str], str] = {}
         self._pending_links: list[tuple[ConceptLink, str]] = []
         self._operations_by_service: dict[str, list[Operation]] = {}
@@ -537,9 +586,12 @@ class Graph:
     def add_document(self, doc: CatalogDocument) -> None:
         """Merge one document into the graph. The document itself is not modified.
 
-        A repeated ID merges its evidence into the existing node when the
-        semantic fields agree, and raises ``CatalogError`` naming both sources
-        otherwise. Service and capability IDs must start with ``<provider>.``.
+        A repeated ID merges into the existing node when the semantic fields
+        agree, and raises ``CatalogError`` naming both sources otherwise. When
+        other fields differ, the first definition wins, the later evidence is
+        noted as ignored for those fields, and ``finalize()`` reports an
+        ``ignored-redefinition`` warning. Service and capability IDs must start
+        with ``<provider>.``.
         """
         doc = copy.deepcopy(doc)
         source = doc.source or "<unnamed document>"
@@ -575,9 +627,30 @@ class Graph:
         if differing:
             raise CatalogError(
                 f"{kind} {node.id!r} is defined in {first} and differently in {source} "
-                f"({', '.join(differing)} differ)"
+                f"(differing fields: {', '.join(differing)})"
             )
-        for record in node.evidence:
+        ignored = [
+            field.name
+            for field in dataclasses.fields(node)
+            if field.name not in _NOT_COMPARED
+            and field.name not in fields
+            and getattr(existing, field.name) != getattr(node, field.name)
+        ]
+        records = node.evidence
+        if ignored:
+            names = ", ".join(ignored)
+            self._redefinitions.append(
+                Diagnostic(
+                    "warning",
+                    "ignored-redefinition",
+                    f"{kind} {node.id!r} in {source} differs from its definition in {first} "
+                    f"in {names}; the definition in {first} is kept",
+                    _locate(node),
+                )
+            )
+            note = f"redefinition ignored for: {names}"
+            records = [dataclasses.replace(r, note=f"{note}; {r.note}" if r.note else note) for r in records]
+        for record in records:
             if record not in existing.evidence:
                 existing.evidence.append(record)
 
@@ -587,8 +660,11 @@ class Graph:
         A concept link appends its capabilities to the concept's ``realized_by``
         (without duplicates, keeping order) and its evidence to the concept's
         evidence. Raises ``CatalogError`` listing every dangling reference and
-        operation prefix violation at once. Returns info diagnostics, also kept
-        in ``self.diagnostics``.
+        operation prefix violation at once.
+
+        Returns the diagnostics, also kept in ``self.diagnostics``:
+        ``ignored-redefinition`` and ``agent-layer-extends`` warnings, then
+        ``public-operation`` info.
         """
         problems = self._apply_concept_links()
         problems += self._reference_problems()
@@ -605,7 +681,7 @@ class Graph:
             for path in dict.fromkeys(client.paths):
                 self._clients_by_path.setdefault(path, []).append(client)
 
-        self.diagnostics = [
+        public = [
             Diagnostic(
                 "info",
                 "public-operation",
@@ -615,8 +691,37 @@ class Graph:
             for operation in self.operations.values()
             if not operation.requires
         ]
+        self.diagnostics = self._redefinitions + self._agent_layer_warnings() + public
         self._finalized = True
         return list(self.diagnostics)
+
+    def _agent_layer_warnings(self) -> list[Diagnostic]:
+        """Warn when an agent-layer operation reuses a service or capabilities from an earlier layer.
+
+        Such an operation changes what an existing base or org grant allows, so
+        a spec that an agent definition references deserves review.
+        """
+        warnings = []
+        for operation in self.operations.values():
+            if operation.layer is not Layer.AGENT:
+                continue
+            reasons = []
+            service = self.services[operation.service]
+            if service.layer is not Layer.AGENT:
+                reasons.append(f"it attaches to {service.layer.value}-layer service {service.id}")
+            required = list(dict.fromkeys(cap for group in operation.requires for cap in group))
+            if required and all(self.capabilities[cap].layer is not Layer.AGENT for cap in required):
+                reasons.append(f"only earlier-layer capabilities gate it ({', '.join(required)})")
+            if reasons:
+                warnings.append(
+                    Diagnostic(
+                        "warning",
+                        "agent-layer-extends",
+                        f"agent-layer operation {operation.id} extends earlier layers: {'; '.join(reasons)}",
+                        _locate(operation),
+                    )
+                )
+        return warnings
 
     def _apply_concept_links(self) -> list[str]:
         """Apply pending links. Links to unknown concepts stay pending and are reported."""
@@ -678,12 +783,17 @@ class Graph:
             raise RuntimeError("call Graph.finalize() after adding documents and before querying")
 
     def services_for(self, host: str, port: int) -> list[Service]:
-        """Services with an origin on ``host`` (case-insensitive, host patterns allowed) and ``port``."""
+        """Services with an origin that serves ``host`` on ``port``.
+
+        ``host`` must be a concrete host name, not a pattern. It matches
+        literal origin hosts and origin host patterns such as ``*.example.com``
+        through ``paths.host_matches``, ignoring case and a trailing dot.
+        """
         self._check_finalized()
         return [
             service
             for service in self.services.values()
-            if any(origin.port == port and _host_matches(origin.host, host) for origin in service.origins)
+            if any(origin.port == port and paths.host_matches(origin.host, host) for origin in service.origins)
         ]
 
     def operations_of(self, service_id: str) -> list[Operation]:
@@ -783,12 +893,6 @@ def _check_prefix(kind: str, node_id: str, provider: str, source: str) -> None:
         raise CatalogError(f"{source}: {kind} {node_id!r} must start with {provider + '.'!r}, its provider ID")
 
 
-def _host_matches(origin_host: str, host: str) -> bool:
-    if "*" in origin_host:
-        return paths.host_matches(origin_host, host)
-    return origin_host.lower() == host.lower()
-
-
 def _locate(node: Any) -> str:
     """``source#pointer`` of a node's first evidence record, or ``""``."""
     if not node.evidence:
@@ -817,13 +921,20 @@ def load_graph(
     Layer order: the base catalog (``Layer.BASE``) when ``include_base``, then
     each directory in ``catalog_dirs`` (``Layer.ORG``), then ``extra_documents``,
     whose nodes keep their own layer. Files in a directory load in sorted order.
+
+    Source labels stay unique across directories: ``base/<file>`` for the base
+    catalog, wherever it lives, and ``org<n>:<directory name>/<file>`` for the
+    n-th catalog directory, counting from 1.
     """
     graph = Graph()
-    directories = [(base_catalog_dir(), Layer.BASE)] if include_base else []
-    directories += [(Path(directory), Layer.ORG) for directory in catalog_dirs]
-    for directory, layer in directories:
+    directories = [(base_catalog_dir(), Layer.BASE, "base")] if include_base else []
+    directories += [
+        (Path(directory), Layer.ORG, f"org{position}:{Path(directory).name}")
+        for position, directory in enumerate(catalog_dirs, start=1)
+    ]
+    for directory, layer, label in directories:
         for path in _catalog_files(directory):
-            graph.add_document(load_catalog_file(path, layer=layer))
+            graph.add_document(load_catalog_file(path, layer=layer, source=f"{label}/{path.name}"))
     for doc in extra_documents:
         graph.add_document(doc)
     graph.finalize()

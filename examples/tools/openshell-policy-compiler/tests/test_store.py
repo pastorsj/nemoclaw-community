@@ -7,6 +7,7 @@ import pytest
 import yaml
 
 from policy_compiler.graph.model import (
+    Capability,
     CatalogDocument,
     Concept,
     McpSelector,
@@ -14,6 +15,7 @@ from policy_compiler.graph.model import (
     Origin,
     Provider,
     RestSelector,
+    Service,
 )
 from policy_compiler.graph.store import (
     BASE_CATALOG_DIR,
@@ -117,6 +119,21 @@ FULL_DOC = {
 }
 
 
+def _operation(**fields):
+    """A one-operation catalog document with the given fields replacing or adding to a valid entry."""
+    entry = {"id": "a.x", "service": "a.s", "method": "GET", "path": "/", "privilege": "read"}
+    entry.update(fields)
+    return {"catalog_version": 1, "operations": [entry]}
+
+
+def _capability(level):
+    return {"catalog_version": 1, "capabilities": [{"id": "a.c", "provider": "a", "name": "C", "level": level}]}
+
+
+def _service(origin):
+    return {"catalog_version": 1, "services": [{"id": "a.s", "provider": "a", "name": "S", "origins": [origin]}]}
+
+
 def _doc(data, source="test.yaml", layer=Layer.ORG):
     return parse_catalog_document(copy.deepcopy(data), source=source, layer=layer)
 
@@ -210,7 +227,13 @@ def test_parse_records_curated_and_explicit_evidence_and_layer():
             },
             "requires",
         ),
-        ({"catalog_version": 1, "capabilities": [{"id": "a.c", "provider": "a", "name": "C", "level": "rw"}]}, "rw"),
+        (_capability("rw"), "rw"),
+        (_capability("unknown"), "unknown"),
+        (_operation(require=[["a.c:read"]]), "unknown key.*require"),
+        (_operation(method="GET /x"), "method"),
+        (_operation(method="g3t"), "method"),
+        (_operation(method="GET\n"), "method"),
+        (_service({"host": "h", "scheme": "ftp"}), "scheme"),
     ],
 )
 def test_parse_rejects_malformed_documents(data, fragment):
@@ -218,13 +241,26 @@ def test_parse_rejects_malformed_documents(data, fragment):
         parse_catalog_document(data, source="bad.yaml", layer=Layer.ORG)
 
 
-def test_dump_round_trips_github_catalog():
-    data = yaml.safe_load((BASE_CATALOG_DIR / "github.yaml").read_text())
-    doc = parse_catalog_document(data, source="base/github.yaml", layer=Layer.BASE)
+@pytest.mark.parametrize("method", ["get", "PATCH", "*"])
+def test_parse_accepts_word_methods_and_wildcard(method):
+    doc = parse_catalog_document(_operation(method=method), source="ok.yaml", layer=Layer.ORG)
+    assert doc.operations[0].selector.method == method.upper()
+
+
+def test_parse_accepts_http_origins():
+    data = _service({"host": "h", "port": 80, "scheme": "http"})
+    doc = parse_catalog_document(data, source="ok.yaml", layer=Layer.ORG)
+    assert doc.services[0].origins == [Origin("h", 80, "http")]
+
+
+@pytest.mark.parametrize("path", sorted(BASE_CATALOG_DIR.glob("*.yaml")), ids=lambda p: p.name)
+def test_dump_round_trips_every_base_catalog_file(path):
+    data = yaml.safe_load(path.read_text())
+    doc = parse_catalog_document(data, source=f"base/{path.name}", layer=Layer.BASE)
     dumped = dump_catalog_document(doc)
     assert dumped["catalog_version"] == 1
     reloaded = yaml.safe_load(yaml.safe_dump(dumped))
-    again = parse_catalog_document(reloaded, source="base/github.yaml", layer=Layer.BASE)
+    again = parse_catalog_document(reloaded, source=f"base/{path.name}", layer=Layer.BASE)
     assert _without_evidence(again) == _without_evidence(doc)
     assert again == doc  # the curated record is regenerated, so evidence matches too
 
@@ -252,6 +288,36 @@ def test_load_catalog_file_labels_source_with_directory(tmp_path):
         load_catalog_file(path, layer=Layer.ORG)
 
 
+def test_load_catalog_file_rejects_duplicate_yaml_keys(tmp_path):
+    path = tmp_path / "dup.yaml"
+    path.write_text(
+        "catalog_version: 1\n"
+        "operations:\n"
+        "  - id: a.x\n"
+        "    service: a.s\n"
+        "    method: GET\n"
+        "    path: /\n"
+        "    privilege: read\n"
+        "    requires: [[a.c:read]]\n"
+        "    requires: []\n"
+    )
+    with pytest.raises(CatalogError, match=r"(?s)dup\.yaml.*duplicate key 'requires'.*line 9"):
+        load_catalog_file(path, layer=Layer.ORG)
+
+
+def test_load_catalog_file_allows_yaml_merge_keys(tmp_path):
+    path = tmp_path / "merge.yaml"
+    path.write_text(
+        "catalog_version: 1\n"
+        "providers:\n"
+        "  - &acme {id: acme, name: ACME}\n"
+        "  - <<: *acme\n"
+        "    id: acme2\n"
+    )
+    doc = load_catalog_file(path, layer=Layer.ORG)
+    assert [(p.id, p.name) for p in doc.providers] == [("acme", "ACME"), ("acme2", "ACME")]
+
+
 # --- merging and validation ------------------------------------------------
 
 
@@ -264,7 +330,8 @@ def test_base_catalog_loads_and_finalizes(base):
     assert base.diagnostics
     assert all(d.level == "info" for d in base.diagnostics)
     public = [d for d in base.diagnostics if d.code == "public-operation"]
-    assert [d.message.split()[1] for d in public] == ["github.search.code"]
+    assert len(public) == 1
+    assert "github.search.code" in public[0].message
 
 
 def test_duplicate_conflicting_id_raises_naming_both_sources():
@@ -274,12 +341,15 @@ def test_duplicate_conflicting_id_raises_naming_both_sources():
     second = _doc({"catalog_version": 1, "capabilities": changed["capabilities"][:1]}, source="two.yaml")
     graph = Graph()
     graph.add_document(first)
-    with pytest.raises(CatalogError, match=r"acme\.orders:read.*one\.yaml.*two\.yaml"):
+    with pytest.raises(CatalogError, match=r"acme\.orders:read.*one\.yaml.*two\.yaml.*differing fields: level"):
         graph.add_document(second)
 
 
+_MERGEABLE = ("catalog_version", "providers", "services", "capabilities", "operations")
+
+
 def test_identical_duplicate_merges_evidence():
-    data = {key: FULL_DOC[key] for key in ("catalog_version", "providers", "services", "capabilities", "operations")}
+    data = {key: FULL_DOC[key] for key in _MERGEABLE}
     graph = _graph(_doc(data, source="one.yaml"), _doc(data, source="two.yaml", layer=Layer.AGENT))
     op = graph.operations["acme.orders.get"]
     assert op.layer is Layer.ORG
@@ -289,6 +359,33 @@ def test_identical_duplicate_merges_evidence():
         "catalog:two.yaml",
     ]
     assert [ev.source for ev in graph.providers["acme"].evidence] == ["catalog:one.yaml", "catalog:two.yaml"]
+    assert not [d for d in graph.diagnostics if d.code == "ignored-redefinition"]
+
+
+def test_duplicate_with_other_differences_merges_and_warns():
+    data = {key: FULL_DOC[key] for key in _MERGEABLE}
+    changed = copy.deepcopy(data)
+    changed["operations"][0]["requires"] = [["acme.orders:write"]]
+    changed["operations"][0]["summary"] = "Fetch an order"
+    changed["capabilities"][0]["implies"] = ["acme.orders:write"]
+    del changed["operations"][0]["evidence"]
+    graph = _graph(_doc(data, source="one.yaml"), _doc(changed, source="two.yaml"))
+
+    op = graph.operations["acme.orders.get"]
+    assert op.requires == [["acme.orders:read"]]  # the first definition wins
+    assert op.summary == "Get an order"
+    assert graph.capabilities["acme.orders:read"].implies == []
+    later = op.evidence[-1]
+    assert later.source == "catalog:two.yaml"
+    assert later.note == "redefinition ignored for: requires, summary"
+
+    warnings = [d for d in graph.diagnostics if d.code == "ignored-redefinition"]
+    assert [d.level for d in warnings] == ["warning", "warning"]
+    capability_warning, operation_warning = warnings
+    for text in ("acme.orders.get", "requires, summary", "one.yaml", "two.yaml"):
+        assert text in operation_warning.message
+    assert "acme.orders:read" in capability_warning.message and "implies" in capability_warning.message
+    assert operation_warning.pointer == "catalog:two.yaml#operations[0]"
 
 
 @pytest.mark.parametrize("section", ["concepts", "clients"])
@@ -365,6 +462,15 @@ def test_finalize_keeps_reporting_a_link_to_an_unknown_concept():
             graph.finalize()
 
 
+def test_finalize_rejects_an_empty_and_list_in_code_built_documents():
+    doc = _doc(FULL_DOC)
+    doc.operations[0].requires = [[]]
+    graph = Graph()
+    graph.add_document(doc)
+    with pytest.raises(CatalogError, match="acme.orders.get: requires contains an empty AND-list"):
+        graph.finalize()
+
+
 # --- queries ---------------------------------------------------------------
 
 
@@ -381,6 +487,14 @@ def test_capability_closure_is_transitive(base):
         "github.contents:read",
         "github.metadata:read",
     }
+
+
+def test_capability_closure_terminates_on_an_implies_cycle():
+    data = copy.deepcopy(FULL_DOC)
+    data["capabilities"][0]["implies"] = ["acme.orders:write"]  # read <-> write
+    graph = _graph(_doc(data))
+    assert graph.capability_closure(["acme.orders:read"]) == {"acme.orders:read", "acme.orders:write"}
+    assert [op.id for op in graph.operations_enabled_by({"acme.orders:read"})] == ["acme.orders.get"]
 
 
 def test_operations_enabled_by_follows_implies_and_skips_public_operations(base):
@@ -441,6 +555,21 @@ def test_match_rest_unknown_host_or_port_is_empty(base):
     assert base.match_rest("api.github.com", 80, "GET", "/repos/a/b") == []
 
 
+def test_match_rest_matches_a_catalogued_wildcard_method():
+    data = copy.deepcopy(FULL_DOC)
+    data["operations"][0]["method"] = "*"
+    graph = _graph(_doc(data))
+    matches = graph.match_rest("orders.internal.example", 8443, "DELETE", "/v1/orders/42")
+    assert [(op.id, glob) for op, glob in matches] == [("acme.orders.get", "/v1/orders/42")]
+
+
+def test_match_rest_skips_mcp_operations():
+    graph = _graph(_doc(FULL_DOC))
+    assert [op.id for op in graph.operations_of("acme.tools")] == ["acme.tools.search"]
+    assert graph.match_rest("tools.internal.example", 443, "*", "/") == []
+    assert graph.match_rest("tools.internal.example", 443, "*", "/search") == []
+
+
 def test_wildcard_origin_hosts_match_through_host_patterns():
     data = copy.deepcopy(FULL_DOC)
     data["services"][0]["origins"] = [{"host": "*.orders.example", "port": 443}]
@@ -453,6 +582,7 @@ def test_wildcard_origin_hosts_match_through_host_patterns():
 
 def test_services_and_operations_lookups(base):
     assert [s.id for s in base.services_for("gitlab.com", 443)] == ["gitlab.rest", "gitlab.git"]
+    assert [s.id for s in base.services_for("API.GitHub.com.", 443)] == ["github.rest"]  # trailing dot
     assert [op.id for op in base.operations_of("github.codeload")] == ["github.codeload.get-archive"]
     assert base.operations_of("no.such.service") == []
 
@@ -493,7 +623,18 @@ def test_load_graph_layers_org_dirs_and_extra_documents(tmp_path):
     assert graph.providers["acme"].layer is Layer.ORG
     assert graph.providers["agent"].layer is Layer.AGENT
     assert graph.concepts["source-code.read"].realized_by[-1] == "acme.orders:read"
-    assert graph.operations["acme.orders.get"].evidence[0].source == "catalog:acme-catalog/acme.yml"
+    assert graph.operations["acme.orders.get"].evidence[0].source == "catalog:org1:acme-catalog/acme.yml"
+
+
+def test_org_source_labels_distinguish_directories_with_the_same_name(tmp_path):
+    provider = {"catalog_version": 1, "providers": [{"id": "acme", "name": "ACME"}]}
+    _write_catalog(tmp_path / "one" / "catalog", "acme.yaml", provider)
+    _write_catalog(tmp_path / "two" / "catalog", "acme.yaml", provider)
+    graph = load_graph([tmp_path / "one" / "catalog", tmp_path / "two" / "catalog"], include_base=False)
+    assert [ev.source for ev in graph.providers["acme"].evidence] == [
+        "catalog:org1:catalog/acme.yaml",
+        "catalog:org2:catalog/acme.yaml",
+    ]
 
 
 def test_load_graph_loads_files_in_sorted_order(tmp_path):
@@ -511,7 +652,7 @@ def test_load_graph_missing_directory_raises(tmp_path):
 
 
 def test_base_catalog_dir_env_override(monkeypatch, tmp_path):
-    custom = tmp_path / "base"
+    custom = tmp_path / "custom-base"
     _write_catalog(custom, "acme.yaml", FULL_DOC)
     monkeypatch.setenv("POLICY_COMPILER_BASE_CATALOG", str(custom))
     graph = load_graph()
@@ -521,19 +662,62 @@ def test_base_catalog_dir_env_override(monkeypatch, tmp_path):
     assert load_graph(include_base=False).providers == {}
 
 
-def test_extra_documents_are_validated_against_earlier_layers():
+def _agent_operation(op_id, service, requires):
+    return Operation(
+        id=op_id,
+        service=service,
+        selector=RestSelector("GET", "/v1/things"),
+        privilege=Privilege.READ,
+        requires=requires,
+        layer=Layer.AGENT,
+    )
+
+
+def _agent_layer_warnings(graph):
+    warnings = [d for d in graph.diagnostics if d.code == "agent-layer-extends"]
+    assert all(d.level == "warning" for d in warnings)
+    return warnings
+
+
+def test_agent_operation_on_an_earlier_layer_service_loads_with_a_warning():
     agent = CatalogDocument(
-        operations=[
-            Operation(
-                id="github.repos.get-alias",
-                service="github.rest",
-                selector=RestSelector("GET", "/repos/{owner}/{repo}"),
-                privilege=Privilege.READ,
-                requires=[["github.metadata:read"]],
-                layer=Layer.AGENT,
-            )
+        operations=[_agent_operation("github.things.list", "github.rest", [["github.metadata:read"]])],
+        source="agent-spec-ref:things.yaml",
+    )
+    graph = load_graph(extra_documents=[agent])
+    assert graph.operations["github.things.list"].layer is Layer.AGENT
+    (warning,) = _agent_layer_warnings(graph)
+    assert "github.things.list" in warning.message and "github.rest" in warning.message
+
+
+def test_agent_operation_gated_only_by_earlier_layer_capabilities_warns():
+    agent = CatalogDocument(
+        providers=[Provider(id="things", name="Things", layer=Layer.AGENT)],
+        services=[
+            Service(id="things.api", provider="things", name="Things API", origins=[Origin("things.example")],
+                    layer=Layer.AGENT)
         ],
-        concepts=[Concept(id="x.read", name="X", privilege=Privilege.READ, realized_by=["github.nope"])],
+        capabilities=[
+            Capability(id="things.use", provider="things", name="Use", level=Privilege.READ, layer=Layer.AGENT)
+        ],
+        operations=[
+            _agent_operation("things.borrowed", "things.api", [["github.contents:read"]]),
+            _agent_operation("things.own", "things.api", [["things.use"]]),
+            _agent_operation("things.mixed", "things.api", [["things.use", "github.contents:read"]]),
+            _agent_operation("things.public", "things.api", []),
+        ],
+        source="agent-spec-ref:things.yaml",
+    )
+    graph = load_graph(extra_documents=[agent])
+    (warning,) = _agent_layer_warnings(graph)
+    assert "things.borrowed" in warning.message and "github.contents:read" in warning.message
+
+
+def test_extra_documents_with_dangling_references_raise():
+    agent = CatalogDocument(
+        concepts=[
+            Concept(id="x.read", name="X", privilege=Privilege.READ, realized_by=["github.nope"], layer=Layer.AGENT)
+        ],
         source="agent",
     )
     with pytest.raises(CatalogError, match="github.nope"):
