@@ -1,0 +1,337 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# A hand-curated slice of GitHub. Capability names follow GitHub's fine-grained
+# personal access token permissions, as listed on each REST endpoint's
+# documentation page. Import the full permission data with
+# `policy-compiler import github-permissions` for complete coverage.
+
+catalog_version: 1
+
+providers:
+  - id: github
+    name: GitHub
+    description: GitHub.com REST API, Git over HTTPS, and raw file hosting.
+
+services:
+  - id: github.rest
+    provider: github
+    name: GitHub REST API
+    origins:
+      - host: api.github.com
+  - id: github.git
+    provider: github
+    name: Git smart HTTP
+    description: Clone, fetch, and push over HTTPS. Clone and fetch use POST git-upload-pack.
+    origins:
+      - host: github.com
+  - id: github.raw
+    provider: github
+    name: Raw file content
+    origins:
+      - host: raw.githubusercontent.com
+  - id: github.codeload
+    provider: github
+    name: Archive downloads
+    description: Target of the tarball and zipball redirects.
+    origins:
+      - host: codeload.github.com
+
+capabilities:
+  - id: github.metadata:read
+    provider: github
+    name: Metadata (read)
+    level: read
+    description: Repository metadata such as the description, languages, and topics.
+  - id: github.contents:read
+    provider: github
+    name: Contents (read)
+    level: read
+    implies: [github.metadata:read]
+    description: Repository files, commits, branches, trees, and archives.
+  - id: github.contents:write
+    provider: github
+    name: Contents (write)
+    level: write
+    implies: [github.contents:read]
+    description: Create, update, and delete files; push commits.
+  - id: github.issues:read
+    provider: github
+    name: Issues (read)
+    level: read
+    implies: [github.metadata:read]
+  - id: github.issues:write
+    provider: github
+    name: Issues (write)
+    level: write
+    implies: [github.issues:read]
+  - id: github.pull_requests:read
+    provider: github
+    name: Pull requests (read)
+    level: read
+    implies: [github.metadata:read]
+  - id: github.pull_requests:write
+    provider: github
+    name: Pull requests (write)
+    level: write
+    implies: [github.pull_requests:read]
+  - id: github.administration:write
+    provider: github
+    name: Administration (write)
+    level: admin
+    implies: [github.metadata:read]
+    description: Repository settings, deletion, and collaborators.
+
+operations:
+  # Metadata
+  - id: github.repos.get
+    service: github.rest
+    method: GET
+    path: /repos/{owner}/{repo}
+    privilege: read
+    requires: [[github.metadata:read]]
+    summary: Get a repository's description, default branch, and statistics.
+    tags: [repos]
+  - id: github.repos.list-languages
+    service: github.rest
+    method: GET
+    path: /repos/{owner}/{repo}/languages
+    privilege: read
+    requires: [[github.metadata:read]]
+    summary: List the programming languages used in a repository.
+    tags: [repos]
+
+  # Contents
+  - id: github.repos.get-content
+    service: github.rest
+    method: GET
+    path: /repos/{owner}/{repo}/contents/{path}
+    multi_segment: [path]
+    privilege: read
+    requires: [[github.contents:read]]
+    summary: Get a file or directory listing from a repository.
+    tags: [contents, files, code]
+  - id: github.repos.get-readme
+    service: github.rest
+    method: GET
+    path: /repos/{owner}/{repo}/readme
+    privilege: read
+    requires: [[github.contents:read]]
+    summary: Get the repository README.
+    tags: [contents, documentation]
+  - id: github.repos.list-commits
+    service: github.rest
+    method: GET
+    path: /repos/{owner}/{repo}/commits
+    privilege: read
+    requires: [[github.contents:read]]
+    summary: List commits and their history.
+    tags: [commits, history]
+  - id: github.repos.get-commit
+    service: github.rest
+    method: GET
+    path: /repos/{owner}/{repo}/commits/{ref}
+    privilege: read
+    requires: [[github.contents:read]]
+    summary: Get one commit with its diff.
+    tags: [commits, history]
+  - id: github.git.get-tree
+    service: github.rest
+    method: GET
+    path: /repos/{owner}/{repo}/git/trees/{tree_sha}
+    privilege: read
+    requires: [[github.contents:read]]
+    summary: Get the file tree of a commit, optionally recursively.
+    tags: [contents, tree, code]
+  - id: github.repos.download-tarball
+    service: github.rest
+    method: GET
+    path: /repos/{owner}/{repo}/tarball/{ref}
+    privilege: read
+    requires: [[github.contents:read]]
+    summary: Download a source archive. Redirects to codeload.github.com.
+    tags: [contents, archive]
+  - id: github.markdown.render
+    service: github.rest
+    method: POST
+    path: /markdown
+    privilege: read
+    requires: [[github.contents:read]]
+    summary: Render Markdown to HTML. A POST that GitHub classifies as read access.
+    tags: [markdown]
+  - id: github.repos.put-content
+    service: github.rest
+    method: PUT
+    path: /repos/{owner}/{repo}/contents/{path}
+    multi_segment: [path]
+    privilege: write
+    # GitHub also requires workflows:write for files under .github/workflows.
+    requires: [[github.contents:write]]
+    summary: Create or update a file in a repository.
+    tags: [contents, files, code]
+  - id: github.repos.delete-content
+    service: github.rest
+    method: DELETE
+    path: /repos/{owner}/{repo}/contents/{path}
+    multi_segment: [path]
+    privilege: write
+    requires: [[github.contents:write]]
+    summary: Delete a file from a repository.
+    tags: [contents, files]
+
+  # Search (fine-grained permissions are not required for public repositories)
+  - id: github.search.code
+    service: github.rest
+    method: GET
+    path: /search/code
+    privilege: read
+    requires: []
+    summary: Search code across repositories. The repository filter is in the query string.
+    tags: [search, code]
+
+  # Issues
+  - id: github.issues.list
+    service: github.rest
+    method: GET
+    path: /repos/{owner}/{repo}/issues
+    privilege: read
+    requires: [[github.issues:read]]
+    summary: List issues in a repository.
+    tags: [issues]
+  - id: github.issues.get
+    service: github.rest
+    method: GET
+    path: /repos/{owner}/{repo}/issues/{issue_number}
+    privilege: read
+    requires: [[github.issues:read]]
+    summary: Get one issue.
+    tags: [issues]
+  - id: github.issues.list-comments
+    service: github.rest
+    method: GET
+    path: /repos/{owner}/{repo}/issues/{issue_number}/comments
+    privilege: read
+    requires: [[github.issues:read], [github.pull_requests:read]]
+    summary: List comments on an issue or pull request.
+    tags: [issues, comments]
+  - id: github.issues.create
+    service: github.rest
+    method: POST
+    path: /repos/{owner}/{repo}/issues
+    privilege: write
+    requires: [[github.issues:write]]
+    summary: Open a new issue.
+    tags: [issues]
+  - id: github.issues.create-comment
+    service: github.rest
+    method: POST
+    path: /repos/{owner}/{repo}/issues/{issue_number}/comments
+    privilege: write
+    requires: [[github.issues:write], [github.pull_requests:write]]
+    summary: Comment on an issue or pull request.
+    tags: [issues, comments]
+
+  # Pull requests
+  - id: github.pulls.list
+    service: github.rest
+    method: GET
+    path: /repos/{owner}/{repo}/pulls
+    privilege: read
+    requires: [[github.pull_requests:read]]
+    summary: List pull requests.
+    tags: [pulls, review]
+  - id: github.pulls.get
+    service: github.rest
+    method: GET
+    path: /repos/{owner}/{repo}/pulls/{pull_number}
+    privilege: read
+    requires: [[github.pull_requests:read]]
+    summary: Get one pull request.
+    tags: [pulls, review]
+  - id: github.pulls.list-files
+    service: github.rest
+    method: GET
+    path: /repos/{owner}/{repo}/pulls/{pull_number}/files
+    privilege: read
+    requires: [[github.pull_requests:read]]
+    summary: List the files changed in a pull request.
+    tags: [pulls, review, diff]
+  - id: github.pulls.create
+    service: github.rest
+    method: POST
+    path: /repos/{owner}/{repo}/pulls
+    privilege: write
+    requires: [[github.pull_requests:write]]
+    summary: Open a pull request.
+    tags: [pulls]
+
+  # Administration
+  - id: github.repos.delete
+    service: github.rest
+    method: DELETE
+    path: /repos/{owner}/{repo}
+    privilege: admin
+    requires: [[github.administration:write]]
+    summary: Delete a repository.
+    tags: [repos, admin]
+
+  # Git over HTTPS
+  - id: github.git.info-refs
+    service: github.git
+    method: GET
+    path: /{owner}/{repo}.git/info/refs
+    privilege: read
+    requires: [[github.contents:read]]
+    summary: Discover refs before a clone, fetch, or push.
+    tags: [git, clone]
+  - id: github.git.upload-pack
+    service: github.git
+    method: POST
+    path: /{owner}/{repo}.git/git-upload-pack
+    privilege: read
+    requires: [[github.contents:read]]
+    summary: Clone or fetch. A POST that only reads.
+    tags: [git, clone, fetch]
+  - id: github.git.receive-pack
+    service: github.git
+    method: POST
+    path: /{owner}/{repo}.git/git-receive-pack
+    privilege: write
+    requires: [[github.contents:write]]
+    summary: Push commits.
+    tags: [git, push]
+
+  # Raw files and archives
+  - id: github.raw.get-file
+    service: github.raw
+    method: GET
+    path: /{owner}/{repo}/{ref}/{path}
+    multi_segment: [path]
+    privilege: read
+    requires: [[github.contents:read]]
+    summary: Download one file at a ref.
+    tags: [contents, files, code]
+  - id: github.codeload.get-archive
+    service: github.codeload
+    method: GET
+    path: /{owner}/{repo}/legacy.tar.gz/{ref}
+    multi_segment: [ref]
+    privilege: read
+    requires: [[github.contents:read]]
+    summary: Download a source archive after the API redirect.
+    tags: [contents, archive]
+
+clients:
+  - id: git
+    paths: [/usr/bin/git]
+    description: Git command-line client. Clone and fetch read through git-upload-pack.
+    can_exfiltrate: true
+    uses:
+      - when_capability: [github.contents:read]
+        operations: [github.git.info-refs, github.git.upload-pack]
+      - when_capability: [github.contents:write]
+        operations: [github.git.receive-pack]
+  - id: gh
+    paths: [/usr/bin/gh]
+    description: GitHub command-line client. Calls the REST and GraphQL APIs.
+    can_exfiltrate: true

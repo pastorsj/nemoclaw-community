@@ -1,0 +1,27 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+[project]
+name = "openshell-policy-compiler"
+version = "0.1.0"
+description = "Compile agent definitions and API knowledge into least-privilege OpenShell policies."
+requires-python = ">=3.11"
+license = "Apache-2.0"
+dependencies = ["pyyaml>=6,<7"]
+
+[project.scripts]
+policy-compiler = "policy_compiler.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/policy_compiler"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

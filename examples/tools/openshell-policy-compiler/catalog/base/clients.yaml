@@ -1,0 +1,29 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# General-purpose client binaries. The flags mirror the OpenShell prover's
+# binary registry: `bypasses_l7` marks protocols OpenShell cannot inspect, and
+# `can_exfiltrate` marks binaries that can send arbitrary data. Paths are common
+# defaults; the real path depends on the sandbox image, so pass `--client` with
+# the path that `readlink -f "$(command -v <binary>)"` prints inside the sandbox.
+
+catalog_version: 1
+
+clients:
+  - id: curl
+    paths: [/usr/bin/curl]
+    description: Command-line HTTP client.
+    can_exfiltrate: true
+  - id: python3
+    paths: [/usr/bin/python3]
+    description: Python interpreter. Runs Agent Spec runtimes such as LangGraph adapters.
+    can_exfiltrate: true
+  - id: node
+    paths: [/usr/bin/node, /usr/local/bin/node]
+    description: Node.js runtime.
+    can_exfiltrate: true
+  - id: ssh
+    paths: [/usr/bin/ssh]
+    description: SSH client. OpenShell cannot inspect SSH traffic.
+    bypasses_l7: true
+    can_exfiltrate: true

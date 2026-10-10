@@ -1,0 +1,113 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# A hand-curated slice of GitLab.com. Capability names follow GitLab personal
+# access token scopes. GitLab scopes are coarse: `api` grants complete read and
+# write access, so the narrowness comes from the method and path rules.
+
+catalog_version: 1
+
+providers:
+  - id: gitlab
+    name: GitLab
+    description: GitLab.com REST API v4 and Git over HTTPS.
+
+services:
+  - id: gitlab.rest
+    provider: gitlab
+    name: GitLab REST API v4
+    origins:
+      - host: gitlab.com
+  - id: gitlab.git
+    provider: gitlab
+    name: Git smart HTTP
+    origins:
+      - host: gitlab.com
+
+capabilities:
+  - id: gitlab.read_api
+    provider: gitlab
+    name: read_api scope
+    level: read
+  - id: gitlab.read_repository
+    provider: gitlab
+    name: read_repository scope
+    level: read
+    description: Read repositories over Git and the repository files API.
+  - id: gitlab.write_repository
+    provider: gitlab
+    name: write_repository scope
+    level: write
+    implies: [gitlab.read_repository]
+  - id: gitlab.api
+    provider: gitlab
+    name: api scope
+    level: admin
+    implies: [gitlab.read_api, gitlab.read_repository, gitlab.write_repository]
+    description: Complete read and write access to the API.
+
+operations:
+  - id: gitlab.projects.get
+    service: gitlab.rest
+    method: GET
+    path: /api/v4/projects/{id}
+    privilege: read
+    requires: [[gitlab.read_api]]
+    summary: Get a project.
+    tags: [projects]
+  - id: gitlab.repository.tree
+    service: gitlab.rest
+    method: GET
+    path: /api/v4/projects/{id}/repository/tree
+    privilege: read
+    requires: [[gitlab.read_api], [gitlab.read_repository]]
+    summary: List repository files and directories.
+    tags: [repository, tree, code]
+  - id: gitlab.repository.get-file
+    service: gitlab.rest
+    method: GET
+    path: /api/v4/projects/{id}/repository/files/{file_path}
+    privilege: read
+    requires: [[gitlab.read_api], [gitlab.read_repository]]
+    summary: Get a file. The file path is URL-encoded into one segment.
+    tags: [repository, files, code]
+  - id: gitlab.repository.get-raw-file
+    service: gitlab.rest
+    method: GET
+    path: /api/v4/projects/{id}/repository/files/{file_path}/raw
+    privilege: read
+    requires: [[gitlab.read_api], [gitlab.read_repository]]
+    summary: Get raw file content.
+    tags: [repository, files, code]
+  - id: gitlab.issues.create
+    service: gitlab.rest
+    method: POST
+    path: /api/v4/projects/{id}/issues
+    privilege: write
+    requires: [[gitlab.api]]
+    summary: Open an issue.
+    tags: [issues]
+  - id: gitlab.git.info-refs
+    service: gitlab.git
+    method: GET
+    path: /{namespace}/{project}.git/info/refs
+    privilege: read
+    requires: [[gitlab.read_repository]]
+    summary: Discover refs before a clone or fetch.
+    tags: [git, clone]
+  - id: gitlab.git.upload-pack
+    service: gitlab.git
+    method: POST
+    path: /{namespace}/{project}.git/git-upload-pack
+    privilege: read
+    requires: [[gitlab.read_repository]]
+    summary: Clone or fetch.
+    tags: [git, clone, fetch]
+
+concept_links:
+  - concept: source-code.read
+    realized_by: [gitlab.read_repository]
+  - concept: source-code.write
+    realized_by: [gitlab.write_repository]
+  - concept: issues.write
+    realized_by: [gitlab.api]

@@ -1,0 +1,50 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# The shared concept vocabulary: cross-provider capabilities described in the
+# words people use in a use case. Provider catalogs attach their capabilities
+# through `realized_by` here or through `concept_links` in their own files.
+
+catalog_version: 1
+
+concepts:
+  - id: source-code.read
+    name: Read source code
+    privilege: read
+    keywords: [code, source, sources, codebase, repository, repo, file, files, clone, browse, read, understand, study, inspect, explore, architecture, project]
+    realized_by: [github.contents:read]
+  - id: source-code.write
+    name: Change source code
+    privilege: write
+    keywords: [code, source, repository, repo, file, commit, push, write, edit, modify, change, update, fix, patch]
+    realized_by: [github.contents:write]
+  - id: repository.metadata.read
+    name: Read repository metadata
+    privilege: read
+    keywords: [repository, repo, project, metadata, description, languages, stars, topics, overview]
+    realized_by: [github.metadata:read]
+  - id: issues.read
+    name: Read issues
+    privilege: read
+    keywords: [issue, issues, bug, bugs, ticket, tickets, triage, read, review, discussion]
+    realized_by: [github.issues:read]
+  - id: issues.write
+    name: Create and comment on issues
+    privilege: write
+    keywords: [issue, issues, bug, ticket, comment, file, open, create, report, reply]
+    realized_by: [github.issues:write]
+  - id: code-review.read
+    name: Read pull requests
+    privilege: read
+    keywords: [pull, request, requests, pr, prs, review, diff, change, changes, merge]
+    realized_by: [github.pull_requests:read]
+  - id: code-review.write
+    name: Open and update pull requests
+    privilege: write
+    keywords: [pull, request, pr, open, create, propose, submit, merge]
+    realized_by: [github.pull_requests:write]
+  - id: llm.inference
+    name: Call a language model
+    privilege: read
+    keywords: [model, models, llm, chat, completion, completions, inference, generate, nemotron, gpt, reasoning, answer, summarize]
+    realized_by: [nvidia.inference:invoke, openai.model:request, openshell.inference:invoke]

@@ -1,0 +1,110 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Model inference endpoints. Inference requests are POSTs that do not change
+# provider state, so they are classified as read. They still send prompt data
+# to the provider; the report lists every inference destination.
+
+catalog_version: 1
+
+providers:
+  - id: nvidia
+    name: NVIDIA API Catalog
+    description: Hosted NVIDIA NIM endpoints on build.nvidia.com.
+  - id: openai
+    name: OpenAI
+  - id: openshell
+    name: OpenShell
+    description: Services that OpenShell provides inside the sandbox.
+
+services:
+  - id: nvidia.integrate
+    provider: nvidia
+    name: NVIDIA hosted inference (OpenAI-compatible)
+    origins:
+      - host: integrate.api.nvidia.com
+  - id: openai.api
+    provider: openai
+    name: OpenAI API
+    origins:
+      - host: api.openai.com
+  - id: openshell.inference-local
+    provider: openshell
+    name: OpenShell managed inference
+    description: >-
+      The inference.local route that OpenShell serves inside every sandbox. The
+      gateway's inference configuration and privacy router decide the upstream.
+    origins:
+      - host: inference.local
+
+capabilities:
+  - id: nvidia.inference:invoke
+    provider: nvidia
+    name: Invoke hosted models
+    level: read
+  - id: openai.model:request
+    provider: openai
+    name: Model requests
+    level: read
+  - id: openshell.inference:invoke
+    provider: openshell
+    name: Invoke managed inference
+    level: read
+
+operations:
+  - id: nvidia.chat-completions
+    service: nvidia.integrate
+    method: POST
+    path: /v1/chat/completions
+    privilege: read
+    requires: [[nvidia.inference:invoke]]
+    summary: Chat completion with a hosted model.
+    tags: [inference, chat]
+  - id: nvidia.list-models
+    service: nvidia.integrate
+    method: GET
+    path: /v1/models
+    privilege: read
+    requires: [[nvidia.inference:invoke]]
+    summary: List available models.
+    tags: [inference, models]
+  - id: openai.chat-completions
+    service: openai.api
+    method: POST
+    path: /v1/chat/completions
+    privilege: read
+    requires: [[openai.model:request]]
+    summary: Chat completion.
+    tags: [inference, chat]
+  - id: openai.responses
+    service: openai.api
+    method: POST
+    path: /v1/responses
+    privilege: read
+    requires: [[openai.model:request]]
+    summary: Responses API request.
+    tags: [inference, responses]
+  - id: openai.list-models
+    service: openai.api
+    method: GET
+    path: /v1/models
+    privilege: read
+    requires: [[openai.model:request]]
+    summary: List available models.
+    tags: [inference, models]
+  - id: openshell.inference.chat-completions
+    service: openshell.inference-local
+    method: POST
+    path: /v1/chat/completions
+    privilege: read
+    requires: [[openshell.inference:invoke]]
+    summary: Chat completion through OpenShell managed inference.
+    tags: [inference, chat]
+  - id: openshell.inference.list-models
+    service: openshell.inference-local
+    method: GET
+    path: /v1/models
+    privilege: read
+    requires: [[openshell.inference:invoke]]
+    summary: List models through OpenShell managed inference.
+    tags: [inference, models]
