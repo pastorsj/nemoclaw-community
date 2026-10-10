@@ -187,3 +187,13 @@ def test_report_counts_forbidden_operations_per_prohibition(tmp_path):
     markdown = (out / "report.md").read_text()
     assert f"| {counts['forbid-01-github']} |" in markdown
     assert f"| {counts['forbid-02-github']} |" in markdown
+
+
+def test_malformed_agent_spec_reports_error_without_traceback(tmp_path, capsys):
+    empty = tmp_path / "empty.yaml"
+    empty.write_text("")
+    listed = tmp_path / "list.yaml"
+    listed.write_text("- a\n- b\n")
+    for path in (empty, listed):
+        assert main(["compile", str(path), "--client", "/usr/bin/python3", "--out", str(tmp_path / "o")]) == 1
+        assert "policy-compiler: error:" in capsys.readouterr().err

@@ -585,7 +585,12 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    return args.func(args)
+    try:
+        return args.func(args)
+    except (ValueError, OSError, yaml.YAMLError) as exc:
+        # Malformed or unreadable input: report it plainly instead of a traceback.
+        print(f"policy-compiler: error: {exc}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":
