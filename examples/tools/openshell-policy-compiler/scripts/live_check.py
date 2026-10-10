@@ -18,6 +18,14 @@ error and fails the run: it proves neither outcome.
 Probes send real requests to the hosts the policy allows. Use only probes whose
 requests are safe to send, such as unauthenticated reads.
 
+With ``--sandbox NAME`` the script replaces that sandbox's network policy while
+the probes run. Before it changes anything it saves the sandbox's current policy
+(``openshell policy get NAME --base``) to a temporary file, and it aborts if it
+cannot. Afterwards, even when the apply or a probe fails, it restores that file
+with ``openshell policy set NAME --policy FILE --wait``. If the restore fails, it
+prints the saved file's path and exits non-zero. It never touches another
+sandbox or the global policy.
+
 Usage:
   scripts/live_check.py --policy out/github-repo-explainer/policy.yaml \\
       --probes examples/github-repo-explainer/probes.yaml [--sandbox NAME] [--keep]
@@ -36,6 +44,9 @@ from pathlib import Path
 
 import yaml
 
+# The same header handling that lets ``load_policy_file`` read saved ``policy get`` output.
+from policy_compiler.backends.openshell import _strip_policy_get_header
+
 
 def run(args: list[str], *, timeout: int = 300, check: bool = True) -> subprocess.CompletedProcess:
     result = subprocess.run(args, capture_output=True, text=True, timeout=timeout)
@@ -44,10 +55,51 @@ def run(args: list[str], *, timeout: int = 300, check: bool = True) -> subproces
     return result
 
 
-def base_policy(sandbox: str) -> dict:
+def base_policy(sandbox: str) -> tuple[str, dict]:
+    """Return the sandbox's base policy YAML exactly as OpenShell printed it, and parsed."""
     text = run(["openshell", "policy", "get", sandbox, "--base"]).stdout
-    _, _, body = text.partition("\n---\n")
-    return yaml.safe_load(body or text)
+    body = _strip_policy_get_header(text)
+    try:
+        policy = yaml.safe_load(body) if body != text else None
+    except yaml.YAMLError as error:
+        raise SystemExit(f"could not parse the policy of sandbox {sandbox}: {error}") from None
+    if not isinstance(policy, dict):
+        raise SystemExit(
+            f"could not read the policy of sandbox {sandbox}: expected `Key: value` lines, `---`, "
+            f"then a policy mapping from `openshell policy get {sandbox} --base`, got:\n{text[-2000:]}"
+        )
+    return body, policy
+
+
+def save_policy(body: str) -> Path:
+    """Write a policy to a temporary file that outlives this run, so it can be restored by hand."""
+    with tempfile.NamedTemporaryFile(
+        "w", encoding="utf-8", prefix="opc-live-saved-policy-", suffix=".yaml", delete=False
+    ) as handle:
+        handle.write(body)
+    return Path(handle.name)
+
+
+def restore_policy(sandbox: str, saved: Path) -> bool:
+    """Put back the policy saved before the probe policy was applied; on failure, say so loudly."""
+    print(f"restoring the saved policy of {sandbox}...", flush=True)
+    try:
+        result = run(["openshell", "policy", "set", sandbox, "--policy", str(saved), "--wait"], timeout=300, check=False)
+    except (OSError, subprocess.SubprocessError) as error:
+        detail = str(error)
+    else:
+        if result.returncode == 0:
+            saved.unlink(missing_ok=True)
+            return True
+        detail = f"exit status {result.returncode}: {result.stderr[-2000:].strip()}"
+    print(
+        f"\nERROR: could not restore the policy of sandbox {sandbox} ({detail}).\n"
+        f"ERROR: the sandbox may still have the probe policy. Its previous policy is saved in {saved}.\n"
+        f"ERROR: restore it with: openshell policy set {sandbox} --policy {saved} --wait\n",
+        file=sys.stderr,
+        flush=True,
+    )
+    return False
 
 
 PROXY_REFUSED = re.compile(r"CONNECT tunnel failed, response 403")
@@ -103,7 +155,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--policy", required=True, help="Compiled policy.yaml.")
     parser.add_argument("--probes", required=True, help="YAML list of {method, url, expect: allow|deny, why}.")
-    parser.add_argument("--sandbox", help="Existing sandbox to use. Default: create opc-live-<time> and delete it.")
+    parser.add_argument(
+        "--sandbox",
+        help="Existing sandbox to use; its policy is replaced while the probes run, then restored. "
+        "Default: create opc-live-<time> and delete it.",
+    )
     parser.add_argument("--keep", action="store_true", help="Keep a sandbox this script created.")
     parser.add_argument("--results", help="Write results as JSON to this file.")
     args = parser.parse_args()
@@ -113,21 +169,40 @@ def main() -> int:
     created = None
     sandbox = args.sandbox
     scratch = tempfile.TemporaryDirectory(prefix="opc-live-")
-    if not sandbox:
+    if sandbox:
+        print(
+            f"warning: this replaces the network policy of sandbox {sandbox} while the probes run; "
+            "its current policy is saved first and restored afterwards.",
+            file=sys.stderr,
+            flush=True,
+        )
+    else:
         sandbox = created = f"opc-live-{int(time.time())}"
         print(f"creating sandbox {sandbox} (first use pulls the base image)...", flush=True)
         run(["openshell", "sandbox", "create", "--name", sandbox, "--no-auto-providers", "--no-tty", "--", "true"], timeout=900)
+    saved = None
+    applying = False
+    restored = True
     try:
-        merged = base_policy(sandbox)
+        current, merged = base_policy(sandbox)
+        if not created:
+            saved = save_policy(current)
+            print(f"saved the current policy of {sandbox} to {saved}", flush=True)
         merged["network_policies"] = compiled.get("network_policies", {})
         merged_path = Path(scratch.name) / "applied-policy.yaml"
         merged_path.write_text(yaml.safe_dump(merged, sort_keys=False))
         print(f"applying {args.policy} to {sandbox}...", flush=True)
+        applying = True
         applied = run(["openshell", "policy", "set", sandbox, "--policy", str(merged_path), "--wait"], timeout=300)
         print(applied.stdout.strip())
         results = [probe(sandbox, item) for item in probes]
     finally:
         scratch.cleanup()
+        if saved is not None:
+            if applying:
+                restored = restore_policy(sandbox, saved)
+            else:
+                saved.unlink(missing_ok=True)
         if created and not args.keep:
             run(["openshell", "sandbox", "delete", created], check=False)
             print(f"deleted sandbox {created}")
@@ -145,6 +220,12 @@ def main() -> int:
             print(f"error: {r['method']} {r['url']}: {r['detail']}")
     if args.results:
         Path(args.results).write_text(json.dumps(results, indent=2) + "\n")
+    if not restored:
+        print(
+            f"\nERROR: the policy of sandbox {sandbox} was not restored; its previous policy is saved in {saved}.",
+            file=sys.stderr,
+        )
+        return 1
     return 1 if failed else 0
 
 

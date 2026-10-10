@@ -5,9 +5,11 @@ from pathlib import Path
 
 import pytest
 
-from policy_compiler.analysis import breadth, permitted_operations
-from policy_compiler.backends.openshell import lift, load_policy_file
+from policy_compiler.analysis import breadth, permitted_operations, rules_dropped_by_lowering
+from policy_compiler.backends.openshell import lift, load_policy_file, lower
 from policy_compiler.graph.store import load_graph
+from policy_compiler.ir.access import AccessRule, AccessSet, ClientSet, Effect, EndpointKey, Matcher
+from policy_compiler.ir.common import Inspection, Protocol
 
 REPO_EXAMPLES = Path(__file__).resolve().parents[3]
 
@@ -158,3 +160,114 @@ def test_deny_in_the_same_entry_still_removes_the_operation(graph):
         },
     }
     assert "github.repos.put-content" not in permitted_operations(lift(policy, source="p.yaml"), graph)
+
+
+# --- endpoint route selectors and MCP endpoints (final review C2) ---------------------------------
+
+
+def _policy(*endpoints):
+    return {
+        "version": 1,
+        "network_policies": {
+            "p": {"name": "p", "binaries": [{"path": "/usr/bin/python3"}], "endpoints": list(endpoints)},
+        },
+    }
+
+
+def _mcp_endpoint(path=None):
+    endpoint = {
+        "host": "gitlab.com",
+        "port": 443,
+        "protocol": "mcp",
+        "enforcement": "enforce",
+        "rules": [{"allow": {"method": "tools/call", "tool": "get_issue"}}],
+    }
+    if path is not None:
+        endpoint["path"] = path
+    return endpoint
+
+
+def test_mcp_endpoint_without_path_reaches_every_post_and_get_on_the_host(graph):
+    # OpenShell reads MCP messages from request bodies, so a POST or GET to any path on the host can carry one.
+    access = lift(_policy(_mcp_endpoint()), source="p.yaml")
+    permitted = permitted_operations(access, graph)
+    assert "gitlab.issues.create" in permitted  # POST, write, on the REST service of the same host
+    assert "gitlab.projects.get" in permitted  # GET
+    assert "gitlab.git.upload-pack" in permitted  # POST on another service of the same host
+    assert breadth(access, graph, permitted).permitted["write"] >= 1
+
+
+def test_mcp_endpoint_with_path_reaches_only_requests_under_that_path(graph):
+    narrow = permitted_operations(lift(_policy(_mcp_endpoint("/api/v4/mcp")), source="p.yaml"), graph)
+    assert not {"gitlab.issues.create", "gitlab.projects.get", "gitlab.git.upload-pack"} & set(narrow)
+    wide = permitted_operations(lift(_policy(_mcp_endpoint("/api/v4/**")), source="p.yaml"), graph)
+    assert "gitlab.issues.create" in wide and "gitlab.projects.get" in wide
+    assert "gitlab.git.upload-pack" not in wide
+
+
+def test_rest_endpoint_path_selector_narrows_what_the_endpoint_reaches(graph):
+    endpoint = _endpoint(443, [{"allow": {"method": "*", "path": "/**"}}])
+    endpoint["path"] = "/repos/**"
+    permitted = permitted_operations(lift(_policy(endpoint), source="p.yaml"), graph)
+    assert "github.repos.delete" in permitted
+    assert "github.search.code" not in permitted
+    assert "github.markdown.render" not in permitted
+
+
+def test_endpoint_path_does_not_narrow_an_uninspected_endpoint(graph):
+    endpoint = {"host": "api.github.com", "port": 443, "path": "/repos/**"}
+    assert "github.search.code" in permitted_operations(lift(_policy(endpoint), source="p.yaml"), graph)
+
+
+def test_deny_on_a_path_scoped_endpoint_covers_only_requests_under_its_path(graph):
+    deny_endpoint = _endpoint(
+        443, [{"allow": {"method": "GET", "path": "/repos/x/y"}}], [{"method": "DELETE", "path": "/repos/*/*"}]
+    )
+    deny_endpoint["path"] = "/repos/x/**"
+    policy = _policy(_endpoint(443, [{"allow": {"method": "*", "path": "/repos/**"}}]), deny_endpoint)
+    assert "github.repos.delete" in permitted_operations(lift(policy, source="p.yaml"), graph)
+
+
+def test_deny_with_a_query_does_not_cover_the_whole_operation(graph):
+    policy = _policy(
+        _endpoint(
+            443,
+            [{"allow": {"method": "*", "path": "/repos/**"}}],
+            [{"method": "DELETE", "path": "/repos/*/*", "query": {"force": "true"}}],
+        )
+    )
+    assert "github.repos.delete" in permitted_operations(lift(policy, source="p.yaml"), graph)
+
+
+def test_deny_on_an_mcp_endpoint_does_not_cover_rest_operations(graph):
+    endpoint = _mcp_endpoint()
+    endpoint["deny_rules"] = [{"method": "POST"}]
+    assert "gitlab.issues.create" in permitted_operations(lift(_policy(endpoint), source="p.yaml"), graph)
+
+
+# --- rules dropped by lowering (final review I2) ------------------------------------------------------------
+
+
+def _rule(host, *, matcher=None, protocol=Protocol.REST, inspection=Inspection.L7, path="", effect=Effect.ALLOW):
+    return AccessRule(
+        effect=effect,
+        group=host.replace(".", "_"),
+        clients=ClientSet.of(["/usr/bin/python3"]),
+        endpoint=EndpointKey(host=host, ports=(443,), protocol=protocol, inspection=inspection, path=path),
+        matcher=matcher,
+        reasons=["need-01"],
+    )
+
+
+def test_rules_dropped_by_lowering_names_only_what_the_emitted_policy_lacks():
+    access = AccessSet(
+        rules=[
+            _rule("a.example", matcher=Matcher(method="GET", path="/x"), path="/x/**"),  # kept
+            _rule("b.example", matcher=Matcher(method="GET", path="/y"), protocol=Protocol.L4),  # dropped
+            _rule("c.example", matcher=Matcher(method="GET", path="/z"), inspection=Inspection.OPAQUE),
+            _rule("c.example", inspection=Inspection.OPAQUE),  # grants c.example whole, so /z stays reachable
+            _rule("d.example", matcher=Matcher(method="tools/call", tool="t"), protocol=Protocol.MCP, path="/mcp"),
+        ]
+    )
+    emitted = lift(lower(access), source="policy.yaml")
+    assert rules_dropped_by_lowering(access, emitted) == {1}

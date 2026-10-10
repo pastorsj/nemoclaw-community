@@ -63,7 +63,7 @@ Concepts matched by the use case: `orders.read`.
 
 ## Notes
 
-- Referenced spec openapi.yaml is already described by the catalog (acme.orders-internal-example); it was not imported again.
+- Referenced spec openapi.yaml describes orders.internal.example, which the catalog already serves (acme.orders-internal-example); it was not imported, so the catalog's privileges and prohibitions apply.
 
 ## Next steps
 

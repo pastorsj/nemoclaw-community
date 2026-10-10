@@ -107,7 +107,8 @@ prohibitions:
   provider: acme
   min_privilege: admin
 notes:
-- Referenced spec openapi.yaml is already described by the catalog (acme.orders-internal-example);
-  it was not imported again.
+- Referenced spec openapi.yaml describes orders.internal.example, which the catalog
+  already serves (acme.orders-internal-example); it was not imported, so the catalog's
+  privileges and prohibitions apply.
 referenced_specs:
 - examples/internal-orders-api/openapi.yaml

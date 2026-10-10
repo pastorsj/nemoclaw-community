@@ -109,6 +109,7 @@
       "acme.deleteorder"
     ]
   },
+  "use_case_justified": true,
   "use_case_concepts": [
     "orders.read"
   ],

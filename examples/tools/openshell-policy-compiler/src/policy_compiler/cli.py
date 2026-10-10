@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import json
 import re
 import sys
@@ -14,15 +15,36 @@ from typing import Sequence
 
 import yaml
 
-from policy_compiler import __version__
-from policy_compiler.analysis import breadth, permitted_operations
-from policy_compiler.backends.openshell import dump_policy_yaml, lift, load_policy_file, lower
-from policy_compiler.graph.model import CatalogDocument
-from policy_compiler.graph.store import CatalogError, Graph, dump_catalog_document, load_graph
-from policy_compiler.ir.common import Layer, Privilege
+from policy_compiler import __version__, paths
+from policy_compiler.analysis import (
+    breadth,
+    permitted_operations,
+    rules_dropped_by_lowering,
+)
+from policy_compiler.backends.openshell import (
+    dump_policy_yaml,
+    lift,
+    load_policy_file,
+    lower,
+)
+from policy_compiler.graph.model import CatalogDocument, Service
+from policy_compiler.graph.store import (
+    CatalogError,
+    Graph,
+    dump_catalog_document,
+    load_graph,
+)
+from policy_compiler.ir.common import Inspection, Layer, Privilege
 from policy_compiler.ir.contract import Contract, Prohibition, UnknownKind
-from policy_compiler.report import compile_report_data, contract_to_dict, render_compile_report, render_explain_report
-from policy_compiler.resolve import ResolveOptions, resolve
+from policy_compiler.report import (
+    ReportContext,
+    compile_report_data,
+    contract_to_dict,
+    labelled_diagnostics,
+    render_compile_report,
+    render_explain_report,
+)
+from policy_compiler.resolve import Resolution, ResolveOptions, resolve
 
 SPDX_HEADER = [
     "SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.",
@@ -68,11 +90,18 @@ def _parse_forbid(values: list[str], graph: Graph) -> list[Prohibition]:
 
 
 def _agent_layer_documents(contract: Contract, catalog_graph: Graph) -> tuple[list[CatalogDocument], list[str]]:
-    """Import the API specs an agent definition references, unless a catalog already covers them."""
+    """Import the API specs an agent definition references, unless a catalog already covers them.
+
+    An agent-layer spec may only describe hosts that no base or org catalog serves, on any port: otherwise
+    it could relabel a catalogued operation (a DELETE as ``read``) and slip past ``--forbid``. The check
+    runs on the imported document, so server variables count. Agent-layer services also may not choose
+    ``inspection`` or ``allowed_ips``; only base and org catalogs set those.
+    """
     from policy_compiler.graph.importers.openapi import import_openapi, load_spec_file
 
     documents: list[CatalogDocument] = []
     notes: list[str] = []
+    accepted: list[Service] = []
     for ref in contract.referenced_specs:
         if re.match(r"^[a-z]+://", ref):
             notes.append(f"Referenced spec {ref} is remote; import it into a catalog with `import openapi`.")
@@ -83,35 +112,80 @@ def _agent_layer_documents(contract: Contract, catalog_graph: Graph) -> tuple[li
             continue
         spec = load_spec_file(path)
         provider_id = spec.get("x-openshell-provider") or _slug(spec.get("info", {}).get("title", path.stem))
-        served_by = _catalog_service_for_spec(spec, catalog_graph)
-        if provider_id in catalog_graph.providers or served_by:
+        if provider_id in catalog_graph.providers:
             notes.append(
                 f"Referenced spec {path.name} is already described by the catalog "
-                f"({served_by or 'provider ' + provider_id}); it was not imported again."
+                f"(provider {provider_id}); it was not imported again."
             )
             continue
         doc, diagnostics = import_openapi(spec, provider_id=provider_id, source=f"agent-spec-ref:{path.name}", layer=Layer.AGENT)
+        notes.extend(f"{d.code}: {d.message}" for d in diagnostics if d.level != "info")
+        kept: list[Service] = []
+        for service in doc.services:
+            hosts = ", ".join(dict.fromkeys(_normal_host(origin.host) for origin in service.origins))
+            served = _services_serving(service, list(catalog_graph.services.values()))
+            if served:
+                notes.append(
+                    f"Referenced spec {path.name} describes {hosts}, which the catalog already serves "
+                    f"({', '.join(served)}); it was not imported, so the catalog's privileges and prohibitions apply."
+                )
+                continue
+            earlier = _services_serving(service, accepted)
+            if earlier:
+                notes.append(
+                    f"Referenced spec {path.name} describes {hosts}, which another referenced spec already "
+                    f"describes ({', '.join(earlier)}); it was not imported."
+                )
+                continue
+            _reset_agent_layer_network(service, path.name, hosts, notes)
+            kept.append(service)
+        if not kept:
+            continue
+        kept_ids = {service.id for service in kept}
+        doc.services = kept
+        doc.operations = [op for op in doc.operations if op.service in kept_ids]
+        accepted.extend(kept)
         documents.append(doc)
         notes.append(
             f"Imported referenced spec {path.name} as provider {provider_id} into the agent layer "
             f"({len(doc.operations)} operations; privileges without annotations are guessed)."
         )
-        notes.extend(f"{d.code}: {d.message}" for d in diagnostics if d.level != "info")
     return documents, notes
 
 
-def _catalog_service_for_spec(spec: dict, graph: Graph) -> str:
-    """Return the ID of a catalog service that already serves the spec's first server, if any."""
-    from urllib.parse import urlsplit
+def _normal_host(host: str) -> str:
+    return host.lower().rstrip(".")
 
-    servers = spec.get("servers") or []
-    url = servers[0].get("url", "") if servers and isinstance(servers[0], dict) else ""
-    parts = urlsplit(url)
-    if not parts.hostname:
-        return ""
-    port = parts.port or (80 if parts.scheme == "http" else 443)
-    services = graph.services_for(parts.hostname, port)
-    return services[0].id if services else ""
+
+def _services_serving(service: Service, candidates: list[Service]) -> list[str]:
+    """IDs of ``candidates`` with an origin host that overlaps an origin host of ``service``, on any port."""
+
+    def overlap(a: str, b: str) -> bool:
+        a, b = _normal_host(a), _normal_host(b)
+        return a == b or paths.host_matches(a, b) or paths.host_matches(b, a)
+
+    return [
+        other.id
+        for other in candidates
+        if any(overlap(mine.host, theirs.host) for mine in service.origins for theirs in other.origins)
+    ]
+
+
+def _reset_agent_layer_network(service: Service, spec_name: str, hosts: str, notes: list[str]) -> None:
+    """Agent-layer services keep L7 inspection and no ``allowed_ips``: both choices widen what a rule reaches."""
+    changed = []
+    if service.inspection is not Inspection.L7:
+        changed.append(f"inspection {service.inspection.value}")
+    if service.allowed_ips:
+        changed.append(f"allowed_ips {', '.join(service.allowed_ips)}")
+    if not changed:
+        return
+    service.inspection = Inspection.L7
+    service.allowed_ips = []
+    notes.append(
+        f"Referenced spec {spec_name} sets {' and '.join(changed)} for {hosts}; only base and org catalogs may set "
+        "inspection or allowed_ips, so the agent layer keeps L7 inspection and no allowed_ips."
+    )
 
 
 def _suggest_for_unknowns(contract: Contract, graph: Graph) -> None:
@@ -131,17 +205,32 @@ def _write_outputs(
     out_dir: Path,
     base_policy: dict | None,
     header: list[str],
-) -> dict[str, Path]:
+) -> int:
+    """Resolve, lower, and write every output. Returns the exit code (2 when the run needs attention)."""
     try:
         index = _semantic_index(graph)
     except ImportError:
         index = None
     resolution = resolve(contract, graph, options, concept_index=index)
-    policy = lower(resolution.access, base_policy=base_policy)
-    boundary = lower(resolution.boundary, base_policy=base_policy)
-    permitted = permitted_operations(resolution.access, graph)
-    policy_breadth = breadth(resolution.access, graph, permitted)
-    boundary_breadth = breadth(resolution.boundary, graph)
+    # Lower copies so that lowering diagnostics stay apart from the resolver's.
+    policy_access = dataclasses.replace(resolution.access, diagnostics=[])
+    boundary_access = dataclasses.replace(resolution.boundary, diagnostics=[])
+    policy = lower(policy_access, base_policy=base_policy)
+    boundary = lower(boundary_access, base_policy=base_policy)
+    # The report describes what was emitted: lowering may drop endpoints and rules (fail closed).
+    emitted = lift(policy, source="policy.yaml")
+    emitted_boundary = lift(boundary, source="boundary.yaml")
+    permitted = permitted_operations(emitted, graph)
+    context = ReportContext(
+        policy_breadth=breadth(emitted, graph, permitted),
+        boundary_breadth=breadth(emitted_boundary, graph),
+        permitted=permitted,
+        lowering_diagnostics={"policy": policy_access.diagnostics, "boundary": boundary_access.diagnostics},
+        catalog_diagnostics=[d for d in getattr(graph, "diagnostics", []) if d.level != "info"],
+        dropped_rules=rules_dropped_by_lowering(resolution.access, emitted),
+    )
+    _note_dropped_needs(resolution, context.dropped_rules)
+    policy_breadth, boundary_breadth = context.policy_breadth, context.boundary_breadth
 
     out_dir.mkdir(parents=True, exist_ok=True)
     outputs = {
@@ -165,22 +254,9 @@ def _write_outputs(
     contract_text = yaml.safe_dump(contract_data, sort_keys=False, allow_unicode=True)
     outputs["contract.yaml"].write_text("".join(f"# {h}\n" for h in header) + contract_text)
     outputs["report.md"].write_text(
-        render_compile_report(
-            resolution,
-            policy_breadth=policy_breadth,
-            boundary_breadth=boundary_breadth,
-            outputs={k: str(v) for k, v in outputs.items()},
-        )
+        render_compile_report(resolution, context, outputs={k: str(v) for k, v in outputs.items()})
     )
-    outputs["report.json"].write_text(
-        json.dumps(
-            compile_report_data(
-                resolution, policy_breadth=policy_breadth, boundary_breadth=boundary_breadth, permitted=permitted
-            ),
-            indent=2,
-        )
-        + "\n"
-    )
+    outputs["report.json"].write_text(json.dumps(compile_report_data(resolution, context), indent=2) + "\n")
     print(f"{contract.agent}: {policy_breadth.allow_rules} allow rules, {policy_breadth.deny_rules} deny rules")
     print(f"  hosts: {', '.join(policy_breadth.hosts) or '(none)'}")
     p = policy_breadth.permitted
@@ -193,11 +269,43 @@ def _write_outputs(
     for n in resolution.needs:
         statuses[n.status] = statuses.get(n.status, 0) + 1
     print(f"  needs: {', '.join(f'{v} {k}' for k, v in statuses.items()) or 'none'}; unknowns: {len(contract.unknowns)}")
-    for d in resolution.access.diagnostics:
+    for source, d in labelled_diagnostics(resolution, context):
         if d.level in ("error", "warning"):
-            print(f"  {d.level}: {d.code}: {d.message}")
+            print(f"  {d.level}: {'' if source == 'resolver' else source + ': '}{d.code}: {d.message}")
     print(f"  wrote {out_dir}/: " + ", ".join(outputs))
-    return outputs
+    problems = _exit_problems(resolution, context)
+    if problems:
+        sys.stdout.flush()
+        print(f"policy-compiler: exit 2: {', '.join(problems)}", file=sys.stderr)
+        return 2
+    return 0
+
+
+def _exit_problems(resolution: Resolution, context: ReportContext) -> list[str]:
+    """Why the run must exit 2: conflict or unresolved needs, or error-level diagnostics from any stage."""
+    problems = []
+    for status in ("conflict", "unresolved"):
+        ids = [n.need for n in resolution.needs if n.status == status]
+        if ids:
+            problems.append(f"{len(ids)} {status} need{'' if len(ids) == 1 else 's'} ({', '.join(ids)})")
+    errors = [f"{source}: {d.code}" for source, d in labelled_diagnostics(resolution, context) if d.level == "error"]
+    if errors:
+        unique = list(dict.fromkeys(errors))
+        problems.append(f"{len(errors)} error diagnostic{'' if len(errors) == 1 else 's'} ({', '.join(unique)})")
+    return problems
+
+
+def _note_dropped_needs(resolution: Resolution, dropped: set[int]) -> None:
+    """Tell each need whose rules lowering dropped that the emitted policy does not grant them."""
+    needs = {n.need: n for n in resolution.needs}
+    affected = dict.fromkeys(
+        reason for index in sorted(dropped) for reason in resolution.access.rules[index].reasons if reason in needs
+    )
+    for need_id in affected:
+        needs[need_id].notes.append(
+            "Some of its rules were dropped by lowering (fail closed), so the emitted policy does not grant "
+            "them; see the lowering diagnostics."
+        )
 
 
 def _display_path(value: str) -> str:
@@ -249,8 +357,7 @@ def cmd_compile(args) -> int:
         route_inference_local=args.route_inference_local,
     )
     out_dir = Path(args.out or f"out/{_slug(contract.agent)}")
-    _write_outputs(contract, graph, options, out_dir, _load_base_policy(args.base_policy), _header(args))
-    return 0
+    return _write_outputs(contract, graph, options, out_dir, _load_base_policy(args.base_policy), _header(args))
 
 
 def cmd_from_use_case(args) -> int:
@@ -269,8 +376,7 @@ def cmd_from_use_case(args) -> int:
     # The needs come from the text itself, so justifying them against it again adds nothing.
     options = ResolveOptions(use_case="")
     out_dir = Path(args.out or f"out/{_slug(args.name)}")
-    _write_outputs(contract, graph, options, out_dir, _load_base_policy(args.base_policy), _header(args))
-    return 0
+    return _write_outputs(contract, graph, options, out_dir, _load_base_policy(args.base_policy), _header(args))
 
 
 def cmd_explain(args) -> int:
@@ -341,7 +447,9 @@ def cmd_import_openapi(args) -> int:
 
 
 def cmd_import_github(args) -> int:
-    from policy_compiler.graph.importers.github_permissions import import_github_permissions
+    from policy_compiler.graph.importers.github_permissions import (
+        import_github_permissions,
+    )
 
     data = json.loads(Path(args.file).read_text())
     doc = import_github_permissions(data, source=Path(args.file).name, layer=Layer.ORG)
@@ -350,7 +458,9 @@ def cmd_import_github(args) -> int:
 
 
 def cmd_import_policies(args) -> int:
-    from policy_compiler.graph.importers.openshell_policies import import_openshell_policies
+    from policy_compiler.graph.importers.openshell_policies import (
+        import_openshell_policies,
+    )
 
     known = _graph_for(args)
     policies = [(name, load_policy_file(Path(name))) for name in args.policy]

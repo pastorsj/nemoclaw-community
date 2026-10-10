@@ -146,7 +146,7 @@ def test_provider_prohibition_narrows_any_method_glob_to_get(graph):
     contract = Contract(
         agent="a",
         default_clients=[PY],
-        needs=[raw("n1", "api.github.com", "*", "/repos/NVIDIA/OpenShell/**", prefixes=["/repos/NVIDIA/OpenShell"])],
+        needs=[raw("n1", "api.github.com", "*", "/repos/NVIDIA/OpenShell/**", prefixes=["/repos/NVIDIA/OpenShell"], path_is_glob=True)],
         prohibitions=[forbid("github", Privilege.WRITE)],
     )
     result = resolve(contract, graph)
@@ -169,7 +169,7 @@ def test_provider_prohibition_at_read_removes_any_method_glob(graph):
     contract = Contract(
         agent="a",
         default_clients=[PY],
-        needs=[raw("n1", "api.github.com", "*", "/repos/NVIDIA/OpenShell/**")],
+        needs=[raw("n1", "api.github.com", "*", "/repos/NVIDIA/OpenShell/**", path_is_glob=True)],
         prohibitions=[forbid("github", Privilege.READ)],
     )
     result = resolve(contract, graph)
@@ -348,7 +348,7 @@ def test_glob_branch_drops_path_outside_url_allow_list(graph):
     contract = Contract(
         agent="a",
         default_clients=[PY],
-        needs=[raw("n1", "api.github.com", "GET", "/repos/**", prefixes=["/repos/NVIDIA/OpenShell"])],
+        needs=[raw("n1", "api.github.com", "GET", "/repos/**", prefixes=["/repos/NVIDIA/OpenShell"], path_is_glob=True)],
     )
     result = resolve(contract, graph)
     assert allow_rules(result.access) == []
@@ -360,7 +360,7 @@ def test_glob_branch_keeps_path_inside_url_allow_list(graph):
     contract = Contract(
         agent="a",
         default_clients=[PY],
-        needs=[raw("n1", "api.github.com", "GET", "/repos/NVIDIA/OpenShell/**", prefixes=["/repos/NVIDIA/OpenShell"])],
+        needs=[raw("n1", "api.github.com", "GET", "/repos/NVIDIA/OpenShell/**", prefixes=["/repos/NVIDIA/OpenShell"], path_is_glob=True)],
     )
     result = resolve(contract, graph)
     assert [(r.matcher.method, r.matcher.path) for r in allow_rules(result.access)] == [
@@ -372,7 +372,7 @@ def test_glob_branch_records_templated_method_widening(graph):
     contract = Contract(
         agent="a",
         default_clients=[PY],
-        needs=[raw("n1", "api.github.com", "*", "/repos/NVIDIA/OpenShell/**")],
+        needs=[raw("n1", "api.github.com", "*", "/repos/NVIDIA/OpenShell/**", path_is_glob=True)],
     )
     result = resolve(contract, graph)
     assert ("n1", "templated-method") in [(w.need, w.reason) for w in result.access.widenings]
@@ -444,7 +444,7 @@ def test_strict_use_case_requires_every_operation_justified(graph):
         agent="a",
         default_clients=[PY],
         use_case="Read the source code of NVIDIA/OpenShell to explain its architecture.",
-        needs=[raw("n1", "api.github.com", "*", "/repos/NVIDIA/OpenShell/**")],
+        needs=[raw("n1", "api.github.com", "*", "/repos/NVIDIA/OpenShell/**", path_is_glob=True)],
     )
     result = resolve(contract, graph, ResolveOptions(strict_use_case=True), concept_index=SemanticIndex(graph))
     assert allow_rules(result.access) == []

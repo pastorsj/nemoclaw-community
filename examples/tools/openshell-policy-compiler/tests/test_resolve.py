@@ -120,7 +120,7 @@ def test_prohibition_adds_deny_under_broad_allow(graph):
     contract = Contract(
         agent="broad",
         default_clients=[PY],
-        needs=[raw_need("n1", "api.github.com", "*", "/repos/NVIDIA/OpenShell/**")],
+        needs=[raw_need("n1", "api.github.com", "*", "/repos/NVIDIA/OpenShell/**", path_is_glob=True)],
         prohibitions=[Prohibition(id="p1", rationale="no writes", target=Target(capability="github.contents:write"))],
     )
     result = resolve(contract, graph)
@@ -138,7 +138,7 @@ def test_covered_matchers_are_pruned(graph):
         agent="prune",
         default_clients=[PY],
         needs=[
-            raw_need("n1", "api.github.com", "GET", "/repos/NVIDIA/OpenShell/**"),
+            raw_need("n1", "api.github.com", "GET", "/repos/NVIDIA/OpenShell/**", path_is_glob=True),
             raw_need("n2", "api.github.com", "GET", "/repos/NVIDIA/OpenShell/contents/{path}"),
         ],
     )

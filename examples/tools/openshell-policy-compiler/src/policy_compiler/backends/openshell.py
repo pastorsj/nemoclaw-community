@@ -196,11 +196,42 @@ _GLOB_CHARS = re.compile(r"[*?\[]")
 # --- loading and dumping ---------------------------------------------------------------
 
 
+_POLICY_GET_HEADER_LINE = re.compile(r"[A-Z][A-Za-z0-9]*(?: [A-Za-z0-9]+)*:(?:[ \t].*)?")
+"""One ``Key: value`` line of ``openshell policy get`` output, such as ``Version: 3`` or ``Config rev: 7``."""
+
+
+def _strip_policy_get_header(text: str) -> str:
+    """Return the policy YAML from saved ``openshell policy get`` output, or ``text`` unchanged.
+
+    ``openshell policy get NAME --base`` (or ``--full``) prints ``Key: value`` lines,
+    a line that is exactly ``---``, then the policy YAML. The header is removed only
+    when every line before the first ``---`` is blank or a capitalized ``Key: value``
+    line, and at least one is not blank. Policy keys are lowercase, so a plain policy
+    file, including one that starts with ``---``, is returned unchanged.
+    """
+    lines = text.splitlines(keepends=True)
+    for index, line in enumerate(lines):
+        content = line.rstrip("\r\n")
+        if content == "---":
+            if any(earlier.strip() for earlier in lines[:index]):
+                return "".join(lines[index + 1 :])
+            return text
+        if content.strip() and not _POLICY_GET_HEADER_LINE.fullmatch(content):
+            return text
+    return text
+
+
 def load_policy_file(path: Path) -> dict:
-    """Load an OpenShell policy (or preset or fragment) from a YAML or JSON file."""
+    """Load an OpenShell policy (or preset or fragment) from a YAML or JSON file.
+
+    A YAML file may also be saved ``openshell policy get`` output; its header is skipped.
+    """
     path = Path(path)
     text = path.read_text(encoding="utf-8")
-    data = json.loads(text) if path.suffix.lower() == ".json" else yaml.safe_load(text)
+    if path.suffix.lower() == ".json":
+        data = json.loads(text)
+    else:
+        data = yaml.safe_load(_strip_policy_get_header(text))
     if not isinstance(data, dict):
         raise ValueError(f"{path}: expected a mapping at the top level, got {type(data).__name__}")
     return data
