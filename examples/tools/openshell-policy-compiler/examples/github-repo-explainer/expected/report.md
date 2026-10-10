@@ -70,9 +70,11 @@ Concepts matched by the use case: `source-code.read`.
 
 ## Diagnostics
 
-| Level | Code | Message |
-| --- | --- | --- |
-| info | write-concept-not-requested | The use case does not request write access for these concepts, so they justify nothing: source-code.write (negated: change repository). |
+The source is the stage that reported the finding: the resolver, the catalog, or lowering of the policy or the boundary.
+
+| Source | Level | Code | Message |
+| --- | --- | --- | --- |
+| resolver | info | write-concept-not-requested | The use case does not request write access for these concepts, so they justify nothing: source-code.write (negated: change repository). |
 
 ## Next steps
 

@@ -37,10 +37,19 @@ from policy_compiler.ir.access import (
     Matcher,
     Widening,
 )
-from policy_compiler.ir.common import Inspection, Privilege, Protocol, method_privilege
-from policy_compiler.ir.contract import COMPILED_PHASES, Contract, Locus, Need, Prohibition, Target
+from policy_compiler.ir.common import Inspection, Layer, Privilege, Protocol, method_privilege
+from policy_compiler.ir.contract import COMPILED_PHASES, Contract, Locus, Need, Prohibition, RawEndpoint, Target
 
 MCP_LIFECYCLE_METHODS = ("initialize", "notifications/initialized", "tools/list")
+HTTP_METHODS = frozenset({"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"})
+"""Methods a declared REST call may use, besides ``*`` for a templated method. CONNECT and TRACE are refused."""
+GLOB_CHARACTERS = frozenset("*?[]")
+"""Characters that make an OpenShell path or tool matcher a pattern instead of a literal."""
+MTLS_DETAIL = "mtls: OpenShell TLS termination would break client certificates"
+LLM_CONFIG_JUSTIFICATION = "llm_config"
+"""``justified_by`` entry for needs that an agent's model configuration declares."""
+BROAD_PREFIX = 8
+"""``allowed_ips`` ranges with a prefix shorter than this are reported as broad."""
 ALWAYS_JUSTIFIED_CONCEPTS = frozenset({"llm.inference"})
 """An agent needs its model even when the use case never mentions one."""
 
@@ -92,6 +101,9 @@ class Grant:
     can admit requests no catalogued operation describes."""
     lifecycle: bool = False
     """An MCP lifecycle method (initialize, tools/list) that only serves the need's tools/call grants."""
+    endpoint_path: str = ""
+    """OpenShell endpoint route selector (``EndpointKey.path``): the declared MCP server path. Empty for
+    every other grant, and for catalogued MCP grants, which then cover the whole host."""
 
 
 @dataclass
@@ -118,6 +130,8 @@ class Resolution:
     forbidden_by: dict[str, list[str]] = field(default_factory=dict)
     """Prohibition ID -> the catalogued operations it forbids."""
     use_case_concepts: list[str] = field(default_factory=list)
+    justified: bool = False
+    """Use-case justification ran: there was use-case text and a concept index."""
 
 
 def resolve(
@@ -129,8 +143,9 @@ def resolve(
 ) -> Resolution:
     """Resolve ``contract`` against ``graph``.
 
-    ``concept_index`` enables use-case justification. Without it, every grant is
-    reported as unjustified-but-kept only when a use case is present.
+    ``concept_index`` enables use-case justification, together with use-case text
+    (``options.use_case`` or the contract's). Without either, no grant is judged
+    and ``Resolution.justified`` is False.
     """
     options = options or ResolveOptions()
     resolver = _Resolver(contract, graph, options, concept_index)
@@ -152,6 +167,7 @@ class _Resolver:
         self.diagnostics: list[Diagnostic] = []
         self.widenings: list[Widening] = []
         self.results: dict[str, NeedResolution] = {}
+        self.justified = False
         self.client_specific: dict[str, set[str]] = {}
         """Operation ID -> client paths that perform it implicitly (git-upload-pack -> git)."""
         for client in graph.clients.values():
@@ -168,6 +184,7 @@ class _Resolver:
 
         if self.options.route_inference_local:
             grants = self._route_inference_local(grants)
+        self._note_uncatalogued_models()
 
         use_case_concepts = self._justify(grants)
 
@@ -178,6 +195,7 @@ class _Resolver:
         access = self._build_access(grants, forbidden)
         boundary_grants = self._boundary_grants(grants, forbidden)
         boundary = self._build_access(boundary_grants, forbidden)
+        self._check_allowed_ips(access, boundary)
 
         access.diagnostics = list(self.diagnostics)
         access.widenings = list(self.widenings)
@@ -190,6 +208,7 @@ class _Resolver:
             forbidden_operations=sorted(forbidden),
             forbidden_by=forbidden_by,
             use_case_concepts=use_case_concepts,
+            justified=self.justified,
         )
 
     def _result(self, need: Need) -> NeedResolution:
@@ -266,6 +285,8 @@ class _Resolver:
                     require_bound=bool(target.scope) and self.options.pin_scope,
                 )
             )
+            if _uses_mtls(need) and grants:
+                grants = self._connection_level(need, grants)
 
         result.operations = _unique([op for g in grants for op in g.operations])
         if not grants and result.status == "resolved":
@@ -290,6 +311,29 @@ class _Resolver:
         result.notes.append(message)
         self._diag("warning", "ambiguous-concept", f"{need.id}: {message}", need.id)
         return True
+
+    def _connection_level(self, need: Need, grants: list[Grant]) -> list[Grant]:
+        """Turn a need's grants into one opaque connection-level grant per endpoint and client set (mTLS)."""
+        self._widen(need.id, "mtls", MTLS_DETAIL)
+        merged: dict[tuple, Grant] = {}
+        for g in grants:
+            key = (g.host, g.port, g.clients)
+            if key not in merged:
+                merged[key] = replace(
+                    g,
+                    protocol=Protocol.L4,
+                    matcher=None,
+                    operations=list(g.operations),
+                    privilege=Privilege.UNKNOWN,
+                    inspection=Inspection.OPAQUE,
+                    declared=True,
+                    lifecycle=False,
+                    endpoint_path="",
+                )
+                continue
+            kept = merged[key]
+            kept.operations = _unique([*kept.operations, *g.operations])
+        return list(merged.values())
 
     def _operations_for_target(self, target: Target) -> tuple[list[Operation], str]:
         graph = self.graph
@@ -354,7 +398,7 @@ class _Resolver:
         for g in grants:
             if g.protocol != Protocol.MCP or g.matcher is None or g.lifecycle:
                 continue
-            key = (g.host, g.port, g.clients)
+            key = (g.host, g.port, g.endpoint_path, g.clients)
             if key in seen:
                 continue
             seen.add(key)
@@ -371,6 +415,7 @@ class _Resolver:
                     inspection=g.inspection,
                     allowed_ips=g.allowed_ips,
                     lifecycle=True,
+                    endpoint_path=g.endpoint_path,
                 )
                 for method in MCP_LIFECYCLE_METHODS
             )
@@ -426,13 +471,24 @@ class _Resolver:
 
     def _resolve_raw(self, need: Need, clients: tuple[str, ...]) -> tuple[list[Grant], dict[str, str]]:
         """Grants for a declared endpoint, plus the template parameters its literal segments fix."""
-        raw = need.target.raw
-        assert raw is not None
+        declared = need.target.raw
+        assert declared is not None
+        raw = replace(
+            declared,
+            host=_normal_host(declared.host),
+            method=declared.method.upper() if declared.method is not None else None,
+        )
         result = self._result(need)
+        connection = raw.protocol in (Protocol.TCP, Protocol.L4, Protocol.SQL)
+        if not connection and not self._valid_raw_shape(need, raw):
+            return [], {}
+
         services = self.graph.services_for(raw.host, raw.port)
-        service = services[0] if services else None
+        opaque_services = [s for s in services if s.inspection == Inspection.OPAQUE]
+        service = opaque_services[0] if opaque_services else (services[0] if services else None)
         inspection = service.inspection if service else Inspection.L7
         allowed_ips = tuple(service.allowed_ips) if service else ()
+        self._check_origin(need, raw)
 
         def grant(
             matcher: Matcher | None,
@@ -442,6 +498,8 @@ class _Resolver:
             *,
             declared: bool,
             lifecycle: bool = False,
+            endpoint_path: str = "",
+            grant_inspection: Inspection | None = None,
         ) -> Grant:
             return Grant(
                 need=need.id,
@@ -453,10 +511,11 @@ class _Resolver:
                 matcher=matcher,
                 operations=ops,
                 privilege=privilege,
-                inspection=inspection,
+                inspection=grant_inspection or inspection,
                 allowed_ips=allowed_ips,
                 declared=declared,
                 lifecycle=lifecycle,
+                endpoint_path=endpoint_path,
             )
 
         if service is None and _looks_private(raw.host):
@@ -468,23 +527,53 @@ class _Resolver:
                 need.id,
             )
 
-        if raw.protocol in (Protocol.TCP, Protocol.L4, Protocol.SQL):
+        if _uses_mtls(need):
+            # OpenShell terminates TLS to inspect requests, which would replace the client certificate.
+            self._widen(need.id, "mtls", MTLS_DETAIL)
+            if service is None:
+                result.status = "uncatalogued"
+            return [grant(None, [], Privilege.UNKNOWN, Protocol.L4, declared=True, grant_inspection=Inspection.OPAQUE)], {}
+
+        if connection:
             self._widen(need.id, "connection-level", f"{raw.host}:{raw.port} is allowed at the connection level.")
             return [grant(None, [], Privilege.UNKNOWN, Protocol.L4, declared=True)], {}
 
+        if inspection == Inspection.OPAQUE:
+            # Before the MCP and endpoint-level branches: L7 rules under tls: skip would never be enforced.
+            self._widen(need.id, "opaque", f"{raw.host} cannot be inspected; only the host and port are limited.")
+            return [grant(None, [], Privilege.UNKNOWN, Protocol.L4, declared=True)], {}
+
         if raw.protocol == Protocol.MCP:
+            endpoint_path = self._mcp_endpoint_path(need, raw.path)
             grants = [
-                grant(Matcher(method=m), [], Privilege.READ, Protocol.MCP, declared=False, lifecycle=True)
+                grant(
+                    Matcher(method=m),
+                    [],
+                    Privilege.READ,
+                    Protocol.MCP,
+                    declared=False,
+                    lifecycle=True,
+                    endpoint_path=endpoint_path,
+                )
                 for m in MCP_LIFECYCLE_METHODS
             ]
             if not raw.mcp_tools:
                 self._widen(need.id, "open-toolset", "No tool filter: tools/call is not allowed for any tool.")
+            tools = [t for t in raw.mcp_tools if not GLOB_CHARACTERS & set(t)]
+            patterns = [t for t in raw.mcp_tools if t not in tools]
+            if patterns:
+                shown = ", ".join(repr(t) for t in patterns)
+                result.notes.append(
+                    f"MCP tool names with glob characters ({shown}) are not trusted as literal names; "
+                    "tools/call was not allowed for them."
+                )
+                self._diag("warning", "glob-in-literal", f"{need.id}: MCP tool name {shown} has glob characters.", need.id)
             by_tool: dict[str, Operation] = {}
             for svc in services:
                 for op in self.graph.operations_of(svc.id):
                     if isinstance(op.selector, McpSelector):
                         by_tool.setdefault(op.selector.tool, op)
-            for tool in raw.mcp_tools:
+            for tool in tools:
                 op = by_tool.get(tool)
                 grants.append(
                     grant(
@@ -493,6 +582,7 @@ class _Resolver:
                         op.privilege if op else Privilege.UNKNOWN,
                         Protocol.MCP,
                         declared=op is None,
+                        endpoint_path=endpoint_path,
                     )
                 )
             if not any(g.operations for g in grants):
@@ -509,12 +599,8 @@ class _Resolver:
                 result.status = "uncatalogued"
             return [grant(Matcher(method="*", path="/**"), [], Privilege.UNKNOWN, Protocol.REST, declared=True)], {}
 
-        if inspection == Inspection.OPAQUE:
-            self._widen(need.id, "opaque", f"{raw.host} cannot be inspected; only the host and port are limited.")
-            return [grant(None, [], Privilege.UNKNOWN, Protocol.L4, declared=True)], {}
-
         prefixes = [p.rstrip("/") for p in need.path_prefixes]
-        if "*" in raw.path:
+        if raw.path_is_glob:
             if prefixes and not _within_prefixes(raw.path, prefixes):
                 result.status = "unresolved"
                 result.notes.append(
@@ -569,6 +655,76 @@ class _Resolver:
             "and its privilege is guessed from the method."
         )
         return [grant(Matcher(method=raw.method, path=glob), [], method_privilege(raw.method), Protocol.REST, declared=True)], {}
+
+    def _valid_raw_shape(self, need: Need, raw: RawEndpoint) -> bool:
+        """Refuse a declared method or literal path that could match more than the agent declared."""
+        result = self._result(need)
+        problems: list[str] = []
+        if raw.protocol != Protocol.MCP and raw.method is not None and raw.method != "*" and raw.method not in HTTP_METHODS:
+            problems.append(
+                f"The declared method {raw.method!r} is not a standard HTTP method "
+                f"({', '.join(sorted(HTTP_METHODS))}); nothing was granted."
+            )
+            self._diag(
+                "warning", "invalid-method", f"{need.id}: method {raw.method!r} is not a standard HTTP method.", need.id
+            )
+        if raw.path is not None and not raw.path_is_glob and GLOB_CHARACTERS & set(raw.path):
+            problems.append(
+                f"The declared path {raw.path} contains glob characters (* ? [ ]). Glob characters in a "
+                "declared literal path are not trusted, so nothing was granted."
+            )
+            self._diag(
+                "warning", "glob-in-literal", f"{need.id}: the declared path {raw.path} has glob characters.", need.id
+            )
+        if not problems:
+            return True
+        result.status = "unresolved"
+        result.notes.extend(problems)
+        return False
+
+    def _mcp_endpoint_path(self, need: Need, path: str | None) -> str:
+        """The OpenShell endpoint path for a declared MCP server URL path. Empty covers the whole host."""
+        if not path:
+            return ""
+        if path.endswith("/sse"):
+            covered = path[: -len("/sse")] + "/**"
+            self._widen(
+                need.id,
+                "mcp-sse-path",
+                f"With the SSE transport the server names its message path at run time, so the MCP endpoint "
+                f"covers {covered} instead of {path}.",
+            )
+            return covered
+        return path
+
+    def _check_origin(self, need: Need, raw: RawEndpoint) -> None:
+        """Warn when a need reaches a catalogued host on a port or scheme the catalog does not list."""
+        host_services = self._services_for_host(raw.host)
+        if not host_services:
+            return
+        if any(
+            origin.port == raw.port and origin.scheme == raw.scheme and paths.host_matches(origin.host, raw.host)
+            for service in host_services
+            for origin in service.origins
+        ):
+            return
+        ids = ", ".join(s.id for s in host_services)
+        providers = ", ".join(sorted({s.provider for s in host_services}))
+        self._diag(
+            "warning",
+            "uncatalogued-port",
+            f"{need.id}: {raw.scheme}://{raw.host}:{raw.port} is not a catalogued origin of {ids}. The catalog's "
+            f"operations do not describe it, and prohibitions on {providers} still apply to it.",
+            need.id,
+        )
+
+    def _services_for_host(self, host: str) -> list[Service]:
+        """Services with an origin on ``host`` at any port. Prohibitions follow the host, not the port."""
+        return [
+            service
+            for service in self.graph.services.values()
+            if any(paths.host_matches(o.host, host) or paths.host_matches(host, o.host) for o in service.origins)
+        ]
 
     def _glob_matches(self, host: str, port: int, method: str, glob: str) -> list[Operation]:
         found = []
@@ -657,6 +813,7 @@ class _Resolver:
             if isinstance(op.selector, RestSelector)
         }
         routed: list[Grant] = []
+        dropped: list[str] = []
         for g in grants:
             concepts = {c for op in g.operations for c in self._concepts_for(op)}
             if "llm.inference" not in concepts or g.service is local_service or g.matcher is None:
@@ -669,6 +826,7 @@ class _Resolver:
                     result.notes.append(
                         f"{g.matcher.method} {g.matcher.path} has no inference.local equivalent and was dropped."
                     )
+                dropped.append(g.need)
                 continue
             routed.extend(
                 self._grants_for_operation(
@@ -679,7 +837,35 @@ class _Resolver:
                 result.notes.append(
                     f"Routed {g.host} to inference.local; point the agent's base URL at https://inference.local/v1."
                 )
+        for need_id in _unique(dropped):
+            result = self.results.get(need_id)
+            if result is None or any(g.need == need_id for g in routed):
+                continue
+            if result.status in ("resolved", "uncatalogued"):
+                result.status = "unresolved"
+            result.notes.append(
+                "No model endpoint of this need has an inference.local equivalent, so nothing was granted; "
+                "use a model API that inference.local serves, or compile without --route-inference-local."
+            )
         return routed
+
+    def _note_uncatalogued_models(self) -> None:
+        """Point uncatalogued model endpoints at OpenShell's managed inference route."""
+        for need in self.contract.needs:
+            result = self.results.get(need.id)
+            if result is None or not _declared_by_llm_config(need) or not result.status.endswith("uncatalogued"):
+                continue
+            host = _normal_host(need.target.raw.host) if need.target.raw is not None else "the model endpoint"
+            if self.options.route_inference_local:
+                result.notes.append(
+                    f"The model endpoint {host} is not in the catalog, so it was not routed to inference.local; "
+                    "its host is allowed directly."
+                )
+            else:
+                result.notes.append(
+                    f"The model endpoint {host} is not in the catalog. Consider --route-inference-local to send "
+                    f"model traffic through OpenShell's inference.local route instead of allowing {host} directly."
+                )
 
     # ------------------------------------------------------------ justification
 
@@ -704,6 +890,7 @@ class _Resolver:
         text = self.options.use_case if self.options.use_case is not None else self.contract.use_case
         if not text or self.index is None:
             return []
+        self.justified = True
         from policy_compiler.semantic import find_write_verb_uses
 
         uses = find_write_verb_uses(text)
@@ -714,12 +901,17 @@ class _Resolver:
         allowed = set(concepts) | ALWAYS_JUSTIFIED_CONCEPTS
         unjustified: dict[str, list[str]] = {}
         failed: set[int] = set()
+        # The agent needs the model its own configuration names, whatever the use case says.
+        model_needs = {n.id for n in self.contract.needs if _declared_by_llm_config(n)}
         for g in grants:
             if g.lifecycle:
                 continue
             per_op = {op: set(self._concepts_for(op)) & allowed for op in g.operations}
             g.justified_by = sorted({c for cs in per_op.values() for c in cs})
             missing = [op for op, cs in per_op.items() if not cs] if per_op else [g.host]
+            if missing and g.need in model_needs:
+                g.justified_by = sorted({*g.justified_by, LLM_CONFIG_JUSTIFICATION})
+                missing = []
             if missing:
                 failed.add(id(g))
                 unjustified.setdefault(g.need, []).extend(missing)
@@ -802,13 +994,14 @@ class _Resolver:
         if prohibition.provider is not None:
             floor = prohibition.min_privilege or Privilege.READ
             for op in graph.operations.values():
-                if graph.services[op.service].provider == prohibition.provider and op.privilege.at_least(floor):
+                if graph.services[op.service].provider == prohibition.provider and _floor_privilege(op).at_least(floor):
                     found.add(op.id)
         target = prohibition.target
         if target is None:
             return found
         if target.raw is not None:
-            for service in graph.services_for(target.raw.host, target.raw.port):
+            # A host prohibition holds on every port the host serves.
+            for service in self._services_for_host(_normal_host(target.raw.host)):
                 for op in graph.operations_of(service.id):
                     found.add(op.id)
             return found
@@ -843,7 +1036,7 @@ class _Resolver:
 
     def _apply_prohibitions(self, grants: list[Grant], forbidden: set[str]) -> list[Grant]:
         raw_hosts = {
-            (p.target.raw.host.lower(), p.target.raw.port)
+            _normal_host(p.target.raw.host)
             for p in self.contract.prohibitions
             if p.target is not None and p.target.raw is not None
         }
@@ -858,7 +1051,9 @@ class _Resolver:
         kept: list[Grant] = []
         for g in grants:
             blocked_ops = [op for op in g.operations if op in forbidden]
-            if (g.host.lower(), g.port) in raw_hosts or (g.operations and len(blocked_ops) == len(g.operations)):
+            host = _normal_host(g.host)
+            on_raw_host = any(paths.host_matches(h, host) or paths.host_matches(host, h) for h in raw_hosts)
+            if on_raw_host or (g.operations and len(blocked_ops) == len(g.operations)):
                 self._conflict(g, ", ".join(blocked_ops) or f"{g.host}:{g.port}")
                 continue
             floor = self._provider_floor(g, floors)
@@ -871,8 +1066,9 @@ class _Resolver:
         return _drop_orphan_lifecycle(kept, grants)
 
     def _provider_floor(self, g: Grant, floors: dict[str, tuple[Privilege, str]]) -> tuple[Privilege, str] | None:
-        """The lowest prohibited level among the providers that serve the grant's host."""
-        found = [floors[s.provider] for s in self.graph.services_for(g.host, g.port) if s.provider in floors]
+        """The lowest prohibited level among the providers that serve the grant's host, on any port."""
+        services = self._services_for_host(_normal_host(g.host))
+        found = [floors[s.provider] for s in services if s.provider in floors]
         return min(found, key=lambda f: f[0].rank) if found else None
 
     def _apply_provider_floor(self, g: Grant, floor: Privilege, prohibition: str) -> Grant | None:
@@ -906,11 +1102,39 @@ class _Resolver:
             self._widen(g.need, "narrowed-by-prohibition", detail)
             self.results[g.need].notes.append(f"The rule {detail[:-1]}: other methods are prohibited there.")
             matcher = g.matcher
-        if (g.declared or not g.operations) and method_privilege(matcher.method or "").at_least(floor):
-            what = f"{matcher.method} {matcher.path or matcher.tool or ''}".strip()
+        what = f"{matcher.method} {matcher.path or matcher.tool or ''}".strip()
+        if g.protocol == Protocol.REST and matcher.method:
+            effective = self._effective_privilege(g, matcher.method)
+            if effective is not None and effective.at_least(floor):
+                self._conflict(
+                    g, f"{what} on {where}, whose privilege ({effective.value}) is at least the method's ({rule})"
+                )
+                return None
+        elif (g.declared or not g.operations) and method_privilege(matcher.method or "").at_least(floor):
             self._conflict(g, f"{what} on {where}, whose privilege is unknown or guessed from the method ({rule})")
             return None
         return g
+
+    def _effective_privilege(self, g: Grant, method: str) -> Privilege | None:
+        """A REST grant's privilege under a provider floor: never below what its HTTP method suggests.
+
+        The method counts when the grant has no catalogued operation or follows the declared shape, and it
+        raises the stated privilege of an operation whose label is untrusted (agent layer) or describes a
+        different method (a ``*`` selector). Curated base and org operations keep their privilege, such as
+        GitHub's read-level POST git-upload-pack: they are matched by name in the forbidden set and denied
+        under broader rules. ``None`` means nothing here depends on the method.
+        """
+        guessed = method_privilege(method)
+        # Requests the catalog does not describe: only the method tells their privilege.
+        levels: list[Privilege] = [guessed] if g.declared or not g.operations else []
+        for op_id in g.operations:
+            op = self.graph.operations[op_id]
+            selector = op.selector
+            untrusted = op.layer is Layer.AGENT
+            other_method = not isinstance(selector, RestSelector) or not paths.method_covers(selector.method, method)
+            if untrusted or other_method or selector.method == "*":
+                levels += [op.privilege, guessed]
+        return _max_privilege(levels) if levels else None
 
     def _conflict(self, g: Grant, what: str) -> None:
         result = self.results[g.need]
@@ -997,6 +1221,7 @@ class _Resolver:
             inspection=g.inspection,
             enforcement=Enforcement.ENFORCE,
             allowed_ips=g.allowed_ips,
+            path=g.endpoint_path if g.matcher is not None else "",
         )
 
     def _deny_rules(self, rules: list[AccessRule], forbidden: set[str]) -> list[AccessRule]:
@@ -1006,7 +1231,7 @@ class _Resolver:
         for rule in rules:
             if rule.matcher is None or rule.matcher.path is None or rule.matcher.method is None:
                 continue
-            for service in self.graph.services_for(rule.endpoint.host, rule.endpoint.ports[0]):
+            for service in self._services_for_host(_normal_host(rule.endpoint.host)):
                 for op in self.graph.operations_of(service.id):
                     if op.id not in forbidden or not isinstance(op.selector, RestSelector):
                         continue
@@ -1033,6 +1258,28 @@ class _Resolver:
                     )
         return denies
 
+    def _check_allowed_ips(self, access: AccessSet, boundary: AccessSet) -> None:
+        """Warn about allowed_ips ranges so broad that the endpoint can reach almost any address."""
+        where: dict[tuple[str, str], list[str]] = {}
+        for label, rules in (("policy", access.rules), ("boundary", boundary.rules)):
+            for rule in rules:
+                if rule.effect != Effect.ALLOW:
+                    continue
+                for cidr in rule.endpoint.allowed_ips:
+                    labels = where.setdefault((rule.endpoint.host, cidr), [])
+                    if label not in labels:
+                        labels.append(label)
+        for (host, cidr), labels in where.items():
+            problem = _broad_cidr(cidr)
+            if problem is None:
+                continue
+            self._diag(
+                "warning",
+                "broad-allowed-ips",
+                f"{host or 'A hostless endpoint'}: allowed_ips {cidr} {problem} (in the {' and '.join(labels)}). "
+                "Such a range lets the endpoint reach almost any address; describe the private range exactly.",
+            )
+
     # ------------------------------------------------------------ helpers
 
     def _diag(self, level: str, code: str, message: str, pointer: str = "") -> None:
@@ -1040,6 +1287,43 @@ class _Resolver:
 
     def _widen(self, need: str, reason: str, detail: str) -> None:
         self.widenings.append(Widening(need=need, reason=reason, detail=detail))
+
+
+def _normal_host(host: str) -> str:
+    """Lower-case a host name and drop a trailing dot, so ``API.github.com.`` matches ``api.github.com``."""
+    return host.rstrip(".").lower()
+
+
+def _uses_mtls(need: Need) -> bool:
+    return need.credential is not None and need.credential.placement == "mtls"
+
+
+def _declared_by_llm_config(need: Need) -> bool:
+    """Whether an agent's model configuration (``llm_config``) declared the need."""
+    return any("llm_config" in evidence.pointer for evidence in need.evidence)
+
+
+def _floor_privilege(op: Operation) -> Privilege:
+    """An operation's privilege for a provider prohibition.
+
+    An agent-layer label is untrusted, so a concrete HTTP method raises it (a ``DELETE`` labelled read counts
+    as a write). ``*`` selectors are left to the grant-level check, which knows the declared method.
+    """
+    selector = op.selector
+    if op.layer is Layer.AGENT and isinstance(selector, RestSelector) and selector.method != "*":
+        return _max_privilege([op.privilege, method_privilege(selector.method)])
+    return op.privilege
+
+
+def _broad_cidr(cidr: str) -> str | None:
+    """Why an allowed_ips entry is too broad, or ``None``."""
+    try:
+        network = ipaddress.ip_network(cidr, strict=False)
+    except ValueError:
+        return "is not a valid CIDR range"
+    if network.prefixlen < BROAD_PREFIX:
+        return f"has a /{network.prefixlen} prefix, shorter than /{BROAD_PREFIX}"
+    return None
 
 
 def _need_stub(need_id: str) -> Need:
@@ -1078,7 +1362,7 @@ def _drop_orphan_lifecycle(kept: list[Grant], original: list[Grant]) -> list[Gra
     """Drop MCP lifecycle grants whose need lost every tools/call grant on that endpoint and client set."""
 
     def key(g: Grant) -> tuple:
-        return (g.need, g.host, g.port, g.clients)
+        return (g.need, g.host, g.port, g.endpoint_path, g.clients)
 
     had = {key(g) for g in original if g.protocol == Protocol.MCP and not g.lifecycle}
     has = {key(g) for g in kept if g.protocol == Protocol.MCP and not g.lifecycle}

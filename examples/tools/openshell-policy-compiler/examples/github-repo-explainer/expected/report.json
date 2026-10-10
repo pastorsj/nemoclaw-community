@@ -193,6 +193,7 @@
       "github.repos.put-content"
     ]
   },
+  "use_case_justified": true,
   "use_case_concepts": [
     "source-code.read"
   ],

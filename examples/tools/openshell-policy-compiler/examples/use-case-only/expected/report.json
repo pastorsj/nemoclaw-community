@@ -112,6 +112,7 @@
       "detail": "Concept source-code.read expanded to github.contents:read. Every operation those capabilities enable is allowed within the scope."
     }
   ],
+  "use_case_justified": false,
   "rules": [
     {
       "effect": "allow",

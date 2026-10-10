@@ -87,6 +87,7 @@
       ]
     }
   ],
+  "use_case_justified": false,
   "rules": [
     {
       "effect": "allow",

@@ -14,12 +14,19 @@ in ``SCORE_WEIGHTS`` so that the number can be reproduced and challenged.
 from __future__ import annotations
 
 import fnmatch
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from policy_compiler import paths
 from policy_compiler.graph.model import McpSelector, Operation, RestSelector
 from policy_compiler.graph.store import Graph
-from policy_compiler.ir.access import AccessRule, AccessSet, Effect, Enforcement
+from policy_compiler.ir.access import (
+    AccessRule,
+    AccessSet,
+    Effect,
+    EndpointKey,
+    Enforcement,
+    Matcher,
+)
 from policy_compiler.ir.common import Inspection, Privilege, Protocol
 
 PRESET_METHODS: dict[str, frozenset[str] | None] = {
@@ -91,20 +98,60 @@ def _matching_operations(rule: AccessRule, graph: Graph) -> list[Operation]:
     return found
 
 
-def _rule_is_endpoint_wide(rule: AccessRule) -> bool:
-    """True when the rule's L7 restrictions do not bind (no matcher, L4, opaque, or audit)."""
+def _uninspected(rule: AccessRule) -> bool:
+    """True when OpenShell does not check this endpoint's requests: L4, TCP, opaque TLS, or audit.
+
+    Neither the rules nor the endpoint ``path`` route selector bind such an endpoint.
+    """
     endpoint = rule.endpoint
-    if rule.matcher is None and rule.access_preset is None:
-        return True
     if endpoint.protocol in (Protocol.L4, Protocol.TCP) or endpoint.inspection == Inspection.OPAQUE:
         return True
     return endpoint.enforcement == Enforcement.AUDIT
 
 
+def _rule_is_endpoint_wide(rule: AccessRule) -> bool:
+    """True when the rule's L7 restrictions do not bind (no matcher, L4, opaque, or audit)."""
+    if rule.matcher is None and rule.access_preset is None:
+        return True
+    return _uninspected(rule)
+
+
+def _route_reaches(endpoint: EndpointKey, op: Operation) -> bool:
+    """True when the endpoint's ``path`` route selector admits at least one request of ``op``.
+
+    OpenShell matches the selector like a rule path (``paths`` glob semantics) before it looks at the
+    endpoint's rules. Operations without a request path in the graph (MCP tools) count as reachable.
+    """
+    if not endpoint.path or not isinstance(op.selector, RestSelector):
+        return True
+    return paths.glob_overlaps_template(endpoint.path, op.selector.path, set(op.multi_segment))
+
+
+def _route_covers(endpoint: EndpointKey, op: Operation) -> bool:
+    """True when every request of ``op`` passes the endpoint's ``path`` route selector."""
+    if not endpoint.path:
+        return True
+    if not isinstance(op.selector, RestSelector):
+        return False
+    return paths.glob_covers_template(endpoint.path, op.selector.path, set(op.multi_segment))
+
+
+MCP_TRANSPORT_METHODS = frozenset({"POST", "GET"})
+"""HTTP methods that reach an MCP endpoint. OpenShell reads MCP messages from request bodies, so an allowed
+MCP message admits a POST (or the GET of a streaming connection) to any path the endpoint route selector
+admits, whatever REST operation that path belongs to."""
+
+
 def _rule_permits(rule: AccessRule, op: Operation) -> bool:
-    if _rule_is_endpoint_wide(rule):
+    if _uninspected(rule):
+        return True
+    if not _route_reaches(rule.endpoint, op):
+        return False
+    if rule.matcher is None and rule.access_preset is None:
         return True
     selector = op.selector
+    if rule.endpoint.protocol == Protocol.MCP and isinstance(selector, RestSelector):
+        return selector.method.upper() in MCP_TRANSPORT_METHODS
     if rule.matcher is None:
         methods = PRESET_METHODS.get(rule.access_preset or "full")
         if methods is None:
@@ -118,16 +165,26 @@ def _rule_permits(rule: AccessRule, op: Operation) -> bool:
             return True
         return paths.glob_overlaps_template(matcher.path, selector.path, set(op.multi_segment))
     if isinstance(selector, McpSelector):
-        if matcher.method != "tools/call":
+        if matcher.method is not None and not fnmatch.fnmatchcase("tools/call", matcher.method):
             return False
         return matcher.tool is None or fnmatch.fnmatchcase(selector.tool, matcher.tool)
     return False
 
 
 def _deny_covers(rule: AccessRule, op: Operation) -> bool:
+    """True when the deny rule blocks every request of ``op``.
+
+    Only enforced REST deny rules count. A query condition, an endpoint route selector that does not
+    cover the operation, or a deny on a non-REST endpoint (whose ``method`` is not an HTTP method)
+    leaves requests of the operation unblocked.
+    """
     matcher = rule.matcher
     selector = op.selector
     if matcher is None or not isinstance(selector, RestSelector):
+        return False
+    if rule.endpoint.protocol != Protocol.REST or _uninspected(rule) or matcher.query:
+        return False
+    if not _route_covers(rule.endpoint, op):
         return False
     if matcher.method is None or not paths.method_covers(matcher.method, selector.method):
         return False
@@ -236,3 +293,48 @@ def _first_int(ports: tuple) -> int:
         if isinstance(port, int):
             return port
     return 443
+
+
+_PRESET_RANK = {"read-only": 1, "read-write": 2, "full": 3}
+
+
+def _same_endpoint(a: AccessRule, b: AccessRule) -> bool:
+    return (
+        set(a.clients.paths) == set(b.clients.paths)
+        and a.endpoint.host.lower().rstrip(".") == b.endpoint.host.lower().rstrip(".")
+        and set(a.endpoint.ports) == set(b.endpoint.ports)
+        and a.endpoint.path == b.endpoint.path
+    )
+
+
+def _normal_matcher(matcher: Matcher | None) -> Matcher | None:
+    return None if matcher is None else replace(matcher, query=tuple(sorted(matcher.query)))
+
+
+def _emitted_as(rule: AccessRule, emitted: AccessRule) -> bool:
+    """True when ``emitted`` (lifted from the emitted policy) carries ``rule``, or a broader allow does."""
+    if emitted.effect != rule.effect or not _same_endpoint(rule, emitted):
+        return False
+    if rule.effect == Effect.ALLOW and emitted.matcher is None:
+        if emitted.access_preset is None:
+            return True  # the whole endpoint is allowed, for example after l7-rules-not-enforced
+        if rule.matcher is None and rule.access_preset is not None:
+            return _PRESET_RANK.get(emitted.access_preset, 0) >= _PRESET_RANK.get(rule.access_preset, 0)
+        return False
+    return rule.access_preset == emitted.access_preset and _normal_matcher(rule.matcher) == _normal_matcher(
+        emitted.matcher
+    )
+
+
+def rules_dropped_by_lowering(access: AccessSet, emitted: AccessSet) -> set[int]:
+    """Indexes into ``access.rules`` of the rules that the emitted policy does not carry.
+
+    ``emitted`` is ``lift(lower(access))``. Lowering fails closed: it drops endpoints and rules it cannot
+    emit safely, and reports why in its diagnostics. An allow rule still counts as emitted when a
+    whole-endpoint allow (or a broader access preset) for the same binaries and endpoint grants it.
+    """
+    return {
+        index
+        for index, rule in enumerate(access.rules)
+        if not any(_emitted_as(rule, candidate) for candidate in emitted.rules)
+    }

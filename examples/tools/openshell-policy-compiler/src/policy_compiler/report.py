@@ -12,9 +12,50 @@ from typing import Any
 from policy_compiler import __version__
 from policy_compiler.analysis import SCORE_WEIGHTS, Breadth, PermittedOperation
 from policy_compiler.graph.store import Graph
-from policy_compiler.ir.access import AccessRule, AccessSet, Effect
+from policy_compiler.ir.access import AccessRule, AccessSet, Diagnostic, Effect
 from policy_compiler.ir.contract import Contract
-from policy_compiler.resolve import Resolution
+from policy_compiler.resolve import NeedResolution, Resolution
+
+DROPPED_BY_LOWERING = "dropped by lowering"
+_USE_CASE_NOTE_PREFIXES = ("Not justified by the use case", "Excluded because the use case")
+
+
+@dataclasses.dataclass
+class ReportContext:
+    """What a compile report needs besides the resolution. Breadth and permitted operations describe the
+    emitted policy and boundary (``lift(lower(access))``), not the access set before lowering."""
+
+    policy_breadth: Breadth
+    boundary_breadth: Breadth
+    permitted: dict[str, PermittedOperation] = dataclasses.field(default_factory=dict)
+    lowering_diagnostics: dict[str, list[Diagnostic]] = dataclasses.field(default_factory=dict)
+    """``policy`` and ``boundary``: what ``lower`` dropped or changed."""
+    catalog_diagnostics: list[Diagnostic] = dataclasses.field(default_factory=list)
+    """Warnings from loading the catalog graph (``agent-layer-extends``, ``ignored-redefinition``, ...)."""
+    dropped_rules: set[int] = dataclasses.field(default_factory=set)
+    """Indexes into ``resolution.access.rules`` of the rules the emitted policy does not carry."""
+
+
+def use_case_justified(resolution: Resolution) -> bool:
+    """True only when use-case justification actually ran for this resolution."""
+    justified = getattr(resolution, "justified", None)
+    return bool(resolution.use_case_concepts) if justified is None else bool(justified)
+
+
+def _need_notes(result: NeedResolution | None, justified: bool) -> list[str]:
+    notes = list(result.notes) if result else []
+    if not justified:
+        notes = [n for n in notes if not n.startswith(_USE_CASE_NOTE_PREFIXES)]
+    return notes
+
+
+def labelled_diagnostics(resolution: Resolution, context: ReportContext) -> list[tuple[str, Diagnostic]]:
+    labelled = [("resolver", d) for d in resolution.access.diagnostics]
+    labelled += [("resolver", d) for d in resolution.boundary.diagnostics if d not in resolution.access.diagnostics]
+    labelled += [("catalog", d) for d in context.catalog_diagnostics]
+    for which, diagnostics in context.lowering_diagnostics.items():
+        labelled += [(f"lowering ({which})", d) for d in diagnostics]
+    return labelled
 
 
 def to_plain(value: Any) -> Any:
@@ -53,30 +94,31 @@ def _privilege_counts(b: Breadth) -> str:
     return f"{p.get('read', 0)} / {p.get('write', 0)} / {p.get('admin', 0)} / {p.get('unknown', 0)}"
 
 
-def _rule_rows(access: AccessSet) -> dict[tuple[str, tuple[str, ...]], list[AccessRule]]:
-    groups: dict[tuple[str, tuple[str, ...]], list[AccessRule]] = {}
-    for rule in access.rules:
-        groups.setdefault((rule.group, rule.clients.paths), []).append(rule)
+def _rule_rows(access: AccessSet) -> dict[tuple[str, tuple[str, ...]], list[tuple[int, AccessRule]]]:
+    groups: dict[tuple[str, tuple[str, ...]], list[tuple[int, AccessRule]]] = {}
+    for index, rule in enumerate(access.rules):
+        groups.setdefault((rule.group, rule.clients.paths), []).append((index, rule))
     return groups
 
 
-def _render_rules(access: AccessSet, lines: list[str]) -> None:
+def _render_rules(access: AccessSet, lines: list[str], dropped: set[int] = frozenset()) -> None:
     for (group, clients), rules in _rule_rows(access).items():
         binaries = ", ".join(f"`{c}`" for c in clients) or "(none)"
         lines += [f"### `{group}`: {binaries}", ""]
         lines += ["| Effect | Host | Method | Path / tool | Privilege | Operations | Why |", "| --- | --- | --- | --- | --- | --- | --- |"]
-        for rule in rules:
+        for index, rule in rules:
             matcher = rule.matcher
             if matcher is None:
                 method, where = "(any)", f"connection level ({rule.endpoint.protocol.value})"
             else:
                 method = matcher.method or ""
                 where = matcher.path or (f"tool `{matcher.tool}`" if matcher.tool else "")
-            host = f"{rule.endpoint.host}:{','.join(str(p) for p in rule.endpoint.ports)}"
+            host = f"{rule.endpoint.host}:{','.join(str(p) for p in rule.endpoint.ports)}{rule.endpoint.path}"
             ops = ", ".join(rule.operations) or "not in catalog"
             privilege = rule.privilege.value if rule.privilege else ""
+            effect = f"{rule.effect.value}, **{DROPPED_BY_LOWERING}**" if index in dropped else rule.effect.value
             lines.append(
-                f"| {rule.effect.value} | {_cell(host)} | {_cell(method)} | `{_cell(where)}` | {privilege} "
+                f"| {effect} | {_cell(host)} | {_cell(method)} | `{_cell(where)}` | {privilege} "
                 f"| {_cell(ops)} | {_cell(', '.join(rule.reasons))} |"
             )
         lines.append("")
@@ -84,13 +126,16 @@ def _render_rules(access: AccessSet, lines: list[str]) -> None:
 
 def render_compile_report(
     resolution: Resolution,
+    context: ReportContext,
     *,
-    policy_breadth: Breadth,
-    boundary_breadth: Breadth,
     outputs: dict[str, str] | None = None,
 ) -> str:
+    """Render the Markdown report. Breadth figures describe the emitted policy and boundary."""
     contract = resolution.contract
     access = resolution.access
+    policy_breadth, boundary_breadth = context.policy_breadth, context.boundary_breadth
+    justified = use_case_justified(resolution)
+    diagnostics = labelled_diagnostics(resolution, context)
     lines: list[str] = [f"# Policy report: {contract.agent}", ""]
     lines += [
         f"Generated by policy-compiler {__version__} from {', '.join(f'`{s}`' for s in contract.sources) or 'input'}. "
@@ -101,8 +146,8 @@ def render_compile_report(
     statuses: dict[str, int] = {}
     for n in resolution.needs:
         statuses[n.status] = statuses.get(n.status, 0) + 1
-    errors = sum(1 for d in access.diagnostics if d.level == "error")
-    warnings = sum(1 for d in access.diagnostics if d.level == "warning")
+    errors = sum(1 for _, d in diagnostics if d.level == "error")
+    warnings = sum(1 for _, d in diagnostics if d.level == "warning")
     lines += [
         "## Summary",
         "",
@@ -127,8 +172,15 @@ def render_compile_report(
     lines.append("")
 
     lines += ["## Rules", ""]
+    if context.dropped_rules:
+        lines += [
+            f"Rules marked **{DROPPED_BY_LOWERING}** are not in `policy.yaml`: lowering removed them rather than "
+            "emit something OpenShell would reject or that would allow more (fail closed). The lowering "
+            "diagnostics say why.",
+            "",
+        ]
     if access.rules:
-        _render_rules(access, lines)
+        _render_rules(access, lines, context.dropped_rules)
     else:
         lines += ["No rules were generated. The sandbox will have no network access beyond OpenShell defaults.", ""]
 
@@ -138,7 +190,7 @@ def render_compile_report(
         r = by_id.get(need.id)
         evidence = need.evidence[0] if need.evidence else None
         declared = f"{need.subject or ''} ({evidence.source}{' ' + evidence.pointer if evidence and evidence.pointer else ''})" if evidence else need.subject
-        notes = list(r.notes) if r else []
+        notes = _need_notes(r, justified)
         if need.approval.value != "none":
             notes.append("The definition asks for confirmation before this call; OpenShell cannot prompt mid-request.")
         if need.credential:
@@ -167,7 +219,7 @@ def render_compile_report(
         lines.append("None.")
     lines.append("")
 
-    if resolution.use_case_concepts:
+    if justified:
         lines += ["## Use-case justification", ""]
         lines.append(
             "Concepts matched by the use case: "
@@ -195,10 +247,18 @@ def render_compile_report(
             lines.append(f"| {p.id} | {_cell(p.rationale or subject)} | {len(resolution.forbidden_by.get(p.id, []))} |")
         lines.append("")
 
-    if access.diagnostics:
-        lines += ["## Diagnostics", "", "| Level | Code | Message |", "| --- | --- | --- |"]
-        for d in access.diagnostics:
-            lines.append(f"| {d.level} | {d.code} | {_cell(d.message)} |")
+    if diagnostics:
+        lines += [
+            "## Diagnostics",
+            "",
+            "The source is the stage that reported the finding: the resolver, the catalog, or lowering of the "
+            "policy or the boundary.",
+            "",
+            "| Source | Level | Code | Message |",
+            "| --- | --- | --- | --- |",
+        ]
+        for source, d in diagnostics:
+            lines.append(f"| {source} | {d.level} | {d.code} | {_cell(d.message)} |")
         lines.append("")
 
     if contract.notes:
@@ -223,26 +283,34 @@ def render_compile_report(
 
 def compile_report_data(
     resolution: Resolution,
-    *,
-    policy_breadth: Breadth,
-    boundary_breadth: Breadth,
-    permitted: dict[str, PermittedOperation],
+    context: ReportContext,
 ) -> dict:
+    """The JSON report. ``policy``, ``boundary``, and ``permitted_operations`` describe the emitted files."""
+    justified = use_case_justified(resolution)
+    needs = to_plain(resolution.needs)
+    for need, result in zip(needs, resolution.needs):
+        need["notes"] = _need_notes(result, justified)
+        if not justified:
+            for key in ("justified_by", "unjustified", "unjustified_action"):
+                need.pop(key, None)
     return _prune(
         {
             "version": __version__,
             "agent": resolution.contract.agent,
             "sources": resolution.contract.sources,
-            "policy": to_plain(policy_breadth),
-            "boundary": to_plain(boundary_breadth),
-            "permitted_operations": sorted(permitted),
-            "needs": to_plain(resolution.needs),
+            "policy": to_plain(context.policy_breadth),
+            "boundary": to_plain(context.boundary_breadth),
+            "permitted_operations": sorted(context.permitted),
+            "needs": needs,
             "unknowns": to_plain(resolution.contract.unknowns),
             "widenings": to_plain(resolution.access.widenings),
             "diagnostics": to_plain(resolution.access.diagnostics),
+            "catalog_diagnostics": to_plain(context.catalog_diagnostics),
+            "lowering_diagnostics": to_plain(context.lowering_diagnostics),
             "forbidden_operations": resolution.forbidden_operations,
             "forbidden_by_prohibition": resolution.forbidden_by,
-            "use_case_concepts": resolution.use_case_concepts,
+            "use_case_justified": justified,
+            "use_case_concepts": resolution.use_case_concepts if justified else [],
             "rules": [
                 {
                     "effect": r.effect.value,
@@ -250,6 +318,7 @@ def compile_report_data(
                     "clients": list(r.clients.paths),
                     "host": r.endpoint.host,
                     "ports": list(r.endpoint.ports),
+                    "endpoint_path": r.endpoint.path or None,
                     "protocol": r.endpoint.protocol.value,
                     "method": r.matcher.method if r.matcher else None,
                     "path": r.matcher.path if r.matcher else None,
@@ -257,8 +326,9 @@ def compile_report_data(
                     "privilege": r.privilege.value if r.privilege else None,
                     "operations": r.operations,
                     "reasons": r.reasons,
+                    "dropped_by_lowering": True if index in context.dropped_rules else None,
                 }
-                for r in resolution.access.rules
+                for index, r in enumerate(resolution.access.rules)
             ],
         }
     )
