@@ -108,21 +108,80 @@ def test_operations_are_deduplicated_by_verb_and_path(doc):
     assert ops["github.repos.get-a-repository"].multi_segment == []
 
 
-def test_requirements_from_several_permissions_are_an_or(doc):
+AND_NOTE = (
+    "GitHub lists additional permissions; required all of them because the flat data cannot distinguish OR from AND"
+)
+
+
+def _record(perm_access, verb, path, *, additional, slug="op"):
+    return {
+        "category": "repos",
+        "slug": slug,
+        "subcategory": "repos",
+        "verb": verb,
+        "requestPath": path,
+        "additional-permissions": additional,
+        "access": perm_access,
+    }
+
+
+def test_additional_permissions_fail_safe_to_one_and_list(doc):
     ops = _ops(doc)
+    # Every entry carries additional-permissions: true, so all distinct capabilities are required together.
     comments = ops["github.issues.list-issue-comments"]
-    assert comments.requires == [["github.issues:read"], ["github.pull_requests:read"]]
+    assert comments.requires == [["github.issues:read", "github.pull_requests:read"]]
     assert comments.privilege is Privilege.READ
     create = ops["github.issues.create-an-issue-comment"]
-    assert create.requires == [["github.issues:write"], ["github.pull_requests:write"]]
+    assert create.requires == [["github.issues:write", "github.pull_requests:write"]]
     assert create.privilege is Privilege.WRITE
-    # The duplicate contents record collapses into one requirement.
+    # The duplicate contents record collapses into one member of the AND-list.
     put = ops["github.repos.create-or-update-file-contents"]
-    assert put.requires == [["github.contents:write"], ["github.workflows:write"]]
+    assert put.requires == [["github.contents:write", "github.workflows:write"]]
     assert put.multi_segment == ["path"]
+    for op in (comments, create, put):
+        assert all(e.note == AND_NOTE for e in op.evidence), op.id
+    # Endpoints without additional permissions keep a plain requirement and no note.
+    content = ops["github.repos.get-repository-content"]
+    assert content.requires == [["github.contents:read"]]
+    assert all(e.note == "" for e in content.evidence)
 
 
-def test_privilege_is_the_minimum_capability_level(doc):
+def test_independent_permissions_stay_an_or_with_the_maximum_privilege():
+    data = {
+        "metadata": {"title": "Metadata", "permissions": [_record("read", "get", "/x", additional=False)]},
+        "contents": {"title": "Contents", "permissions": [_record("write", "get", "/x", additional=False)]},
+    }
+    (op,) = import_github_permissions(data, source="x.json", layer=Layer.ORG).operations
+    assert op.requires == [["github.metadata:read"], ["github.contents:write"]]
+    # Privilege is the maximum across entries, so the level is never understated.
+    assert op.privilege is Privilege.WRITE
+    assert all(e.note == "" for e in op.evidence)
+
+
+def test_fork_style_endpoint_is_not_enabled_by_contents_read_alone():
+    path = "/repos/{owner}/{repo}/forks"
+    data = {
+        "administration": {"title": "Administration", "permissions": [_record("write", "post", path, additional=True)]},
+        "contents": {
+            "title": "Contents",
+            "permissions": [
+                _record("read", "post", path, additional=True),
+                _record("read", "post", path, additional=True),
+            ],
+        },
+        "repository_creation": {
+            "title": "Repository creation",
+            "permissions": [_record("write", "post", path, additional=True)],
+        },
+    }
+    (op,) = import_github_permissions(data, source="x.json", layer=Layer.ORG).operations
+    assert op.requires == [["github.administration:write", "github.contents:read", "github.repository_creation:write"]]
+    # No alternative is satisfied by contents:read on its own.
+    assert not any(set(and_set) <= {"github.contents:read"} for and_set in op.requires)
+    assert op.privilege is Privilege.ADMIN
+
+
+def test_privilege_is_the_maximum_capability_level(doc):
     ops = _ops(doc)
     # A POST that GitHub classifies as read.
     assert ops["github.markdown.render-a-markdown-document"].privilege is Privilege.READ

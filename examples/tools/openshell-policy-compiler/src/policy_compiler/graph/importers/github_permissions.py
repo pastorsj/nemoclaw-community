@@ -11,9 +11,16 @@ grants (in github/docs, ``src/github-apps/data/``). The format is::
 
 Each ``(perm_key, access)`` pair becomes a capability ``github.<perm_key>:<access>``
 and each distinct ``(verb, requestPath)`` becomes an operation on ``github.rest``.
-An endpoint listed under several permissions requires any one of them (OR).
-The data does not say which permissions GitHub requires together, so AND
-requirements are not imported (see "Known gaps" in docs/design.md).
+
+The flat data cannot say whether an endpoint listed under several permissions
+needs any one of them (OR) or all of them (AND), so the importer fails safe:
+
+* If any entry for the endpoint has ``additional-permissions: true``, the
+  operation requires every distinct capability listed for it, as one AND-list.
+  This can demand more than GitHub does (issue comments accept Issues *or*
+  Pull requests), but it never lets a read permission reach a write endpoint.
+* Otherwise each entry is an alternative on its own (OR).
+* The operation's privilege is the highest capability level across its entries.
 
 The provider, service, and capability IDs and levels match ``catalog/base/github.yaml``.
 """
@@ -45,6 +52,9 @@ The base catalog classifies ``github.administration:write`` as admin, so the
 importer does the same to keep one level per capability ID.
 """
 _REQUIRED_FIELDS = ("verb", "requestPath", "access", "category", "slug")
+_AND_FALLBACK_NOTE = (
+    "GitHub lists additional permissions; required all of them because the flat data cannot distinguish OR from AND"
+)
 
 
 def import_github_permissions(data: dict, *, source: str, layer: Layer) -> CatalogDocument:
@@ -152,32 +162,25 @@ def _operation(
     layer: Layer,
     evidence: Callable[..., Evidence],
 ) -> Operation:
-    """One operation for an endpoint listed under one or more permissions (an OR of them)."""
+    """One operation for an endpoint listed under one or more permissions."""
     first = listed[0][2]
     # The first listing names the operation. A later endpoint with the same name gets a suffix.
     op_id = _unique(f"{PROVIDER_ID}.{first['category']}.{first['slug']}", used_ids)
-    requires: list[list[str]] = []
-    for perm_key, _, record in listed:
-        requirement = [_capability_id(perm_key, record["access"])]
-        if requirement not in requires:
-            requires.append(requirement)
-    additional = "GitHub lists additional permissions for this endpoint"
+    capabilities = list(dict.fromkeys(_capability_id(perm_key, record["access"]) for perm_key, _, record in listed))
+    all_required = any(record.get("additional-permissions") is True for _, _, record in listed)
+    requires = [capabilities] if all_required else [[cap] for cap in capabilities]
+    note = _AND_FALLBACK_NOTE if all_required else ""
     return Operation(
         id=op_id,
         service=SERVICE_ID,
         selector=RestSelector(method, path),
-        privilege=min((levels[cap] for (cap,) in requires), key=lambda level: level.rank),
+        privilege=max((levels[cap] for cap in capabilities), key=lambda level: level.rank),
         requires=requires,
         multi_segment=["path"] if "{path}" in path else [],
         summary=_sentence(first["slug"]),
         tags=list(dict.fromkeys(str(tag) for tag in (first["category"], first.get("subcategory")) if tag)),
         layer=layer,
-        evidence=[
-            evidence(
-                f"{perm_key}.permissions[{index}]", additional if record.get("additional-permissions") is True else ""
-            )
-            for perm_key, index, record in listed
-        ],
+        evidence=[evidence(f"{perm_key}.permissions[{index}]", note) for perm_key, index, _ in listed],
     )
 
 
