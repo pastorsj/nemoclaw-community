@@ -28,8 +28,9 @@ unknowns:
   kind: ambiguous
   subject: source-code.read
   description: 'The use case matches source-code.read (Read source code), which several
-    providers realize: github, gitlab. It names none of them, so no access was granted;
-    name the provider, for example ''on GitHub''.'
+    providers realize: github, gitlab. It names none of them, and the compiler never
+    picks a provider on its own, so no access was granted; name the provider, for
+    example ''on GitHub'', and the repository.'
   evidence:
   - kind: user
     source: use-case
