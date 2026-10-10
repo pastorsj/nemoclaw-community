@@ -214,3 +214,26 @@ def test_route_inference_local(graph):
     result = resolve(contract, graph, ResolveOptions(route_inference_local=True))
     assert allows(result.access) == [("inference.local", "POST", "/v1/chat/completions", (PY,))]
     assert "inference.local" in " ".join(result.needs[0].notes)
+
+
+def test_wildcard_method_operation_does_not_widen_declared_method():
+    from policy_compiler.graph.model import CatalogDocument, Operation, Origin, Provider, RestSelector, Service
+
+    doc = CatalogDocument(
+        providers=[Provider(id="mined", name="Mined")],
+        services=[Service(id="mined.api", provider="mined", name="api", origins=[Origin("api.mined.example")])],
+        operations=[
+            Operation(
+                id="mined.api.any",
+                service="mined.api",
+                selector=RestSelector(method="*", path="/v1/{rest}"),
+                privilege=Privilege.UNKNOWN,
+                multi_segment=["rest"],
+            )
+        ],
+    )
+    graph = load_graph(extra_documents=[doc])
+    contract = Contract(agent="x", default_clients=[PY], needs=[raw_need("n1", "api.mined.example", "GET", "/v1/a/b")])
+    result = resolve(contract, graph)
+    assert result.needs[0].operations == ["mined.api.any"]  # matched the catalogued operation
+    assert [(r.matcher.method, r.matcher.path) for r in result.access.rules] == [("GET", "/v1/a/b")]

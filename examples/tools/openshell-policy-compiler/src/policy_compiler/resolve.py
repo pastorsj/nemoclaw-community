@@ -390,8 +390,10 @@ class _Resolver:
         if matches:
             grants = []
             for op, glob in matches:
-                matcher = Matcher(method=op.selector.method, path=glob)  # type: ignore[union-attr]
-                grants.append(grant(matcher, [op.id], op.privilege, Protocol.REST))
+                # Never widen the declared method: a catalogued ``*`` operation (common in policies
+                # mined from hand-written files) still yields a rule for the method the agent declared.
+                method = raw.method if raw.method != "*" else op.selector.method  # type: ignore[union-attr]
+                grants.append(grant(Matcher(method=method, path=glob), [op.id], op.privilege, Protocol.REST))
             return grants
 
         result.status = "uncatalogued"
