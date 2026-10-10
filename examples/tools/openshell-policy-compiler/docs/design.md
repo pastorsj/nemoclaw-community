@@ -214,8 +214,11 @@ the union of all providers.
 
 - No observation run. Egress that is not declared (runtime telemetry, opaque
   tools) shows up only as an unknown.
-- Requirements in the GitHub data are flattened. GitHub's AND requirements (for
-  example Contents:write plus Workflows:write) are not imported.
+- GitHub's flat permission data cannot tell "either permission" from "both
+  permissions". When GitHub marks additional permissions, the importer fails
+  safe: it requires all of the listed permissions and classifies the operation
+  at the highest level. This can under-grant. The curated base catalog keeps
+  the verified "either" requirements, such as the one for issue comments.
 - Query, header, and body constraints are not generated.
 - The prover is not installed locally, so containment is not checked.
   `boundary.yaml` is written for use with `openshell-prover check`.
