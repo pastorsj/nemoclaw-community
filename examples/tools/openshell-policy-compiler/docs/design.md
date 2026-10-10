@@ -11,7 +11,7 @@ without a reviewer present. Each decision lists its reason so it can be revisite
 
 ## Problem
 
-Writing an OpenShell policy file is easy. Knowing what to put in it is hard.
+Writing an OpenShell policy file takes a few lines of YAML. Knowing what to put in it is hard.
 You have to know which providers, hosts, HTTP methods, and paths an agent needs,
 which binary makes each call, and which of those calls are reads, writes, or
 administrative actions. Policies written by hand tend to be too broad. In this
@@ -51,14 +51,16 @@ an OpenShell back end.
                     │   └─────────────────────────────────────────┘
                     │                  ▲
  OpenAPI + Overlay ─┴─► CAPABILITY GRAPH (layered: base → org → agent)
- GitHub permission data, OpenShell provider profiles, hand-curated catalog
+ GitHub permission data, mined OpenShell policies, hand-curated catalog
 ```
 
 ### Two kinds of input
 
 - **Knowledge inputs** describe APIs and feed the capability graph. Examples are
   OpenAPI specs, OpenAPI Overlays, GitHub's fine-grained permission data,
-  OpenShell provider profiles, and hand-curated catalog files.
+  existing OpenShell policies (mined with `import openshell-policies`), and
+  hand-curated catalog files. An importer for OpenShell provider profiles is not
+  built yet.
 - **Agent inputs** describe an agent and feed the contract. Examples are Agent
   Spec files and plain use-case text.
 
@@ -158,7 +160,7 @@ input, or as the limit for auto-approving Policy Advisor proposals.
 
 Every generated endpoint follows these rules:
 
-- It sets `protocol` explicitly. Without a protocol, `access` and `rules` have no
+- An inspected endpoint sets `protocol` explicitly. Without a protocol, `access` and `rules` have no
   effect.
 - It sets `enforcement: enforce` explicitly. The default is `audit`.
 - Its `binaries` list is never empty. An empty list means "none" at runtime and
@@ -196,7 +198,7 @@ When a concept is realized by several providers and the text names none of
 them, the compiler asks for clarification and grants nothing. It does not take
 the union of all providers.
 
-## Decisions taken without a reviewer
+## Design decisions
 
 | Decision | Choice | Reason |
 | --- | --- | --- |

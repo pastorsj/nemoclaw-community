@@ -14,7 +14,7 @@
 | Harness | N/A |
 | OpenShell | 0.0.106 |
 
-Writing an OpenShell policy file is easy. Knowing what belongs in it is hard:
+Writing an OpenShell policy file takes a few lines of YAML. Knowing what belongs in it is the hard part:
 which hosts, which HTTP methods and paths, which binaries, and which of those
 calls read data versus change it. This proof of concept compiles that answer
 from the agent's own definition and from knowledge about the APIs it calls. It
@@ -80,7 +80,7 @@ GitHub Repository Explainer: 5 allow rules, 0 deny rules
   hosts: integrate.api.nvidia.com, api.github.com
   catalogued operations reachable: 5 read, 0 write, 0 admin, 0 unknown (boundary: 14)
   needs: 5 resolved; unknowns: 1
-  wrote out/github-repo-explainer/: policy.yaml, boundary.yaml, contract.yaml, report.md, report.json
+  wrote out/github-repository-explainer/: policy.yaml, boundary.yaml, contract.yaml, report.md, report.json
 ```
 
 The generated `policy.yaml` allows only the declared calls, pinned to one
@@ -125,7 +125,7 @@ network_policies:
       - path: /usr/bin/python3
 ```
 
-Open `out/github-repo-explainer/report.md` to see why each rule exists, what
+Open `out/github-repository-explainer/report.md` to see why each rule exists, what
 the compiler could not see (here, the opaque `summarize_architecture` server
 tool), and how the policy compares with its boundary.
 
@@ -146,7 +146,8 @@ uv run pytest -o addopts="" -q
 ```
 
 The suite includes a round trip of every OpenShell policy file in this
-repository through the lifter and lowerer, and compiles both examples.
+repository through the lifter and lowerer, and compiles every example and
+compares the result with the committed outputs in `examples/*/expected*/`.
 
 To check enforcement in a live sandbox, compile with the probe binary as the
 client, then run the live check. The check sends real, unauthenticated requests
@@ -162,7 +163,7 @@ uv run python scripts/live_check.py \
   --probes examples/github-repo-explainer/probes.yaml
 ```
 
-**Expected result:**
+**Expected result** (the probe table and summary):
 
 ```text
 | PASS | allow | allow | 200 | GET https://api.github.com/repos/NVIDIA/OpenShell | get_repository tool |
@@ -225,8 +226,8 @@ flowchart LR
    path segments the agent declares (for example one repository), gives
    operations that only `git` performs to `git` alone, removes anything a
    prohibition forbids, and drops matchers that another matcher already covers.
-4. The **OpenShell back end** writes the policy. Every endpoint sets `protocol`
-   and `enforcement: enforce` explicitly, because OpenShell ignores `access`
+4. The **OpenShell back end** writes the policy. Every inspected endpoint sets
+   `protocol` and `enforcement: enforce` explicitly, because OpenShell ignores `access`
    and `rules` without a protocol and defaults to audit without `enforcement`.
 
 The design, including every decision taken while building this proof of
@@ -308,7 +309,7 @@ that records what the spec does not say. The overlay uses these annotations:
 cd examples/internal-orders-api
 uv run policy-compiler import openapi openapi.yaml --overlay overlay.yaml \
   --provider-id acme --provider-name "ACME internal services" \
-  --out catalog/acme-orders.yaml
+  --spdx-header --out catalog/acme-orders.yaml
 uv run policy-compiler compile agent.yaml --catalog catalog \
   --client /usr/bin/python3 --forbid acme:admin
 ```
@@ -326,6 +327,8 @@ the compiler never uploads it.
 
 `explain` lifts existing OpenShell policies, lists lint findings, and counts
 the catalogued operations each policy can reach:
+
+Run it from the tool directory:
 
 ```bash
 scripts/survey_repo_policies.sh
@@ -353,6 +356,23 @@ uv run policy-compiler compile <agent.yaml> --client <binary-path> --base-policy
 openshell policy set <sandbox> --policy out/<agent>/policy.yaml --wait
 ```
 
+## Command Reference
+
+| Command | Purpose | Main options |
+| --- | --- | --- |
+| `compile AGENT_SPEC` | Compile an Agent Spec file. | `--client PATH` (required, repeatable), `--catalog DIR`, `--forbid PROVIDER:LEVEL`, `--use-case TEXT` or `--use-case-file FILE`, `--strict-use-case`, `--route-inference-local` (send model traffic to `inference.local`), `--reference-file FILE` (Agent Spec referenced components), `--base-policy FILE`, `--out DIR` |
+| `from-use-case TEXT` | Compile a plain-language use case. | `--client`, `--name NAME`, `--text-file FILE`, `--inference local\|nvidia\|openai\|none`, `--catalog`, `--forbid`, `--base-policy`, `--out` |
+| `explain POLICY...` | Report what existing policies permit, with lint findings. | `--catalog`, `--detail` |
+| `lift POLICY` | Lint one policy; print a normalized version. | `--normalize` |
+| `import openapi SPEC` | Turn an OpenAPI spec into a catalog file. | `--provider-id`, `--overlay`, `--server-url`, `--out`, `--spdx-header` |
+| `import github-permissions FILE` | Import GitHub's fine-grained permission data (`src/github-apps/data/<version>/fine-grained-pat-permissions.json` in the [github/docs](https://github.com/github/docs) repository). | `--out` |
+| `import openshell-policies POLICY...` | Mine existing policies into a catalog file and a host usage index. | `--out`, `--usage` |
+| `catalog check` | Load and validate the layered catalog. | `--catalog` |
+
+`compile` and `from-use-case` exit with status 2 when a need could not be
+resolved, a prohibition conflicts with a need, or an error diagnostic exists.
+Unknowns alone do not change the exit status.
+
 ## Known Limitations
 
 - The compiler sees only what the agent declares. Server-side tools, stdio MCP
@@ -373,7 +393,8 @@ openshell policy set <sandbox> --policy out/<agent>/policy.yaml --wait
 
 ## Teardown
 
-Compiling writes only to `out/`. Remove it with `rm -r out`. The live check
+Compiling writes only to `out/` (or the `--out` directory). The `import` commands
+write only to the `--out` file you name. Remove generated output with `rm -r out`. The live check
 deletes the sandbox it creates unless you pass `--keep`.
 
 ## Third-Party Dependencies
