@@ -50,11 +50,11 @@ def _repository_policy_files() -> list[Path]:
     return found
 
 
-def _network_policy_files() -> list[Path]:
-    return [p for p in _repository_policy_files() if "network_policies" in load_policy_file(p)]
-
-
-REPO_POLICIES = _network_policy_files()
+ALL_POLICY_FILES = _repository_policy_files()
+REPO_POLICIES = [p for p in ALL_POLICY_FILES if "network_policies" in load_policy_file(p)]
+FILES_WITHOUT_NETWORK_POLICIES: dict[str, str] = {
+    # "relative/path.yaml": "why this policy-shaped file has no network_policies",
+}
 
 
 def _codes(access: AccessSet) -> set[str]:
@@ -127,7 +127,6 @@ def test_lower_endpoint_key_order_and_fields():
         host="api.internal.example",
         ports=(443, 8443),
         protocol=Protocol.REST,
-        inspection=Inspection.OPAQUE,
         enforcement=Enforcement.AUDIT,
         allowed_ips=("10.20.0.0/16",),
         path="/v1/**",
@@ -143,16 +142,16 @@ def test_lower_endpoint_key_order_and_fields():
                 credential_binding="work-api",
                 endpoint_extras={"allow_encoded_slash": True},
             ),
+            # Different extras: the deny still joins the endpoint it restricts.
             AccessRule(Effect.DENY, "internal", PYTHON, key, Matcher(method="GET", path="/v1/admin/**")),
         ]
     )
-    endpoint = lower(access)["network_policies"]["internal"]["endpoints"][0]
+    (endpoint,) = lower(access)["network_policies"]["internal"]["endpoints"]
     assert endpoint == {
         "host": "api.internal.example",
         "ports": [443, 8443],
         "path": "/v1/**",
         "protocol": "rest",
-        "tls": "skip",
         "enforcement": "audit",
         "allowed_ips": ["10.20.0.0/16"],
         "access": "read-only",
@@ -165,7 +164,6 @@ def test_lower_endpoint_key_order_and_fields():
         "ports",
         "path",
         "protocol",
-        "tls",
         "enforcement",
         "allowed_ips",
         "access",
@@ -173,6 +171,34 @@ def test_lower_endpoint_key_order_and_fields():
         "credential_binding",
         "allow_encoded_slash",
     ]
+    assert access.diagnostics == []
+
+
+def test_lower_opaque_endpoint_is_l4_with_tls_skip():
+    key = EndpointKey(host="mtls.example.com", ports=(443,), protocol=Protocol.REST, inspection=Inspection.OPAQUE)
+    access = AccessSet(rules=[AccessRule(Effect.ALLOW, "mtls", PYTHON, key, Matcher(method="GET", path="/v1/x"))])
+    (endpoint,) = lower(access)["network_policies"]["mtls"]["endpoints"]
+    assert endpoint == {"host": "mtls.example.com", "port": 443, "tls": "skip", "enforcement": "enforce"}
+    assert list(endpoint) == ["host", "port", "tls", "enforcement"]
+    assert _codes(access) == {"l7-rules-not-enforced"}
+    # Without normalization the authored combination is reproduced, in key order.
+    authored = lower(access, normalize=False)["network_policies"]["mtls"]["endpoints"][0]
+    assert list(authored) == ["host", "port", "protocol", "tls", "enforcement", "rules"]
+
+
+def test_lower_opaque_endpoint_with_deny_fails_closed():
+    key = EndpointKey(host="mtls.example.com", ports=(443,), protocol=Protocol.REST, inspection=Inspection.OPAQUE)
+    access = AccessSet(
+        rules=[
+            AccessRule(Effect.ALLOW, "mtls", PYTHON, key, access_preset="read-only"),
+            AccessRule(Effect.DENY, "mtls", PYTHON, key, Matcher(method="GET", path="/admin/**"), reasons=["need-1"]),
+        ]
+    )
+    assert lower(access)["network_policies"] == {}
+    (diag,) = access.diagnostics
+    assert (diag.level, diag.code, diag.pointer) == ("error", "endpoint-dropped-fail-closed", "need-1")
+    lower(access)
+    assert len(access.diagnostics) == 1  # repeated lowering does not duplicate diagnostics
 
 
 def test_lower_l4_omits_protocol_and_tcp_omits_enforcement():
@@ -361,6 +387,134 @@ def test_lower_rejects_whole_endpoint_deny(normalize):
         lower(access, normalize=normalize)
 
 
+def test_lower_drops_empty_deny_rule():
+    access = AccessSet(
+        rules=[
+            AccessRule(Effect.ALLOW, "github", PYTHON, GITHUB, Matcher(method="GET", path="/zen")),
+            AccessRule(Effect.DENY, "github", PYTHON, GITHUB, Matcher()),
+        ]
+    )
+    (endpoint,) = lower(access)["network_policies"]["github"]["endpoints"]
+    assert "deny_rules" not in endpoint
+    assert endpoint["rules"] == [{"allow": {"method": "GET", "path": "/zen"}}]
+    assert [(d.level, d.code) for d in access.diagnostics] == [("warning", "dropped-deny-rule")]
+    assert lower(access, normalize=False)["network_policies"]["github"]["endpoints"][0]["deny_rules"] == [{}]
+
+
+@pytest.mark.parametrize(
+    "denies",
+    [
+        pytest.param([Matcher(method="DELETE", path="/repos/**")], id="deny-only"),
+        pytest.param([Matcher()], id="only-an-empty-deny"),
+    ],
+)
+def test_lower_deny_without_allow_fails_closed(denies):
+    access = AccessSet(rules=[AccessRule(Effect.DENY, "github", PYTHON, GITHUB, m) for m in denies])
+    policy = lower(access)
+    assert policy["network_policies"] == {}  # never an allow-all, never a rejected deny-only endpoint
+    assert ("error", "endpoint-dropped-fail-closed") in [(d.level, d.code) for d in access.diagnostics]
+
+
+def test_lower_l7_endpoint_without_allow_rules_fails_closed():
+    whole = AccessRule(Effect.ALLOW, "github", PYTHON, GITHUB)  # REST but neither rules nor access
+    access = AccessSet(rules=[whole])
+    assert lower(access)["network_policies"] == {}
+    assert _codes(access) == {"endpoint-dropped-fail-closed"}
+
+
+def test_lower_sql_enforce_fails_closed():
+    sql = EndpointKey(host="db.example.com", ports=(5432,), protocol=Protocol.SQL)
+    access = AccessSet(rules=[AccessRule(Effect.ALLOW, "db", PYTHON, sql, Matcher(command="SELECT"))])
+    assert lower(access)["network_policies"] == {}
+    assert _codes(access) == {"endpoint-dropped-fail-closed"}
+    audit = EndpointKey(host="db.example.com", ports=(5432,), protocol=Protocol.SQL, enforcement=Enforcement.AUDIT)
+    access = AccessSet(rules=[AccessRule(Effect.ALLOW, "db", PYTHON, audit, Matcher(command="SELECT"))])
+    assert lower(access)["network_policies"]["db"]["endpoints"][0]["enforcement"] == "audit"
+
+
+def test_lower_mcp_deny_all_tool_calls_drops_shadowed_tool_allows():
+    mcp = EndpointKey(host="mcp.example.com", ports=(443,), protocol=Protocol.MCP)
+    access = AccessSet(
+        rules=[
+            AccessRule(Effect.ALLOW, "mcp", PYTHON, mcp, Matcher(method="initialize")),
+            AccessRule(Effect.ALLOW, "mcp", PYTHON, mcp, Matcher(method="tools/call", tool="search")),
+            AccessRule(Effect.DENY, "mcp", PYTHON, mcp, Matcher(method="tools/*")),
+        ]
+    )
+    (endpoint,) = lower(access)["network_policies"]["mcp"]["endpoints"]
+    assert endpoint["rules"] == [{"allow": {"method": "initialize"}}]
+    assert endpoint["deny_rules"] == [{"method": "tools/*"}]
+    assert _codes(access) == {"shadowed-allow-dropped"}
+
+
+def test_lower_mcp_and_json_rpc_drop_access_presets():
+    mcp = EndpointKey(host="mcp.example.com", ports=(443,), protocol=Protocol.MCP)
+    access = AccessSet(rules=[AccessRule(Effect.ALLOW, "mcp", PYTHON, mcp, access_preset="read-only")])
+    assert lower(access)["network_policies"] == {}
+    assert _codes(access) == {"dropped-access-preset", "endpoint-dropped-fail-closed"}
+
+
+def test_lower_never_merges_access_preset_with_allow_matchers():
+    access = AccessSet(
+        rules=[
+            AccessRule(Effect.ALLOW, "github", PYTHON, GITHUB, access_preset="read-only"),
+            AccessRule(Effect.ALLOW, "github", PYTHON, GITHUB, Matcher(method="POST", path="/repos/o/r/issues")),
+            AccessRule(Effect.DENY, "github", PYTHON, GITHUB, Matcher(method="GET", path="/repos/o/r/hooks")),
+        ]
+    )
+    endpoints = lower(access)["network_policies"]["github"]["endpoints"]
+    assert len(endpoints) == 2
+    assert endpoints[0]["access"] == "read-only" and "rules" not in endpoints[0]
+    assert endpoints[1]["rules"] == [{"allow": {"method": "POST", "path": "/repos/o/r/issues"}}]
+    assert "access" not in endpoints[1]
+    deny = [{"method": "GET", "path": "/repos/o/r/hooks"}]
+    assert endpoints[0]["deny_rules"] == deny and endpoints[1]["deny_rules"] == deny
+
+
+def test_lower_never_merges_endpoints_with_different_extras():
+    access = AccessSet(
+        rules=[
+            AccessRule(Effect.ALLOW, "npm", PYTHON, GITHUB, Matcher(method="GET", path="/a")),
+            AccessRule(
+                Effect.ALLOW,
+                "npm",
+                PYTHON,
+                GITHUB,
+                Matcher(method="GET", path="/b"),
+                endpoint_extras={"allow_encoded_slash": True},
+            ),
+            AccessRule(Effect.ALLOW, "npm", PYTHON, GITHUB, Matcher(method="GET", path="/c")),
+        ]
+    )
+    endpoints = lower(access)["network_policies"]["npm"]["endpoints"]
+    assert [[r["allow"]["path"] for r in e["rules"]] for e in endpoints] == [["/a", "/c"], ["/b"]]
+    assert "allow_encoded_slash" not in endpoints[0]
+    assert endpoints[1]["allow_encoded_slash"] is True
+
+
+def test_lower_tcp_drops_fields_openshell_rejects():
+    tcp = EndpointKey(host="db.internal.example", ports=(5432,), protocol=Protocol.TCP, path="/x")
+    rule = AccessRule(
+        Effect.ALLOW,
+        "pg",
+        PYTHON,
+        tcp,
+        credential_binding="pg",
+        endpoint_extras={"allow_encoded_slash": True, "allow_uninspected_credentials": True},
+    )
+    access = AccessSet(rules=[rule])
+    (endpoint,) = lower(access)["network_policies"]["pg"]["endpoints"]
+    assert endpoint == {
+        "host": "db.internal.example",
+        "port": 5432,
+        "protocol": "tcp",
+        "allow_uninspected_credentials": True,
+    }
+    (diag,) = access.diagnostics
+    assert diag.code == "dropped-tcp-fields"
+    assert "path, credential_binding, allow_encoded_slash" in diag.message
+
+
 def test_lower_without_normalize_keeps_empty_binaries():
     access = AccessSet(rules=[AccessRule(Effect.ALLOW, "github", ClientSet("none"), GITHUB)])
     assert lower(access, normalize=False)["network_policies"]["github"]["binaries"] == []
@@ -476,6 +630,49 @@ def test_lift_keeps_unknown_endpoint_fields_and_tls():
     assert list(authored)[:5] == ["host", "port", "protocol", "tls", "enforcement"]
 
 
+@pytest.mark.parametrize("tls", ["bogus", "__INFERENCE_TLS__"])
+def test_lower_drops_tls_values_openshell_rejects(tls):
+    policy = {
+        "network_policies": {
+            "g": {"endpoints": [{"host": "a.example.com", "port": 443, "tls": tls}], "binaries": [{"path": "/bin/x"}]}
+        }
+    }
+    access = lift(policy)
+    assert ("invalid-tls" in _codes(access)) is (tls == "bogus")
+    assert "tls" not in lower(access)["network_policies"]["g"]["endpoints"][0]
+    assert lower(access, normalize=False)["network_policies"]["g"]["endpoints"][0]["tls"] == tls
+
+
+def test_lower_drops_unknown_and_malformed_endpoint_fields():
+    policy = {
+        "network_policies": {
+            "g": {
+                "endpoints": [
+                    {
+                        "host": "a.example.com",
+                        "port": 443,
+                        "protocol": "rest",
+                        "enforcement": "enforce",
+                        "access": "read-only",
+                        "allow_encoded_slash": True,
+                        "colour": "blue",
+                        "credential_binding": ["not", "a", "mapping"],
+                    }
+                ],
+                "binaries": [{"path": "/bin/x"}],
+            }
+        }
+    }
+    access = lift(policy)
+    codes = [(d.level, d.code) for d in access.diagnostics]
+    assert ("error", "unknown-field") in codes and ("error", "invalid-credential-binding") in codes
+    endpoint = lower(access)["network_policies"]["g"]["endpoints"][0]
+    assert "colour" not in endpoint and "credential_binding" not in endpoint
+    assert endpoint["allow_encoded_slash"] is True
+    assert ("warning", "dropped-unknown-field") in [(d.level, d.code) for d in access.diagnostics]
+    assert canonicalize(lower(access, normalize=False)) == canonicalize({"version": 1, **policy})
+
+
 def test_lift_tls_passthrough_normalizes_to_skip():
     policy = {
         "network_policies": {
@@ -559,6 +756,105 @@ def test_lift_binaries():
     assert [d.pointer for d in access.diagnostics if d.code == "binary-glob"] == ["#network_policies.glob.binaries[0]"]
     with pytest.raises(ValueError):
         lower(access)
+
+
+def test_lift_bare_string_binary_is_reported():
+    policy = {
+        "network_policies": {"g": {"endpoints": [{"host": "a.example.com", "port": 443}], "binaries": ["/bin/x"]}}
+    }
+    access = lift(policy)
+    (diag,) = [d for d in access.diagnostics if d.code == "binary-string-form"]
+    assert (diag.level, diag.pointer) == ("warning", "#network_policies.g.binaries[0]")
+    assert access.rules[0].clients == ClientSet("list", ("/bin/x",))
+
+
+def test_lift_reports_sql_enforce():
+    policy = {
+        "network_policies": {
+            "db": {
+                "endpoints": [
+                    {
+                        "host": "db.example.com",
+                        "port": 5432,
+                        "protocol": "sql",
+                        "enforcement": "enforce",
+                        "rules": [{"allow": {"command": "SELECT"}}],
+                    }
+                ],
+                "binaries": [{"path": "/usr/bin/psql"}],
+            }
+        }
+    }
+    access = lift(policy, source="db.yaml")
+    (diag,) = [d for d in access.diagnostics if d.code == "sql-enforce"]
+    assert (diag.level, diag.pointer) == ("error", "db.yaml#network_policies.db.endpoints[0].enforcement")
+
+
+def test_lift_invalid_allow_matcher_is_dropped_not_coerced():
+    policy = {
+        "network_policies": {
+            "g": {
+                "endpoints": [
+                    {
+                        "host": "api.example.com",
+                        "port": 443,
+                        "protocol": "rest",
+                        "enforcement": "enforce",
+                        "rules": [
+                            {"allow": {"method": None, "path": "/v1/**"}},
+                            {"allow": {"method": "GET", "path": "/v1/items"}},
+                            {"allow": {"method": "tools/call", "tool": None}},
+                            {"allow": {"method": "GET", "path": "/x", "verb": "GET"}},
+                        ],
+                    }
+                ],
+                "binaries": [{"path": "/bin/x"}],
+            }
+        }
+    }
+    access = lift(policy)
+    assert [r.matcher for r in access.rules] == [Matcher(method="GET", path="/v1/items")]
+    assert all(r.matcher.method != "None" for r in access.rules)
+    invalid = [d for d in access.diagnostics if d.code == "invalid-matcher"]
+    assert [(d.level, d.pointer.rsplit(".", 2)[-2:]) for d in invalid] == [
+        ("error", ["allow", "method"]),
+        ("error", ["allow", "tool"]),
+        ("error", ["allow", "verb"]),
+    ]
+
+
+def test_lift_invalid_deny_matcher_fails_the_endpoint_closed():
+    policy = {
+        "network_policies": {
+            "g": {
+                "endpoints": [
+                    {
+                        "host": "api.example.com",
+                        "port": 443,
+                        "protocol": "rest",
+                        "enforcement": "enforce",
+                        "access": "full",
+                        "deny_rules": [{"method": None, "path": "/admin/**"}, {"method": "DELETE", "path": "/**"}],
+                    },
+                    {
+                        "host": "other.example.com",
+                        "port": 443,
+                        "protocol": "rest",
+                        "enforcement": "enforce",
+                        "access": "read-only",
+                    },
+                ],
+                "binaries": [{"path": "/bin/x"}],
+            }
+        }
+    }
+    access = lift(policy)
+    api = [r for r in access.rules if r.endpoint.host == "api.example.com"]
+    assert [(r.effect, r.matcher) for r in api] == [(Effect.DENY, Matcher(method="DELETE", path="/**"))]
+    assert "invalid-matcher" in _codes(access)
+    endpoints = lower(access)["network_policies"]["g"]["endpoints"]
+    assert [e["host"] for e in endpoints] == ["other.example.com"]
+    assert "endpoint-dropped-fail-closed" in _codes(access)
 
 
 def test_lift_lint_diagnostics():
@@ -722,6 +1018,65 @@ def test_lift_mcp_allow_all_known_methods_round_trips():
         (Effect.DENY, Matcher(method="tools/call", tool="delete_resource")),
     ]
     assert canonicalize(lower(access, normalize=False)) == canonicalize(policy)
+    # allow_all_known_mcp_methods is a valid base allow set, so normalizing keeps the deny-only rules.
+    assert canonicalize(lower(access)) == canonicalize(policy)
+    assert "endpoint-dropped-fail-closed" not in _codes(access)
+
+
+@pytest.mark.parametrize(
+    "rules,deny_rules",
+    [
+        pytest.param(
+            [{"allow": {"method": "tools/call", "params": {"name": "read_status"}}}],
+            [{"method": "tools/call", "params": {"name": "delete_resource"}}],
+            id="params-name",
+        ),
+        pytest.param(
+            [{"allow": {"method": "tools/call", "tool": {"any": ["search_web", "list_issues"]}}}],
+            [{"method": "tools/call", "tool": {"any": ["send_email", "delete_resource"]}}],
+            id="tool-any",
+        ),
+        pytest.param(
+            [{"allow": {"method": "tools/call", "params": {"name": {"any": ["a", "b"]}}}}],
+            [],
+            id="params-name-any",
+        ),
+        pytest.param(
+            [{"allow": {"method": "tools/call", "tool": {"any": ["only"]}}}],
+            [{"method": "tools/call", "tool": {"any": ["never"]}}],
+            id="tool-single-any",
+        ),
+        pytest.param(
+            [
+                {"allow": {"method": "tools/call", "tool": {"any": ["a", "b"]}}},
+                {"allow": {"method": "tools/call", "tool": "a"}},
+            ],
+            [],
+            id="duplicate-after-expansion",
+        ),
+    ],
+)
+def test_mcp_tool_forms_round_trip(rules, deny_rules):
+    endpoint = {"host": "mcp.example.com", "port": 443, "protocol": "mcp", "enforcement": "enforce", "rules": rules}
+    if deny_rules:
+        endpoint["deny_rules"] = deny_rules
+    policy = {"version": 1, "network_policies": {"mcp": {"endpoints": [endpoint], "binaries": [{"path": "/bin/x"}]}}}
+    access = lift(policy)
+    assert not [d for d in access.diagnostics if d.level == "error"]
+    assert canonicalize(lower(access, normalize=False)) == canonicalize(policy)
+    assert canonicalize(lower(access)) == canonicalize(policy)
+
+
+def test_query_single_any_round_trips():
+    endpoint = {
+        "host": "api.example.com",
+        "port": 443,
+        "protocol": "rest",
+        "enforcement": "enforce",
+        "rules": [{"allow": {"method": "GET", "path": "/dl", "query": {"os": {"any": ["linux-*"]}, "v": "1"}}}],
+    }
+    policy = {"version": 1, "network_policies": {"api": {"endpoints": [endpoint], "binaries": [{"path": "/bin/x"}]}}}
+    assert canonicalize(lower(lift(policy), normalize=False)) == canonicalize(policy)
 
 
 @pytest.mark.parametrize(
@@ -830,6 +1185,13 @@ def test_repository_policy_inventory_is_not_empty():
     assert len(REPO_POLICIES) >= 15
 
 
+def test_repository_policy_inventory_skips_nothing_silently():
+    skipped = {str(p.relative_to(EXAMPLES)) for p in ALL_POLICY_FILES if p not in REPO_POLICIES}
+    assert skipped == set(FILES_WITHOUT_NETWORK_POLICIES), (
+        "policy-shaped files without network_policies must be listed, with a reason, in FILES_WITHOUT_NETWORK_POLICIES"
+    )
+
+
 @pytest.mark.parametrize("path", REPO_POLICIES, ids=[str(p.relative_to(EXAMPLES)) for p in REPO_POLICIES])
 def test_repository_policy_round_trip(path):
     policy = load_policy_file(path)
@@ -888,6 +1250,48 @@ def test_canonicalize():
     assert list(canonical) == ["network_policies", "version"]
     assert list(canonical["network_policies"]) == ["a", "b"]
     assert policy["network_policies"]["b"]["endpoints"][0]["port"] == 443  # input untouched
+
+
+def _one_endpoint(**fields):
+    return {"network_policies": {"g": {"name": "g", "endpoints": [{"host": "h", "ports": [443], **fields}]}}}
+
+
+def _canonical_endpoint(**fields):
+    return canonicalize(_one_endpoint(**fields))["network_policies"]["g"]["endpoints"][0]
+
+
+def test_canonicalize_folds_params_name_into_tool():
+    folded = _canonical_endpoint(
+        rules=[{"allow": {"method": "tools/call", "params": {"name": "x"}}}],
+        deny_rules=[{"method": "tools/call", "params": {"name": "y"}}],
+    )
+    assert folded["rules"] == [{"allow": {"method": "tools/call", "tool": "x"}}]
+    assert folded["deny_rules"] == [{"method": "tools/call", "tool": "y"}]
+    # Other params shapes are not equivalent to tool and stay as written.
+    kept = _canonical_endpoint(rules=[{"allow": {"method": "tools/call", "params": {"arguments": {"a": "b"}}}}])
+    assert kept["rules"] == [{"allow": {"method": "tools/call", "params": {"arguments": {"a": "b"}}}}]
+
+
+def test_canonicalize_expands_tool_any_and_collapses_single_any():
+    endpoint = _canonical_endpoint(
+        rules=[
+            {"allow": {"method": "tools/call", "tool": {"any": ["a", "b"]}}},
+            {"allow": {"method": "tools/call", "tool": {"any": ["c"]}}},
+            {"allow": {"method": "tools/call", "tool": "a"}},
+            {"allow": {"method": "GET", "path": "/", "query": {"k": {"any": ["v"]}, "m": {"any": ["1", "2"]}}}},
+        ],
+        deny_rules=[{"method": "tools/call", "tool": {"any": ["x", "y"]}}],
+    )
+    assert endpoint["rules"] == [
+        {"allow": {"method": "tools/call", "tool": "a"}},
+        {"allow": {"method": "tools/call", "tool": "b"}},
+        {"allow": {"method": "tools/call", "tool": "c"}},
+        {"allow": {"method": "GET", "path": "/", "query": {"k": "v", "m": {"any": ["1", "2"]}}}},
+    ]
+    assert endpoint["deny_rules"] == [
+        {"method": "tools/call", "tool": "x"},
+        {"method": "tools/call", "tool": "y"},
+    ]
 
 
 def test_canonicalize_placeholder_ports():

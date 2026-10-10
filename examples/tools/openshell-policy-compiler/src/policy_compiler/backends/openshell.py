@@ -31,10 +31,36 @@ Forms that the matcher cannot hold verbatim are lifted to equivalent matchers:
 * ``query: {k: {any: [a, b]}}`` becomes the repeated pairs ``(k, a), (k, b)``
   in ``Matcher.query``; :func:`lower` turns a repeated key back into ``any``.
 
-Other matcher fields (for example nested ``params``) are not modelled. They are
+Other matcher forms (for example nested ``params``) are not modelled. They are
 reported as ``unsupported-matcher-field`` and handled in the safe direction: an
 allow matcher that uses one is dropped (the lifted policy allows less), and a
-deny matcher loses only that field (it denies more).
+deny matcher loses only that field (it denies more). A ``null``, wrongly typed,
+or unknown matcher field is an ``invalid-matcher`` error: an allow matcher with
+one is dropped, and a deny matcher with one also drops the endpoint's allow
+rules, so the endpoint fails closed. :func:`canonicalize` treats the equivalent
+authored forms above as equal.
+
+Failing closed
+--------------
+``lower(..., normalize=True)`` never emits a value OpenShell rejects and never
+widens access to make an endpoint valid. It reports what it removes in
+``access.diagnostics``:
+
+* ``tls`` other than ``skip``, unknown endpoint fields, and malformed
+  ``credential_binding`` values are removed. An opaque endpoint is emitted as
+  L4 with ``tls: skip``, because ``tls: skip`` cannot carry a request protocol.
+* Empty deny rules match nothing in OpenShell's rego and are dropped
+  (``dropped-deny-rule``).
+* An endpoint is dropped (``endpoint-dropped-fail-closed``) when its deny rules
+  cannot be enforced (no request inspection), when an inspected endpoint has
+  no allow rules or valid ``access`` preset left (for MCP,
+  ``mcp.allow_all_known_mcp_methods: true`` also counts), or for ``sql`` with
+  ``enforcement: enforce``.
+* Allow rules on an endpoint without request inspection have no effect and are
+  not emitted (``l7-rules-not-enforced``). MCP tool allows that a deny on every
+  ``tools/call`` shadows are dropped (``shadowed-allow-dropped``).
+* An ``access`` preset and allow matchers never share an endpoint, and
+  endpoints whose ``endpoint_extras`` differ are never merged.
 
 Round-trip markers
 ------------------
@@ -49,6 +75,7 @@ emitted.
 from __future__ import annotations
 
 import copy
+import fnmatch
 import json
 import re
 from collections.abc import Iterable
@@ -93,6 +120,35 @@ _MODELLED_ENDPOINT_KEYS = {
     "deny_rules",
     "credential_binding",
 }
+_OPENSHELL_ENDPOINT_FIELDS = _MODELLED_ENDPOINT_KEYS | {
+    # NetworkEndpoint in crates/openshell-policy-schema/src/lib.rs; OpenShell rejects any other field.
+    "allow_encoded_slash",
+    "websocket_credential_rewrite",
+    "request_body_credential_rewrite",
+    "allow_uninspected_credentials",
+    "persisted_queries",
+    "graphql_persisted_queries",
+    "graphql_max_body_bytes",
+    "credential_signing",
+    "signing_service",
+    "signing_region",
+    "json_rpc",
+    "mcp",
+}
+_TCP_REJECTED_FIELDS = (
+    # additional_l7_fields in crates/openshell-supervisor-network/src/l7/mod.rs
+    "allow_encoded_slash",
+    "websocket_credential_rewrite",
+    "request_body_credential_rewrite",
+    "persisted_queries",
+    "graphql_persisted_queries",
+    "graphql_max_body_bytes",
+    "json_rpc",
+    "mcp",
+    "credential_signing",
+    "signing_service",
+    "signing_region",
+)
 _ENDPOINT_KEY_ORDER = [
     "host",
     "port",
@@ -164,7 +220,14 @@ def canonicalize(policy: dict) -> dict:
 
     Mapping keys are sorted recursively, ``port`` is folded into a sorted
     ``ports`` list, a missing entry ``name`` defaults to its key, and empty
-    lists and mappings are removed. Other values are left unchanged.
+    lists and mappings are removed.
+
+    Matchers in ``rules[].allow`` and ``deny_rules[]`` are rewritten into one
+    equivalent form: ``params: {name: x}`` becomes ``tool: x`` (the schema
+    reference calls ``params.name`` the lower-level equivalent of ``tool``),
+    ``tool: {any: [a, b]}`` becomes one entry per tool, a single-element
+    ``{any: [v]}`` becomes ``v`` for ``tool`` and ``query`` values, and
+    identical entries are kept once. Other values are left unchanged.
     """
     policy = copy.deepcopy(policy)
     for section in NETWORK_KEYS:
@@ -185,7 +248,47 @@ def canonicalize(policy: dict) -> dict:
                     ports.append(endpoint.pop("port"))
                 if ports:
                     endpoint["ports"] = sorted(dict.fromkeys(ports), key=_port_sort_key)
+                if isinstance(endpoint.get("rules"), list):
+                    endpoint["rules"] = _canonical_rules(endpoint["rules"], wrapped=True)
+                if isinstance(endpoint.get("deny_rules"), list):
+                    endpoint["deny_rules"] = _canonical_rules(endpoint["deny_rules"], wrapped=False)
     return _sort_and_prune(policy)
+
+
+def _canonical_rules(items: list[Any], *, wrapped: bool) -> list[Any]:
+    out: list[Any] = []
+    for item in items:
+        inner = item.get("allow") if wrapped and isinstance(item, dict) else item
+        if not isinstance(inner, dict):
+            expanded = [item]
+        elif wrapped:
+            expanded = [{**item, "allow": m} for m in _canonical_matchers(inner)]
+        else:
+            expanded = _canonical_matchers(inner)
+        out.extend(entry for entry in expanded if entry not in out)
+    return out
+
+
+def _canonical_matchers(matcher: dict[str, Any]) -> list[dict[str, Any]]:
+    matcher = dict(matcher)
+    params = matcher.get("params")
+    if "tool" not in matcher and isinstance(params, dict) and set(params) == {"name"}:
+        matcher["tool"] = params["name"]
+        del matcher["params"]
+    if isinstance(matcher.get("query"), dict):
+        matcher["query"] = {name: _collapse_any(value) for name, value in matcher["query"].items()}
+    tool = matcher.get("tool")
+    if _is_any(tool):
+        return [{**matcher, "tool": name} for name in tool["any"]]
+    return [matcher]
+
+
+def _is_any(value: Any) -> bool:
+    return isinstance(value, dict) and set(value) == {"any"} and isinstance(value["any"], list) and bool(value["any"])
+
+
+def _collapse_any(value: Any) -> Any:
+    return value["any"][0] if _is_any(value) and len(value["any"]) == 1 else value
 
 
 def _sort_and_prune(value: Any) -> Any:
@@ -208,10 +311,13 @@ def _sort_and_prune(value: Any) -> Any:
 def lower(access: AccessSet, *, base_policy: dict | None = None, normalize: bool = True) -> dict:
     """Render an access set as an OpenShell policy.
 
-    With ``normalize=True`` the result follows the generated-policy rules:
-    explicit ``protocol`` and ``enforcement``, no legacy ``tls`` values, and no
-    empty or unbounded ``binaries`` (a ``ValueError`` is raised instead). With
-    ``normalize=False`` authored values carried in ``endpoint_extras`` are
+    With ``normalize=True`` the result follows the generated-policy rules and
+    fails closed: it never emits a value OpenShell rejects, and it never widens
+    access to make an endpoint valid. Content it has to drop is reported in
+    ``access.diagnostics`` (``dropped-deny-rule``, ``endpoint-dropped-fail-closed``,
+    and so on). Empty or unbounded ``binaries`` raise ``ValueError``.
+
+    With ``normalize=False`` authored values carried in ``endpoint_extras`` are
     reproduced, so a lifted policy lowers back to its original form.
     """
     if base_policy is not None:
@@ -225,13 +331,25 @@ def lower(access: AccessSet, *, base_policy: dict | None = None, normalize: bool
     for key, value in top.items():
         if key != "version":
             out[key] = copy.deepcopy(value)
-    out["network_policies"] = _lower_network_policies(access, normalize)
+    out["network_policies"] = _lower_network_policies(access, normalize, _Reporter(access.diagnostics))
     if middlewares is not None:
         out["network_middlewares"] = copy.deepcopy(middlewares)
     return out
 
 
-def _lower_network_policies(access: AccessSet, normalize: bool) -> dict[str, Any]:
+class _Reporter:
+    """Append diagnostics to a list once, so repeated ``lower`` calls do not duplicate them."""
+
+    def __init__(self, sink: list[Diagnostic]) -> None:
+        self.sink = sink
+
+    def __call__(self, level: str, code: str, message: str, pointer: str) -> None:
+        diagnostic = Diagnostic(level, code, message, pointer)
+        if diagnostic not in self.sink:
+            self.sink.append(diagnostic)
+
+
+def _lower_network_policies(access: AccessSet, normalize: bool, report: _Reporter) -> dict[str, Any]:
     by_group: dict[str, list[AccessRule]] = {}
     for rule in access.rules:
         by_group.setdefault(rule.group, []).append(rule)
@@ -253,20 +371,69 @@ def _lower_network_policies(access: AccessSet, normalize: bool) -> dict[str, Any
                 key = f"{group}_{suffix}"
                 taken.add(key)
             members = [rule for rule in rules if rule.clients == clients]
-            policies[key] = _lower_entry(key, members, clients, normalize)
+            entry = _lower_entry(key, members, clients, normalize, report)
+            if entry is not None:
+                policies[key] = entry
     return policies
 
 
-def _lower_entry(key: str, rules: list[AccessRule], clients: ClientSet, normalize: bool) -> dict[str, Any]:
+def _lower_entry(
+    key: str, rules: list[AccessRule], clients: ClientSet, normalize: bool, report: _Reporter
+) -> dict[str, Any] | None:
     name = next((rule.name for rule in rules if rule.name), None) or key
-    endpoints: dict[EndpointKey, list[AccessRule]] = {}
+    endpoints = []
+    for endpoint_key, extras, members in _endpoint_buckets(rules):
+        lowered = _lower_endpoint(key, endpoint_key, extras, members, normalize, report)
+        if lowered is not None:
+            endpoints.append(lowered)
+    if normalize and not endpoints:
+        return None  # every endpoint failed closed; the diagnostics say why
+    return {"name": name, "endpoints": endpoints, "binaries": _lower_binaries(key, clients, normalize)}
+
+
+def _endpoint_buckets(rules: list[AccessRule]) -> list[tuple[EndpointKey, dict[str, Any], list[AccessRule]]]:
+    """Group rules into endpoint entries.
+
+    Rules share an endpoint entry only when they have the same ``EndpointKey``
+    and the same ``endpoint_extras``, and are of the same kind: an ``access``
+    preset and allow matchers never share an entry, because OpenShell rejects
+    an endpoint that combines them. A whole-endpoint allow joins the first
+    entry of its endpoint. A deny rule joins every entry with its
+    ``EndpointKey``, whatever the extras, so splitting never separates a deny
+    from the allows it restricts.
+    """
+
+    def base(rule: AccessRule) -> tuple[EndpointKey, str]:
+        return rule.endpoint, json.dumps(rule.endpoint_extras, sort_keys=True, default=repr)
+
+    def kind(rule: AccessRule) -> str | None:
+        if rule.effect is Effect.ALLOW and rule.access_preset:
+            return "access"
+        if rule.effect is Effect.ALLOW and rule.matcher is not None:
+            return "rules"
+        return None
+
+    kinds: dict[tuple[EndpointKey, str], list[str]] = {}
     for rule in rules:
-        endpoints.setdefault(rule.endpoint, []).append(rule)
-    return {
-        "name": name,
-        "endpoints": [_lower_endpoint(ep, members, normalize) for ep, members in endpoints.items()],
-        "binaries": _lower_binaries(key, clients, normalize),
-    }
+        k = kind(rule)
+        if k is not None and k not in kinds.setdefault(base(rule), []):
+            kinds[base(rule)].append(k)
+
+    buckets: dict[tuple[tuple[EndpointKey, str], str | None], list[AccessRule]] = {}
+    for rule in rules:
+        if rule.effect is Effect.DENY:
+            continue
+        b = base(rule)
+        target = (b, kind(rule) or (kinds.get(b) or [None])[0])
+        buckets.setdefault(target, []).append(rule)
+    for rule in rules:
+        if rule.effect is not Effect.DENY:
+            continue
+        targets = [t for t in buckets if t[0][0] == rule.endpoint] or [(base(rule), None)]
+        for target in targets:
+            buckets.setdefault(target, []).append(rule)
+    # Each entry takes the extras of the rules that define it, not of denies that joined it.
+    return [(b[0], copy.deepcopy(members[0].endpoint_extras), members) for (b, _), members in buckets.items()]
 
 
 def _lower_binaries(key: str, clients: ClientSet, normalize: bool) -> list[dict[str, str]]:
@@ -284,12 +451,48 @@ def _lower_binaries(key: str, clients: ClientSet, normalize: bool) -> list[dict[
     return []
 
 
-def _lower_endpoint(key: EndpointKey, rules: list[AccessRule], normalize: bool) -> dict[str, Any]:
+def _lower_endpoint(
+    entry_key: str,
+    key: EndpointKey,
+    endpoint_extras: dict[str, Any],
+    rules: list[AccessRule],
+    normalize: bool,
+    report: _Reporter,
+) -> dict[str, Any] | None:
     if any(rule.effect is Effect.DENY and rule.matcher is None for rule in rules):
         raise ValueError(
             f"endpoint {key.host or '*'}:{key.ports}: a whole-endpoint deny has no OpenShell form; "
             "remove the allow rules for the endpoint instead"
         )
+    where = next((rule.reasons[0] for rule in rules if rule.reasons), f"network_policies.{entry_key}")
+    label = f"{key.host or '*'}:{','.join(str(p) for p in key.ports)}"
+    omit = list(endpoint_extras.get(OMIT) or [])
+    extras = {k: v for k, v in endpoint_extras.items() if not k.startswith("_")}
+    presets = [rule.access_preset for rule in rules if rule.access_preset]
+    preset = max(presets, key=lambda p: _PRESET_RANK.get(p, 0)) if presets else None
+    allows = _unique(rule.matcher for rule in rules if rule.effect is Effect.ALLOW and rule.matcher is not None)
+    denies = _unique(rule.matcher for rule in rules if rule.effect is Effect.DENY and rule.matcher is not None)
+    protocol = key.protocol
+    path = key.path
+    binding = next((rule.credential_binding for rule in rules if rule.credential_binding), None)
+
+    if normalize:
+        plan = _fail_closed(key, label, where, extras, preset, allows, denies, report)
+        if plan is None:
+            return None
+        protocol, preset, allows, denies = plan
+        if protocol is Protocol.TCP:
+            removed = [name for name, value in (("path", path), ("credential_binding", binding)) if value]
+            removed += [name for name in _TCP_REJECTED_FIELDS if extras.pop(name, None) is not None]
+            if removed:
+                report(
+                    "warning",
+                    "dropped-tcp-fields",
+                    f"{label}: OpenShell rejects {', '.join(removed)} on protocol tcp; they were dropped",
+                    where,
+                )
+            path, binding = "", None
+
     endpoint: dict[str, Any] = {}
     if key.host:
         endpoint["host"] = key.host
@@ -297,41 +500,24 @@ def _lower_endpoint(key: EndpointKey, rules: list[AccessRule], normalize: bool) 
         endpoint["port"] = key.ports[0]
     elif key.ports:
         endpoint["ports"] = list(key.ports)
-    if key.path:
-        endpoint["path"] = key.path
-    if key.protocol is not Protocol.L4:
-        endpoint["protocol"] = key.protocol.value
+    if path:
+        endpoint["path"] = path
+    if protocol is not Protocol.L4:
+        endpoint["protocol"] = protocol.value
     if key.inspection is Inspection.OPAQUE:
         endpoint["tls"] = "skip"
-    if key.protocol is not Protocol.TCP:
+    if protocol is not Protocol.TCP:
         endpoint["enforcement"] = key.enforcement.value
     if key.allowed_ips:
         endpoint["allowed_ips"] = list(key.allowed_ips)
-
-    presets = [rule.access_preset for rule in rules if rule.access_preset]
-    if presets:
-        endpoint["access"] = max(presets, key=lambda p: _PRESET_RANK.get(p, 0))
-
-    allows = _unique(rule.matcher for rule in rules if rule.effect is Effect.ALLOW and rule.matcher is not None)
-    denies = _unique(rule.matcher for rule in rules if rule.effect is Effect.DENY and rule.matcher is not None)
+    if preset:
+        endpoint["access"] = preset
     if allows:
         endpoint["rules"] = [{"allow": _matcher_dict(m)} for m in allows]
     if denies:
         endpoint["deny_rules"] = [_matcher_dict(m) for m in denies]
-
-    binding = next((rule.credential_binding for rule in rules if rule.credential_binding), None)
     if binding:
         endpoint["credential_binding"] = {"provider": binding}
-
-    extras, omit = _merged_extras(rules)
-    if normalize:
-        extras.pop("protocol", None)
-        extras.pop("enforcement", None)
-        tls = extras.get("tls")
-        if tls == "terminate":
-            del extras["tls"]
-        elif tls == "passthrough":
-            extras["tls"] = "skip"
     for field_name, value in extras.items():
         endpoint[field_name] = copy.deepcopy(value)
     if not normalize:
@@ -343,16 +529,103 @@ def _lower_endpoint(key: EndpointKey, rules: list[AccessRule], normalize: bool) 
     return ordered
 
 
-def _merged_extras(rules: list[AccessRule]) -> tuple[dict[str, Any], list[str]]:
-    merged: dict[str, Any] = {}
-    omit: list[str] = []
-    for rule in rules:
-        for key, value in rule.endpoint_extras.items():
-            if key == OMIT:
-                omit.extend(v for v in value if v not in omit)
-            elif not key.startswith("_"):
-                merged.setdefault(key, value)
-    return merged, omit
+def _fail_closed(
+    key: EndpointKey,
+    label: str,
+    where: str,
+    extras: dict[str, Any],
+    preset: str | None,
+    allows: list[Matcher],
+    denies: list[Matcher],
+    report: _Reporter,
+) -> tuple[Protocol, str | None, list[Matcher], list[Matcher]] | None:
+    """Make an endpoint valid for OpenShell without widening it.
+
+    Edits ``extras`` in place. Returns the protocol, preset, and matchers to
+    emit, or ``None`` when the endpoint must be dropped.
+    """
+
+    def drop(reason: str) -> None:
+        report("error", "endpoint-dropped-fail-closed", f"{label}: {reason}; the endpoint was dropped", where)
+
+    # Authored values the key already models, and values OpenShell rejects.
+    for field_name in ("protocol", "enforcement", "tls"):
+        extras.pop(field_name, None)  # the endpoint key is authoritative; only tls: skip is valid
+    removed = [k for k in extras if k not in _OPENSHELL_ENDPOINT_FIELDS or k == "credential_binding"]
+    for field_name in removed:  # credential_binding is only in extras when it is malformed
+        del extras[field_name]
+    if removed:
+        report(
+            "warning",
+            "dropped-unknown-field",
+            f"{label}: OpenShell rejects the endpoint fields {', '.join(removed)}; they were dropped",
+            where,
+        )
+
+    protocol = key.protocol
+    if key.inspection is Inspection.OPAQUE and protocol not in _NO_INSPECTION:
+        protocol = Protocol.L4  # tls: skip cannot be combined with a request protocol
+
+    kept = []
+    for matcher in denies:
+        if _matcher_dict(matcher):
+            kept.append(matcher)
+        else:
+            report(
+                "warning", "dropped-deny-rule", f"{label}: an empty deny rule matches nothing and was dropped", where
+            )
+    denies = kept
+
+    if preset is not None and (preset not in _PRESET_RANK or protocol in (Protocol.MCP, Protocol.JSON_RPC)):
+        report(
+            "warning",
+            "dropped-access-preset",
+            f"{label}: access {preset!r} is not valid for protocol {protocol.value} and was dropped",
+            where,
+        )
+        preset = None
+
+    if protocol in _NO_INSPECTION:
+        if denies:
+            drop("deny rules cannot be enforced without request inspection")
+            return None
+        if allows or preset:
+            report(
+                "warning",
+                "l7-rules-not-enforced",
+                f"{label}: request rules have no effect without request inspection and were not emitted; "
+                "every request to the endpoint is allowed",
+                where,
+            )
+            allows, preset = [], None
+        return protocol, preset, allows, denies
+
+    if protocol is Protocol.MCP and any(m.tool is not None for m in allows):
+        if any(m.tool is None and m.method and fnmatch.fnmatchcase("tools/call", m.method) for m in denies):
+            report(
+                "warning",
+                "shadowed-allow-dropped",
+                f"{label}: a deny rule blocks every tools/call, so the tool allow rules it shadows were dropped",
+                where,
+            )
+            allows = [m for m in allows if m.tool is None]
+
+    mcp_options = extras.get("mcp")
+    allow_all_mcp = (
+        protocol is Protocol.MCP
+        and isinstance(mcp_options, dict)
+        and mcp_options.get("allow_all_known_mcp_methods") is True
+    )
+    if not (allows or preset or allow_all_mcp):
+        if denies:
+            drop("it has deny rules but no allow rules or access preset, and allowing everything would fail open")
+        else:
+            drop(f"protocol {protocol.value} needs allow rules or an access preset, and none remain")
+        return None
+    if protocol is Protocol.SQL and key.enforcement is Enforcement.ENFORCE:
+        drop("OpenShell rejects protocol sql with enforcement: enforce, and audit would stop enforcing the rules")
+        return None
+    return protocol, preset, allows, denies
 
 
 def _unique(matchers: Iterable[Matcher]) -> list[Matcher]:
@@ -479,6 +752,13 @@ class _Lifter:
         for index, binary in enumerate(binaries):
             where = f"{base}.binaries[{index}]"
             path = binary.get("path") if isinstance(binary, dict) else binary
+            if isinstance(binary, str):
+                self.diag(
+                    "warning",
+                    "binary-string-form",
+                    f"binary {binary!r} is a bare string; OpenShell expects {{path: {binary}}}",
+                    where,
+                )
             if not isinstance(path, str) or not path:
                 self.diag("error", "invalid-binary", "binary entries need a non-empty 'path'", where)
                 continue
@@ -500,6 +780,14 @@ class _Lifter:
         extras: dict[str, Any] = {k: copy.deepcopy(v) for k, v in ep.items() if k not in _MODELLED_ENDPOINT_KEYS}
         omit: list[str] = []
         self.placeholders(ep, where)
+        for field_name in ep:
+            if field_name not in _OPENSHELL_ENDPOINT_FIELDS:
+                self.diag(
+                    "error",
+                    "unknown-field",
+                    f"unknown endpoint field {field_name!r}; OpenShell rejects it and normalized output drops it",
+                    f"{where}.{field_name}",
+                )
 
         host = ep.get("host") or ""
         if "*" in str(host):
@@ -525,13 +813,26 @@ class _Lifter:
             self.diag("error", "invalid-access", f"unknown access preset {access_preset!r}", f"{where}.access")
         if access_preset == "full":
             self.diag("warning", "access-full", "access: full allows every method and path", f"{where}.access")
+        if protocol is Protocol.SQL and enforcement is Enforcement.ENFORCE:
+            self.diag(
+                "error",
+                "sql-enforce",
+                "OpenShell rejects protocol sql with enforcement: enforce; SQL rules can only be audited",
+                f"{where}.enforcement",
+            )
 
         binding = ep.get("credential_binding")
         provider = None
-        if isinstance(binding, dict) and set(binding) == {"provider"}:
+        if isinstance(binding, dict) and set(binding) == {"provider"} and isinstance(binding["provider"], str):
             provider = binding["provider"]
         elif binding is not None:
             extras["credential_binding"] = copy.deepcopy(binding)
+            self.diag(
+                "error",
+                "invalid-credential-binding",
+                "credential_binding must be {provider: <name>}; normalized output drops it",
+                f"{where}.credential_binding",
+            )
 
         endpoint = EndpointKey(
             host=host,
@@ -559,8 +860,10 @@ class _Lifter:
                 )
             )
 
+        pending: list[tuple[Effect, Matcher | None, str | None]] = []
+        fail_closed = False
         if access_preset or not rules:
-            add(Effect.ALLOW, None, access_preset)
+            pending.append((Effect.ALLOW, None, access_preset))
         for j, rule in enumerate(rules):
             rule_where = f"{where}.rules[{j}]"
             allow = rule.get("allow") if isinstance(rule, dict) else None
@@ -577,15 +880,28 @@ class _Lifter:
                     f"allow path {path!r} matches every path",
                     f"{rule_where}.allow.path",
                 )
-            for matcher in self.matchers(allow, f"{rule_where}.allow", deny=False):
-                add(Effect.ALLOW, matcher)
+            for matcher in self.matchers(allow, f"{rule_where}.allow", deny=False) or []:
+                pending.append((Effect.ALLOW, matcher, None))
         for j, rule in enumerate(deny_rules):
             rule_where = f"{where}.deny_rules[{j}]"
+            matchers = self.matchers(rule, rule_where, deny=True) if isinstance(rule, dict) else None
             if not isinstance(rule, dict):
-                self.diag("error", "invalid-deny-rule", "deny rule must be a mapping", rule_where)
+                self.diag(
+                    "error",
+                    "invalid-deny-rule",
+                    "deny rule must be a mapping; the endpoint's allow rules were dropped so it fails closed",
+                    rule_where,
+                )
+            if matchers is None:
+                fail_closed = True
                 continue
-            for matcher in self.matchers(rule, rule_where, deny=True):
-                add(Effect.DENY, matcher)
+            pending.extend((Effect.DENY, matcher, None) for matcher in matchers)
+
+        if fail_closed:
+            # A deny the access set cannot hold must not turn into "allow": keep only the denies.
+            pending = [item for item in pending if item[0] is Effect.DENY]
+        for effect, matcher, preset in pending:
+            add(effect, matcher, preset)
 
     def protocol(self, ep: dict, where: str, extras: dict, *, has_l7: bool) -> Protocol:
         raw = ep.get("protocol")
@@ -657,13 +973,31 @@ class _Lifter:
 
     # -- matchers --
 
-    def matchers(self, raw: dict, where: str, *, deny: bool) -> list[Matcher]:
-        """Convert one authored matcher. Unmodelled fields are handled in the safe direction.
+    def matchers(self, raw: dict, where: str, *, deny: bool) -> list[Matcher] | None:
+        """Convert one authored matcher, handling anything it cannot hold in the safe direction.
 
-        An allow matcher with an unmodelled field is dropped entirely, because
-        removing only the field would widen it. A deny matcher keeps its other
-        fields, so it denies at least as much as the authored rule.
+        A field with an invalid value (``null``, or the wrong type) is an
+        ``invalid-matcher`` error. An allow matcher with one is dropped. A deny
+        matcher with one returns ``None``; the caller then drops the endpoint's
+        allow rules, because guessing what the deny meant could leave a gap.
+
+        A valid but unmodelled field (``unsupported-matcher-field``) drops an
+        allow matcher entirely, because removing only the field would widen it.
+        A deny matcher loses only that field; every such field (query, tool,
+        params) narrows the match, so the deny then matches more requests.
         """
+        invalid = [key for key, value in raw.items() if not _valid_matcher_value(key, value)]
+        if invalid:
+            outcome = (
+                "the deny rule cannot be represented, so the endpoint's allow rules were dropped (fail closed)"
+                if deny
+                else "the allow rule was dropped"
+            )
+            for key in invalid:
+                problem = f"has invalid value {raw[key]!r}" if key in _KNOWN_MATCHER_KEYS else "is not a matcher field"
+                self.diag("error", "invalid-matcher", f"matcher field {key!r} {problem}; {outcome}", f"{where}.{key}")
+            return None if deny else []
+
         values: dict[str, Any] = {}
         tools: list[str | None] = [None]
         dropped: list[str] = []
@@ -693,7 +1027,6 @@ class _Lifter:
                 dropped.append("tool")
             else:
                 tools = list(alternatives)
-        dropped += [k for k in raw if k not in {*_MATCHER_STRING_KEYS, "query", "fields", "tool", "params"}]
 
         for field_name in dropped:
             outcome = (
@@ -713,8 +1046,29 @@ class _Lifter:
 
     @staticmethod
     def any_of(value: Any) -> list[str] | None:
-        if isinstance(value, (str, int, float)) and not isinstance(value, bool):
+        """Alternatives of a glob or ``{any: [globs]}`` value, or ``None`` when the form is unsupported."""
+        if _scalar(value):
             return [str(value)]
-        if isinstance(value, dict) and set(value) == {"any"} and isinstance(value["any"], list) and value["any"]:
+        if _is_any(value) and all(_scalar(v) for v in value["any"]):
             return [str(v) for v in value["any"]]
         return None
+
+
+_KNOWN_MATCHER_KEYS = {*_MATCHER_STRING_KEYS, "query", "fields", "tool", "params"}
+
+
+def _scalar(value: Any) -> bool:
+    return isinstance(value, (str, int, float)) and not isinstance(value, bool)
+
+
+def _valid_matcher_value(key: str, value: Any) -> bool:
+    """Reject unknown keys, ``null``, and wrongly typed matcher values."""
+    if key not in _KNOWN_MATCHER_KEYS or value is None:
+        return False
+    if key in _MATCHER_STRING_KEYS:
+        return _scalar(value)
+    if key == "fields":
+        return isinstance(value, list) and all(_scalar(item) for item in value)
+    if key in ("query", "params"):
+        return isinstance(value, dict)
+    return _scalar(value) or isinstance(value, dict)  # tool
