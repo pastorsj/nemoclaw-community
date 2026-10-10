@@ -79,3 +79,82 @@ def test_uncatalogued_preset_adds_score(graph):
         "    binaries: [{path: /usr/bin/python3}]\n"
     )
     assert breadth(narrow, graph).score < breadth(broad, graph).score
+
+
+def _endpoint(port, rules, deny=None):
+    endpoint = {"host": "api.github.com", "port": port, "protocol": "rest", "enforcement": "enforce", "rules": rules}
+    if deny:
+        endpoint["deny_rules"] = deny
+    return endpoint
+
+
+def test_deny_in_another_policy_entry_does_not_hide_an_operation(graph):
+    from policy_compiler.backends.openshell import lift
+
+    policy = {
+        "version": 1,
+        "network_policies": {
+            "other_binary": {
+                "name": "other_binary",
+                "binaries": [{"path": "/usr/bin/curl"}],
+                "endpoints": [
+                    _endpoint(
+                        443,
+                        [{"allow": {"method": "GET", "path": "/repos/**"}}],
+                        [{"method": "PUT", "path": "/repos/*/*/contents/**"}],
+                    )
+                ],
+            },
+            "python": {
+                "name": "python",
+                "binaries": [{"path": "/usr/bin/python3"}],
+                "endpoints": [_endpoint(443, [{"allow": {"method": "*", "path": "/repos/**"}}])],
+            },
+        },
+    }
+    assert "github.repos.put-content" in permitted_operations(lift(policy, source="p.yaml"), graph)
+
+
+def test_deny_on_another_port_does_not_hide_an_operation(graph):
+    from policy_compiler.backends.openshell import lift
+
+    policy = {
+        "version": 1,
+        "network_policies": {
+            "python": {
+                "name": "python",
+                "binaries": [{"path": "/usr/bin/python3"}],
+                "endpoints": [
+                    _endpoint(443, [{"allow": {"method": "*", "path": "/repos/**"}}]),
+                    _endpoint(
+                        8443,
+                        [{"allow": {"method": "GET", "path": "/x"}}],
+                        [{"method": "PUT", "path": "/repos/*/*/contents/**"}],
+                    ),
+                ],
+            },
+        },
+    }
+    assert "github.repos.put-content" in permitted_operations(lift(policy, source="p.yaml"), graph)
+
+
+def test_deny_in_the_same_entry_still_removes_the_operation(graph):
+    from policy_compiler.backends.openshell import lift
+
+    policy = {
+        "version": 1,
+        "network_policies": {
+            "python": {
+                "name": "python",
+                "binaries": [{"path": "/usr/bin/python3"}],
+                "endpoints": [
+                    _endpoint(
+                        443,
+                        [{"allow": {"method": "*", "path": "/repos/**"}}],
+                        [{"method": "PUT", "path": "/repos/*/*/contents/**"}],
+                    )
+                ],
+            },
+        },
+    }
+    assert "github.repos.put-content" not in permitted_operations(lift(policy, source="p.yaml"), graph)

@@ -40,16 +40,22 @@ def _semantic_index(graph: Graph):
     return SemanticIndex(graph)
 
 
-def _parse_forbid(values: list[str]) -> list[Prohibition]:
+FORBID_LEVELS = {"read": Privilege.READ, "write": Privilege.WRITE, "admin": Privilege.ADMIN}
+
+
+def _parse_forbid(values: list[str], graph: Graph) -> list[Prohibition]:
+    """Parse ``--forbid PROVIDER:LEVEL``. A typo must fail loudly: a prohibition that matches nothing forbids nothing."""
     prohibitions = []
     for i, value in enumerate(values, start=1):
         provider, _, level = value.partition(":")
         if not provider or not level:
             raise SystemExit(f"--forbid expects PROVIDER:LEVEL (for example github:write), got {value!r}")
-        try:
-            privilege = Privilege(level)
-        except ValueError as exc:
-            raise SystemExit(f"--forbid level must be read, write, or admin, got {level!r}") from exc
+        privilege = FORBID_LEVELS.get(level)
+        if privilege is None:
+            raise SystemExit(f"--forbid level must be read, write, or admin, got {level!r}")
+        if provider not in graph.providers:
+            known = ", ".join(sorted(graph.providers))
+            raise SystemExit(f"--forbid names an unknown provider {provider!r}; the catalog has: {known}")
         prohibitions.append(
             Prohibition(
                 id=f"forbid-{i:02d}-{_slug(provider)}",
@@ -226,11 +232,11 @@ def cmd_compile(args) -> int:
         default_clients=args.client,
         reference_files=[Path(r) for r in args.reference_file],
     )
-    contract.prohibitions.extend(_parse_forbid(args.forbid))
     catalog_graph = _graph_for(args)
     agent_docs, notes = _agent_layer_documents(contract, catalog_graph)
     contract.notes.extend(notes)
     graph = _graph_for(args, agent_docs) if agent_docs else catalog_graph
+    contract.prohibitions.extend(_parse_forbid(args.forbid, graph))
     _suggest_for_unknowns(contract, graph)
     use_case = None
     if args.use_case_file:
@@ -259,7 +265,7 @@ def cmd_from_use_case(args) -> int:
     contract = contract_from_use_case(
         text, graph, default_clients=args.client, inference=args.inference, agent_name=args.name
     )
-    contract.prohibitions.extend(_parse_forbid(args.forbid))
+    contract.prohibitions.extend(_parse_forbid(args.forbid, graph))
     # The needs come from the text itself, so justifying them against it again adds nothing.
     options = ResolveOptions(use_case="")
     out_dir = Path(args.out or f"out/{_slug(args.name)}")

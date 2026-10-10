@@ -41,43 +41,6 @@ network_policies:
               path: /markdown
     binaries:
       - path: /usr/bin/python3
-  github_rest_2:
-    name: github_rest_2
-    endpoints:
-      - host: api.github.com
-        port: 443
-        protocol: rest
-        enforcement: enforce
-        rules:
-          - allow:
-              method: GET
-              path: /repos/*/*
-          - allow:
-              method: GET
-              path: /repos/*/*/languages
-          - allow:
-              method: GET
-              path: /repos/*/*/contents/**
-          - allow:
-              method: GET
-              path: /repos/*/*/readme
-          - allow:
-              method: GET
-              path: /repos/*/*/commits
-          - allow:
-              method: GET
-              path: /repos/*/*/commits/*
-          - allow:
-              method: GET
-              path: /repos/*/*/git/trees/*
-          - allow:
-              method: GET
-              path: /repos/*/*/tarball/*
-          - allow:
-              method: POST
-              path: /markdown
-    binaries:
-      - path: /usr/bin/git
   github_raw:
     name: github_raw
     endpoints:
@@ -91,19 +54,6 @@ network_policies:
               path: /*/*/*/**
     binaries:
       - path: /usr/bin/python3
-  github_raw_2:
-    name: github_raw_2
-    endpoints:
-      - host: raw.githubusercontent.com
-        port: 443
-        protocol: rest
-        enforcement: enforce
-        rules:
-          - allow:
-              method: GET
-              path: /*/*/*/**
-    binaries:
-      - path: /usr/bin/git
   github_codeload:
     name: github_codeload
     endpoints:
@@ -117,19 +67,6 @@ network_policies:
               path: /*/*/legacy.tar.gz/**
     binaries:
       - path: /usr/bin/python3
-  github_codeload_2:
-    name: github_codeload_2
-    endpoints:
-      - host: codeload.github.com
-        port: 443
-        protocol: rest
-        enforcement: enforce
-        rules:
-          - allow:
-              method: GET
-              path: /*/*/legacy.tar.gz/**
-    binaries:
-      - path: /usr/bin/git
   github_git:
     name: github_git
     endpoints:

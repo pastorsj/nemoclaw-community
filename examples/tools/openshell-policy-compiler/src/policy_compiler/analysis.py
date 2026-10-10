@@ -136,6 +136,16 @@ def _deny_covers(rule: AccessRule, op: Operation) -> bool:
     return paths.glob_covers_template(matcher.path, selector.path, set(op.multi_segment))
 
 
+def _same_scope(deny: AccessRule, allow: AccessRule) -> bool:
+    """A deny rule binds only the allows of its own policy entry: same group, binaries, host, and ports."""
+    return (
+        deny.group == allow.group
+        and set(deny.clients.paths) == set(allow.clients.paths)
+        and deny.endpoint.host == allow.endpoint.host
+        and set(deny.endpoint.ports) == set(allow.endpoint.ports)
+    )
+
+
 def permitted_operations(access: AccessSet, graph: Graph) -> dict[str, PermittedOperation]:
     """Catalogued operations that at least one allow rule reaches and no deny rule fully blocks."""
     result: dict[str, PermittedOperation] = {}
@@ -146,9 +156,7 @@ def permitted_operations(access: AccessSet, graph: Graph) -> dict[str, Permitted
         for op in _matching_operations(rule, graph):
             if not _rule_permits(rule, op):
                 continue
-            if any(
-                d.endpoint.host == rule.endpoint.host and _deny_covers(d, op) for d in denies
-            ) and not _rule_is_endpoint_wide(rule):
+            if any(_same_scope(d, rule) and _deny_covers(d, op) for d in denies) and not _rule_is_endpoint_wide(rule):
                 continue
             entry = result.setdefault(op.id, PermittedOperation(op.id, op.privilege))
             entry.rules.append(index)

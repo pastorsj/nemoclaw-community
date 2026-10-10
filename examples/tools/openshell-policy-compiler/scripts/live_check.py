@@ -8,9 +8,12 @@ The script creates a sandbox (or uses one you name), merges the compiled
 network policy into the sandbox's base policy, applies it with
 ``openshell policy set --wait``, and runs each probe with ``curl`` inside the
 sandbox. A probe passes when OpenShell allows or denies it as expected. A
-request counts as denied by OpenShell when the response is a 403 whose body
-contains ``policy_denied``, or when the connection is refused before an HTTP
-response.
+request counts as denied by OpenShell when the response is a 403 from the
+OpenShell proxy (a ``policy_denied`` body, or an ``X-OpenShell-Policy`` header
+for HEAD), or when curl reports that the proxy refused the tunnel
+(``CONNECT tunnel failed, response 403``). Anything else that produces no
+response, such as a failed ``sandbox exec``, a DNS error, or a timeout, is an
+error and fails the run: it proves neither outcome.
 
 Probes send real requests to the hosts the policy allows. Use only probes whose
 requests are safe to send, such as unauthenticated reads.
@@ -24,8 +27,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -45,30 +50,52 @@ def base_policy(sandbox: str) -> dict:
     return yaml.safe_load(body or text)
 
 
-def probe(sandbox: str, item: dict) -> dict:
-    method = item.get("method", "GET")
-    args = [
-        "openshell", "sandbox", "exec", "-n", sandbox, "--no-tty", "--timeout", "60", "--",
-        "curl", "-sS", "-m", "30", "-X", method, "-w", "\n%{http_code}",
-    ]
+PROXY_REFUSED = re.compile(r"CONNECT tunnel failed, response 403")
+"""curl's error when the OpenShell proxy refuses the CONNECT for a host or binary the policy does not allow."""
+
+
+def curl_args(item: dict) -> list[str]:
+    method = item.get("method", "GET").upper()
+    args = ["curl", "-sS", "-m", "30", "-w", "\n%{http_code}"]
+    # ``-X HEAD`` makes curl wait for a body that never comes; ``-I`` sends a real HEAD request.
+    args += ["-I"] if method == "HEAD" else ["-X", method]
     if item.get("body") is not None:
         args += ["-H", "Content-Type: application/json", "--data", json.dumps(item["body"])]
     args.append(item["url"])
-    result = run(args, timeout=120, check=False)
-    output = result.stdout
-    body, _, code = output.rstrip("\n").rpartition("\n")
-    code = code.strip() or "000"
-    denied = (code == "403" and "policy_denied" in body) or code == "000"
-    outcome = "deny" if denied else "allow"
+    return args
+
+
+def classify(returncode: int, stdout: str, stderr: str) -> tuple[str, str, str]:
+    """Return (outcome, status, detail) for one probe; the outcome is allow, deny, or error."""
+    body, _, code = stdout.rstrip("\n").rpartition("\n")
+    code = code.strip() if code.strip().isdigit() else "000"
+    errors = (stderr + "\n" + body).strip()
+    refused = PROXY_REFUSED.search(errors)
+    if refused:
+        return "deny", code, refused.group(0)
+    if returncode != 0 or code == "000":
+        return "error", code, (errors.replace("\n", " ")[-200:] or f"exit status {returncode}")
+    if code == "403" and ("policy_denied" in body or "x-openshell-policy:" in body.lower()):
+        return "deny", code, body.strip().replace("\n", " ")[:160]
+    return "allow", code, ""
+
+
+def probe(sandbox: str, item: dict) -> dict:
+    args = ["openshell", "sandbox", "exec", "-n", sandbox, "--no-tty", "--timeout", "60", "--", *curl_args(item)]
+    try:
+        result = run(args, timeout=120, check=False)
+        outcome, code, detail = classify(result.returncode, result.stdout, result.stderr)
+    except subprocess.TimeoutExpired:
+        outcome, code, detail = "error", "000", "sandbox exec timed out"
     return {
-        "method": method,
+        "method": item.get("method", "GET").upper(),
         "url": item["url"],
         "expect": item["expect"],
         "outcome": outcome,
         "status": code,
         "passed": outcome == item["expect"],
         "why": item.get("why", ""),
-        "detail": (body.strip().replace("\n", " ")[:160] if denied else ""),
+        "detail": detail,
     }
 
 
@@ -85,6 +112,7 @@ def main() -> int:
     probes = yaml.safe_load(Path(args.probes).read_text())["probes"]
     created = None
     sandbox = args.sandbox
+    scratch = tempfile.TemporaryDirectory(prefix="opc-live-")
     if not sandbox:
         sandbox = created = f"opc-live-{int(time.time())}"
         print(f"creating sandbox {sandbox} (first use pulls the base image)...", flush=True)
@@ -92,13 +120,14 @@ def main() -> int:
     try:
         merged = base_policy(sandbox)
         merged["network_policies"] = compiled.get("network_policies", {})
-        merged_path = Path(args.policy).with_name("applied-policy.yaml")
+        merged_path = Path(scratch.name) / "applied-policy.yaml"
         merged_path.write_text(yaml.safe_dump(merged, sort_keys=False))
         print(f"applying {args.policy} to {sandbox}...", flush=True)
         applied = run(["openshell", "policy", "set", sandbox, "--policy", str(merged_path), "--wait"], timeout=300)
         print(applied.stdout.strip())
         results = [probe(sandbox, item) for item in probes]
     finally:
+        scratch.cleanup()
         if created and not args.keep:
             run(["openshell", "sandbox", "delete", created], check=False)
             print(f"deleted sandbox {created}")
@@ -107,10 +136,13 @@ def main() -> int:
     print("| Result | Expect | Outcome | Status | Request | Why |")
     print("| --- | --- | --- | --- | --- | --- |")
     for r in results:
-        mark = "PASS" if r["passed"] else "FAIL"
+        mark = "PASS" if r["passed"] else ("ERROR" if r["outcome"] == "error" else "FAIL")
         print(f"| {mark} | {r['expect']} | {r['outcome']} | {r['status']} | {r['method']} {r['url']} | {r['why']} |")
     failed = [r for r in results if not r["passed"]]
     print(f"\n{len(results) - len(failed)}/{len(results)} probes behaved as expected.")
+    for r in results:
+        if r["outcome"] == "error":
+            print(f"error: {r['method']} {r['url']}: {r['detail']}")
     if args.results:
         Path(args.results).write_text(json.dumps(results, indent=2) + "\n")
     return 1 if failed else 0

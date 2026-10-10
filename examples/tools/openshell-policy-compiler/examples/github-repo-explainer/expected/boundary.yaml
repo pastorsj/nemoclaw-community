@@ -30,6 +30,9 @@ network_policies:
         rules:
           - allow:
               method: GET
+              path: /search/code
+          - allow:
+              method: GET
               path: /repos/*/*
           - allow:
               method: GET
@@ -55,9 +58,6 @@ network_policies:
           - allow:
               method: POST
               path: /markdown
-          - allow:
-              method: GET
-              path: /search/code
     binaries:
       - path: /usr/bin/python3
   github_raw:

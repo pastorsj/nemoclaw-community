@@ -6,15 +6,21 @@
 Resolution turns each need into *grants*: one allowed matcher on one endpoint
 for one set of client binaries, tagged with the graph operations it serves. The
 grants then pass through the prohibitions, optional use-case justification, and
-coverage pruning before they become access rules. The same grants, widened to
-whole capabilities without resource scope, form the boundary (ceiling) policy.
+coverage pruning before they become access rules. The same grants, plus the
+operations their capabilities enable without resource scope, form the boundary
+(ceiling) policy, so the policy always lies within its boundary.
+
+When the compiler cannot tell what a grant reaches (an uncatalogued path, a
+glob, a whole endpoint, or a connection), prohibitions and use-case
+justification fail closed: the grant is narrowed or removed, and the need's
+notes say why.
 """
 
 from __future__ import annotations
 
 import ipaddress
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Iterable, Protocol as TypingProtocol
 
 from policy_compiler import paths
@@ -38,6 +44,9 @@ MCP_LIFECYCLE_METHODS = ("initialize", "notifications/initialized", "tools/list"
 ALWAYS_JUSTIFIED_CONCEPTS = frozenset({"llm.inference"})
 """An agent needs its model even when the use case never mentions one."""
 
+_SCOPE_VALUE = re.compile(r"^[A-Za-z0-9_.%-]+$")
+"""A scope value must be one plain path segment: no glob characters, slashes, or dot segments."""
+
 _PRIVATE_LABELS = frozenset({"internal", "local", "corp", "lan", "intranet", "private", "localdomain"})
 
 
@@ -47,6 +56,8 @@ class ConceptMatcher(TypingProtocol):
     def match(self, text: str, *, min_score: float = ..., top_k: int = ...) -> list: ...
 
     def concepts_for_operation(self, operation_id: str) -> list[str]: ...
+
+    def keywords(self, concept_id: str) -> frozenset[str]: ...
 
 
 @dataclass
@@ -76,6 +87,11 @@ class Grant:
     inspection: Inspection = Inspection.L7
     allowed_ips: tuple[str, ...] = ()
     justified_by: list[str] = field(default_factory=list)
+    declared: bool = False
+    """The matcher follows the declared call shape (a glob, an uncatalogued path, or a whole endpoint), so it
+    can admit requests no catalogued operation describes."""
+    lifecycle: bool = False
+    """An MCP lifecycle method (initialize, tools/list) that only serves the need's tools/call grants."""
 
 
 @dataclass
@@ -86,6 +102,10 @@ class NeedResolution:
     operations: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
     justified_by: list[str] = field(default_factory=list)
+    unjustified: list[str] = field(default_factory=list)
+    """Operations (or hosts, for uncatalogued grants) that the use case does not justify."""
+    unjustified_action: str = ""
+    """``kept`` or ``excluded`` (with ``strict_use_case``) when ``unjustified`` is not empty."""
 
 
 @dataclass
@@ -95,6 +115,8 @@ class Resolution:
     boundary: AccessSet
     needs: list[NeedResolution]
     forbidden_operations: list[str] = field(default_factory=list)
+    forbidden_by: dict[str, list[str]] = field(default_factory=dict)
+    """Prohibition ID -> the catalogued operations it forbids."""
     use_case_concepts: list[str] = field(default_factory=list)
 
 
@@ -149,7 +171,8 @@ class _Resolver:
 
         use_case_concepts = self._justify(grants)
 
-        forbidden = self._forbidden_operations()
+        forbidden_by = {p.id: sorted(self._operations_for_prohibition(p)) for p in self.contract.prohibitions}
+        forbidden = {op for ops in forbidden_by.values() for op in ops}
         grants = self._apply_prohibitions(grants, forbidden)
 
         access = self._build_access(grants, forbidden)
@@ -165,6 +188,7 @@ class _Resolver:
             boundary=boundary,
             needs=ordered,
             forbidden_operations=sorted(forbidden),
+            forbidden_by=forbidden_by,
             use_case_concepts=use_case_concepts,
         )
 
@@ -192,9 +216,32 @@ class _Resolver:
             return []
 
         target = need.target
+        invalid = {k: v for k, v in target.scope.items() if not _valid_scope_value(v)}
+        if invalid:
+            result.status = "unresolved"
+            what = ", ".join(f"{k}={v!r}" for k, v in invalid.items())
+            result.notes.append(
+                f"Invalid scope value ({what}): a scope value must be one path segment made of letters, digits, "
+                "and _.%- characters, and not . or ..; nothing was granted."
+            )
+            self._diag("warning", "invalid-scope", f"{need.id}: invalid scope value {what}.", need.id)
+            return []
+
         if target.raw is not None:
-            grants = self._resolve_raw(need, clients)
+            grants, bindings = self._resolve_raw(need, clients)
+            uses = self._client_use_grants(need, grants, clients, bindings, require_bound=True)
+            # Special-purpose clients (such as git) only receive their implicit uses, never the declared call.
+            special, generic = self._split_clients(clients)
+            if special:
+                grants = [replace(g, clients=generic) for g in grants] if generic else []
+                if not generic:
+                    result.notes.append(
+                        "Only special-purpose clients were given; they receive their implicit operations only."
+                    )
+            grants.extend(uses)
         else:
+            if self._ambiguous_concept(need):
+                return []
             operations, note = self._operations_for_target(target)
             if note:
                 result.notes.append(note)
@@ -203,12 +250,46 @@ class _Resolver:
                     result.status = "unresolved"
                 return []
             grants = self._grants_for_operations(need, operations, clients, target.scope)
+            if target.concept is not None and grants:
+                self._widen(
+                    need.id,
+                    "concept-level",
+                    f"{note} Every operation those capabilities enable is allowed"
+                    + (" within the scope." if target.scope else "."),
+                )
+            grants.extend(
+                self._client_use_grants(
+                    need,
+                    grants,
+                    clients,
+                    target.scope,
+                    require_bound=bool(target.scope) and self.options.pin_scope,
+                )
+            )
 
-        grants.extend(self._client_use_grants(need, grants, clients, target.scope))
         result.operations = _unique([op for g in grants for op in g.operations])
         if not grants and result.status == "resolved":
             result.status = "unresolved"
         return grants
+
+    def _ambiguous_concept(self, need: Need) -> bool:
+        """A concept without a provider that several providers realize grants nothing: the agent must choose."""
+        target = need.target
+        if target.concept is None or target.provider is not None or target.concept not in self.graph.concepts:
+            return False
+        capabilities = self.graph.capabilities_for_concept(target.concept)
+        providers = sorted({self.graph.capabilities[c].provider for c in capabilities})
+        if len(providers) < 2:
+            return False
+        result = self._result(need)
+        result.status = "unresolved"
+        message = (
+            f"Concept {target.concept} is realized by several providers ({', '.join(providers)}); "
+            "ambiguous: name a provider."
+        )
+        result.notes.append(message)
+        self._diag("warning", "ambiguous-concept", f"{need.id}: {message}", need.id)
+        return True
 
     def _operations_for_target(self, target: Target) -> tuple[list[Operation], str]:
         graph = self.graph
@@ -264,7 +345,36 @@ class _Resolver:
             result.notes.append(
                 "Only special-purpose clients were given; they receive their implicit operations only."
             )
-        return grants
+        return self._with_mcp_lifecycle(need.id, grants)
+
+    def _with_mcp_lifecycle(self, need_id: str, grants: list[Grant]) -> list[Grant]:
+        """Add the MCP lifecycle methods once per service endpoint and client set that has tools/call grants."""
+        seen: set[tuple] = set()
+        lifecycle: list[Grant] = []
+        for g in grants:
+            if g.protocol != Protocol.MCP or g.matcher is None or g.lifecycle:
+                continue
+            key = (g.host, g.port, g.clients)
+            if key in seen:
+                continue
+            seen.add(key)
+            lifecycle.extend(
+                Grant(
+                    need=need_id,
+                    service=g.service,
+                    host=g.host,
+                    port=g.port,
+                    protocol=Protocol.MCP,
+                    clients=g.clients,
+                    matcher=Matcher(method=method),
+                    privilege=Privilege.READ,
+                    inspection=g.inspection,
+                    allowed_ips=g.allowed_ips,
+                    lifecycle=True,
+                )
+                for method in MCP_LIFECYCLE_METHODS
+            )
+        return lifecycle + grants
 
     def _grants_for_operation(
         self,
@@ -314,7 +424,8 @@ class _Resolver:
             return Matcher(method="tools/call", tool=selector.tool)
         raise ValueError(f"unsupported selector for {op.id}: {type(selector).__name__}")
 
-    def _resolve_raw(self, need: Need, clients: tuple[str, ...]) -> list[Grant]:
+    def _resolve_raw(self, need: Need, clients: tuple[str, ...]) -> tuple[list[Grant], dict[str, str]]:
+        """Grants for a declared endpoint, plus the template parameters its literal segments fix."""
         raw = need.target.raw
         assert raw is not None
         result = self._result(need)
@@ -323,7 +434,15 @@ class _Resolver:
         inspection = service.inspection if service else Inspection.L7
         allowed_ips = tuple(service.allowed_ips) if service else ()
 
-        def grant(matcher: Matcher | None, ops: list[str], privilege: Privilege, protocol: Protocol) -> Grant:
+        def grant(
+            matcher: Matcher | None,
+            ops: list[str],
+            privilege: Privilege,
+            protocol: Protocol,
+            *,
+            declared: bool,
+            lifecycle: bool = False,
+        ) -> Grant:
             return Grant(
                 need=need.id,
                 service=service,
@@ -336,6 +455,8 @@ class _Resolver:
                 privilege=privilege,
                 inspection=inspection,
                 allowed_ips=allowed_ips,
+                declared=declared,
+                lifecycle=lifecycle,
             )
 
         if service is None and _looks_private(raw.host):
@@ -349,23 +470,34 @@ class _Resolver:
 
         if raw.protocol in (Protocol.TCP, Protocol.L4, Protocol.SQL):
             self._widen(need.id, "connection-level", f"{raw.host}:{raw.port} is allowed at the connection level.")
-            return [grant(None, [], Privilege.UNKNOWN, Protocol.L4)]
+            return [grant(None, [], Privilege.UNKNOWN, Protocol.L4, declared=True)], {}
 
         if raw.protocol == Protocol.MCP:
-            matchers = [Matcher(method=m) for m in MCP_LIFECYCLE_METHODS]
-            if raw.mcp_tools:
-                matchers += [Matcher(method="tools/call", tool=t) for t in raw.mcp_tools]
-            else:
-                self._widen(need.id, "open-toolset", "No tool filter: tools/call is not allowed for any tool.")
-            ops = [
-                op.id
-                for svc in services
-                for op in self.graph.operations_of(svc.id)
-                if isinstance(op.selector, McpSelector) and op.selector.tool in raw.mcp_tools
+            grants = [
+                grant(Matcher(method=m), [], Privilege.READ, Protocol.MCP, declared=False, lifecycle=True)
+                for m in MCP_LIFECYCLE_METHODS
             ]
-            if not ops:
+            if not raw.mcp_tools:
+                self._widen(need.id, "open-toolset", "No tool filter: tools/call is not allowed for any tool.")
+            by_tool: dict[str, Operation] = {}
+            for svc in services:
+                for op in self.graph.operations_of(svc.id):
+                    if isinstance(op.selector, McpSelector):
+                        by_tool.setdefault(op.selector.tool, op)
+            for tool in raw.mcp_tools:
+                op = by_tool.get(tool)
+                grants.append(
+                    grant(
+                        Matcher(method="tools/call", tool=tool),
+                        [op.id] if op else [],
+                        op.privilege if op else Privilege.UNKNOWN,
+                        Protocol.MCP,
+                        declared=op is None,
+                    )
+                )
+            if not any(g.operations for g in grants):
                 result.status = "uncatalogued"
-            return [grant(m, ops, Privilege.UNKNOWN, Protocol.MCP) for m in matchers]
+            return grants, {}
 
         if raw.method is None or raw.path is None:
             self._widen(
@@ -375,19 +507,35 @@ class _Resolver:
             )
             if service is None:
                 result.status = "uncatalogued"
-            return [grant(Matcher(method="*", path="/**"), [], Privilege.UNKNOWN, Protocol.REST)]
+            return [grant(Matcher(method="*", path="/**"), [], Privilege.UNKNOWN, Protocol.REST, declared=True)], {}
 
         if inspection == Inspection.OPAQUE:
             self._widen(need.id, "opaque", f"{raw.host} cannot be inspected; only the host and port are limited.")
-            return [grant(None, [], Privilege.UNKNOWN, Protocol.L4)]
+            return [grant(None, [], Privilege.UNKNOWN, Protocol.L4, declared=True)], {}
 
         prefixes = [p.rstrip("/") for p in need.path_prefixes]
         if "*" in raw.path:
+            if prefixes and not _within_prefixes(raw.path, prefixes):
+                result.status = "unresolved"
+                result.notes.append(
+                    f"The declared path {raw.path} reaches beyond its url_allow_list ({', '.join(prefixes)}) "
+                    "and was left out."
+                )
+                return [], {}
+            if raw.method == "*":
+                self._widen(
+                    need.id, "templated-method", "The HTTP method is chosen at run time; every method is allowed."
+                )
             matches = self._glob_matches(raw.host, raw.port, raw.method, raw.path)
             if not matches:
                 result.status = "uncatalogued"
             privilege = _max_privilege([op.privilege for op in matches]) if matches else method_privilege(raw.method)
-            return [grant(Matcher(method=raw.method, path=raw.path), [op.id for op in matches], privilege, Protocol.REST)]
+            bindings = _merge_bindings(
+                paths.align_bindings(raw.path, op.selector.path, set(op.multi_segment), glob=True)  # type: ignore[union-attr]
+                for op in matches
+            )
+            matcher = Matcher(method=raw.method, path=raw.path)
+            return [grant(matcher, [op.id for op in matches], privilege, Protocol.REST, declared=True)], bindings
 
         matches = self.graph.match_rest(raw.host, raw.port, raw.method, raw.path)
         if prefixes:
@@ -401,22 +549,26 @@ class _Resolver:
                 # Never widen the declared method: a catalogued ``*`` operation (common in policies
                 # mined from hand-written files) still yields a rule for the method the agent declared.
                 method = raw.method if raw.method != "*" else op.selector.method  # type: ignore[union-attr]
-                grants.append(grant(Matcher(method=method, path=glob), [op.id], op.privilege, Protocol.REST))
-            return grants
+                grants.append(grant(Matcher(method=method, path=glob), [op.id], op.privilege, Protocol.REST, declared=False))
+            bindings = _merge_bindings(
+                paths.align_bindings(raw.path, op.selector.path, set(op.multi_segment))  # type: ignore[union-attr]
+                for op, _ in matches
+            )
+            return grants, bindings
 
         result.status = "uncatalogued"
         glob = paths.template_to_glob(raw.path)
         if prefixes and not _within_prefixes(glob, prefixes):
             result.status = "unresolved"
             result.notes.append(f"The declared path {raw.path} is outside its own url_allow_list.")
-            return []
+            return [], {}
         if raw.method == "*":
             self._widen(need.id, "templated-method", "The HTTP method is chosen at run time; every method is allowed.")
         result.notes.append(
             f"{raw.host} {raw.method} {raw.path} is not in the catalog; the rule follows the declared shape "
             "and its privilege is guessed from the method."
         )
-        return [grant(Matcher(method=raw.method, path=glob), [], method_privilege(raw.method), Protocol.REST)]
+        return [grant(Matcher(method=raw.method, path=glob), [], method_privilege(raw.method), Protocol.REST, declared=True)], {}
 
     def _glob_matches(self, host: str, port: int, method: str, glob: str) -> list[Operation]:
         found = []
@@ -431,10 +583,6 @@ class _Resolver:
                     found.append(op)
         return found
 
-    def _client_may_use(self, op: Operation, clients: tuple[str, ...]) -> bool:
-        owners = self.client_specific.get(op.id)
-        return owners is None or bool(owners & set(clients))
-
     def _split_clients(self, clients: tuple[str, ...]) -> tuple[tuple[str, ...], tuple[str, ...]]:
         """Separate clients with implicit uses (git) from general-purpose ones (curl, python)."""
         special = tuple(c for c in clients if any(cl.uses for cl in self.graph.clients_for_path(c)))
@@ -447,8 +595,14 @@ class _Resolver:
         grants: list[Grant],
         clients: tuple[str, ...],
         scope: dict[str, str],
+        *,
+        require_bound: bool,
     ) -> list[Grant]:
-        """Add the operations special-purpose clients perform implicitly, such as git-upload-pack."""
+        """Add the operations special-purpose clients perform implicitly, such as git-upload-pack.
+
+        With ``require_bound``, an implicit operation is added only when ``scope`` fixes every parameter of
+        its path, so that a need for one repository never grants git access to every repository.
+        """
         target = need.target
         granted_caps: set[str] = set()
         if target.capability:
@@ -463,6 +617,7 @@ class _Resolver:
             return []
         closure = self.graph.capability_closure(granted_caps)
         extra: list[Grant] = []
+        skipped: dict[str, list[str]] = {}
         for path in clients:
             for client in self.graph.clients_for_path(path):
                 for use in client.uses:
@@ -472,10 +627,20 @@ class _Resolver:
                         op = self.graph.operations[op_id]
                         if target.provider and self.graph.services[op.service].provider != target.provider:
                             continue
+                        missing = _template_params(op) - set(scope)
+                        if require_bound and missing:
+                            skipped.setdefault(path, []).append(f"{op.id} (needs {', '.join(sorted(missing))})")
+                            continue
                         extra.extend(self._grants_for_operation(need, op, (path,), scope))
         if extra:
             self._result(need).notes.append(
                 "Added the implicit operations of " + ", ".join(sorted({c for g in extra for c in g.clients})) + "."
+            )
+        for path, ops in skipped.items():
+            self._result(need).notes.append(
+                f"Left out the implicit operations of {path} because the need does not fix their parameters: "
+                + ", ".join(_unique(ops))
+                + "."
             )
         return extra
 
@@ -531,69 +696,107 @@ class _Resolver:
         return _unique(concepts)
 
     def _justify(self, grants: list[Grant]) -> list[str]:
+        """Tag grants with the use-case concepts that justify them.
+
+        A grant is justified only when every operation it serves is. MCP lifecycle grants follow the
+        tools/call grants of their need. With ``strict_use_case`` an unjustified grant is excluded.
+        """
         text = self.options.use_case if self.options.use_case is not None else self.contract.use_case
         if not text or self.index is None:
             return []
-        matches = self.index.match(text, min_score=self.options.min_justification_score)
-        concepts = self._requested_concepts(text, matches)
+        from policy_compiler.semantic import find_write_verb_uses
+
+        uses = find_write_verb_uses(text)
+        asked = sorted({use.verb for use in uses if not use.negated})
+        # Base forms let "pushes" match the keyword "push", as in the use-case front end.
+        matches = self.index.match(" ".join([text, *asked]), min_score=self.options.min_justification_score)
+        concepts = self._requested_concepts(matches, uses)
         allowed = set(concepts) | ALWAYS_JUSTIFIED_CONCEPTS
-        unjustified_needs: dict[str, list[str]] = {}
+        unjustified: dict[str, list[str]] = {}
+        failed: set[int] = set()
         for g in grants:
-            op_concepts = {c for op in g.operations for c in self._concepts_for(op)}
-            g.justified_by = sorted(op_concepts & allowed)
-            if not g.justified_by:
-                unjustified_needs.setdefault(g.need, []).extend(g.operations or [f"{g.host}"])
+            if g.lifecycle:
+                continue
+            per_op = {op: set(self._concepts_for(op)) & allowed for op in g.operations}
+            g.justified_by = sorted({c for cs in per_op.values() for c in cs})
+            missing = [op for op, cs in per_op.items() if not cs] if per_op else [g.host]
+            if missing:
+                failed.add(id(g))
+                unjustified.setdefault(g.need, []).extend(missing)
+        action = "excluded" if self.options.strict_use_case else "kept"
         for need_id, result in self.results.items():
-            justified = sorted({c for g in grants if g.need == need_id for c in g.justified_by})
-            result.justified_by = justified
-            if need_id in unjustified_needs:
-                what = ", ".join(_unique(unjustified_needs[need_id]))
+            result.justified_by = sorted({c for g in grants if g.need == need_id for c in g.justified_by})
+            if need_id in unjustified:
+                result.unjustified = _unique(unjustified[need_id])
+                result.unjustified_action = action
+                what = ", ".join(result.unjustified)
                 if self.options.strict_use_case:
                     result.notes.append(f"Excluded because the use case does not justify: {what}.")
                 else:
                     result.notes.append(f"Not justified by the use case (kept): {what}.")
         if self.options.strict_use_case:
-            kept = [g for g in grants if g.justified_by]
-            for need_id in unjustified_needs:
+            kept = _drop_orphan_lifecycle([g for g in grants if id(g) not in failed], grants)
+            for need_id in unjustified:
                 if not any(g.need == need_id for g in kept):
                     self.results[need_id].status = "excluded"
             grants[:] = kept
         return concepts
 
-    def _requested_concepts(self, text: str, matches: list) -> list[str]:
-        """Keep write-level concepts only when a requested (not negated) write verb matches them.
+    def _requested_concepts(self, matches: list, uses: list) -> list[str]:
+        """Keep a write-level concept only when a requested (not negated) write verb asks for it.
 
-        "Never change the repository" mentions a write verb, but asks for the opposite.
+        This is the use-case front end's rule: the verb is one of the concept's action verbs and the words
+        after it in its clause include another of the concept's keywords. "Never change the repository"
+        mentions a write verb but asks for the opposite; "open the code" opens nothing an issue concept owns.
         """
-        from policy_compiler.semantic import find_write_verbs, stem
-
-        asked, negated = find_write_verbs(text)
-        asked_stems = {stem(v) for v in asked}
+        requests = [use for use in uses if not use.negated]
         kept: list[str] = []
         dropped: list[str] = []
         for m in matches:
             concept = self.graph.concepts.get(m.concept)
-            if concept is not None and concept.privilege.at_least(Privilege.WRITE):
-                if not asked_stems & set(m.matched_terms):
-                    dropped.append(m.concept)
-                    continue
+            write_level = concept is not None and concept.privilege.at_least(Privilege.WRITE)
+            if write_level and not any(self._requests(use, m.concept) for use in requests):
+                dropped.append(m.concept)
+                continue
             kept.append(m.concept)
         if dropped:
-            note = "The use case does not ask for write access, so these concepts justify nothing: " + ", ".join(dropped)
+            note = "The use case does not request write access for these concepts, so they justify nothing: " + ", ".join(
+                dropped
+            )
+            negated = [f"{use.verb} {' '.join(use.objects)}".strip() for use in uses if use.negated]
             if negated:
-                note += f" (negated: {', '.join(negated)})"
+                note += f" (negated: {'; '.join(dict.fromkeys(negated))})"
             self._diag("info", "write-concept-not-requested", note + ".")
         return kept
 
+    def _requests(self, use, concept_id: str) -> bool:
+        """Whether one requested write verb asks for a concept: its verb and its object both fit."""
+        assert self.index is not None
+        keywords = self.index.keywords(concept_id)
+        return use.verb in self._action_verbs(concept_id) and bool((keywords - {use.verb}) & set(use.objects))
+
+    def _action_verbs(self, concept_id: str) -> set[str]:
+        """Write verbs that ask for a concept: its write-verb keywords and its write operations' leading verbs."""
+        from policy_compiler.semantic import WRITE_VERBS
+
+        assert self.index is not None
+        verbs = {term for term in self.index.keywords(concept_id) if term in WRITE_VERBS}
+        capabilities = self.graph.capabilities_for_concept(concept_id)
+        for operation in self.graph.operations_enabled_by(capabilities):
+            leading = operation.summary.split(maxsplit=1)[:1]
+            if operation.privilege.at_least(Privilege.WRITE) and leading and leading[0].lower() in WRITE_VERBS:
+                verbs.add(leading[0].lower())
+        return verbs
+
     # ------------------------------------------------------------ prohibitions
 
-    def _forbidden_operations(self) -> set[str]:
-        forbidden: set[str] = set()
-        for prohibition in self.contract.prohibitions:
-            forbidden.update(self._operations_for_prohibition(prohibition))
-        return forbidden
-
     def _operations_for_prohibition(self, prohibition: Prohibition) -> set[str]:
+        """Catalogued operations a prohibition forbids.
+
+        A capability or concept prohibition forbids every operation that has a requirement group with a
+        capability whose closure reaches a banned capability: forbidding ``contents:read`` also forbids
+        writes (``contents:write`` implies it), and forbidding ``contents:write`` leaves reads alone.
+        """
         graph = self.graph
         found: set[str] = set()
         if prohibition.provider is not None:
@@ -601,17 +804,42 @@ class _Resolver:
             for op in graph.operations.values():
                 if graph.services[op.service].provider == prohibition.provider and op.privilege.at_least(floor):
                     found.add(op.id)
-        if prohibition.target is not None:
-            target = prohibition.target
-            if target.raw is not None:
-                raw = target.raw
-                for service in graph.services_for(raw.host, raw.port):
-                    for op in graph.operations_of(service.id):
-                        found.add(op.id)
-            else:
-                ops, _ = self._operations_for_target(target)
-                found.update(op.id for op in ops)
+        target = prohibition.target
+        if target is None:
+            return found
+        if target.raw is not None:
+            for service in graph.services_for(target.raw.host, target.raw.port):
+                for op in graph.operations_of(service.id):
+                    found.add(op.id)
+            return found
+        if target.operation is not None:
+            banned_ops = {target.operation} & set(graph.operations)
+            if not banned_ops:
+                self._unknown_prohibition(prohibition, f"operation {target.operation}")
+            return found | banned_ops
+        if target.capability is not None:
+            if target.capability not in graph.capabilities:
+                self._unknown_prohibition(prohibition, f"capability {target.capability}")
+            banned = {target.capability}
+        else:
+            if (target.concept or "") not in graph.concepts:
+                self._unknown_prohibition(prohibition, f"concept {target.concept}")
+            banned = set(graph.capabilities_for_concept(target.concept or "", target.provider))
+        closures: dict[str, set[str]] = {}
+        for op in graph.operations.values():
+            for group in op.requires:
+                if any(closures.setdefault(c, graph.capability_closure([c])) & banned for c in group):
+                    found.add(op.id)
+                    break
         return found
+
+    def _unknown_prohibition(self, prohibition: Prohibition, what: str) -> None:
+        self._diag(
+            "warning",
+            "unknown-prohibition-target",
+            f"{prohibition.id}: {what} is not in the catalog, so the prohibition forbids nothing.",
+            prohibition.id,
+        )
 
     def _apply_prohibitions(self, grants: list[Grant], forbidden: set[str]) -> list[Grant]:
         raw_hosts = {
@@ -619,42 +847,110 @@ class _Resolver:
             for p in self.contract.prohibitions
             if p.target is not None and p.target.raw is not None
         }
+        floors: dict[str, tuple[Privilege, str]] = {}
+        """Provider -> its lowest prohibited level and the prohibition that sets it."""
+        for p in self.contract.prohibitions:
+            if p.provider is None:
+                continue
+            floor = p.min_privilege or Privilege.READ
+            if p.provider not in floors or floor.rank < floors[p.provider][0].rank:
+                floors[p.provider] = (floor, p.id)
         kept: list[Grant] = []
         for g in grants:
             blocked_ops = [op for op in g.operations if op in forbidden]
             if (g.host.lower(), g.port) in raw_hosts or (g.operations and len(blocked_ops) == len(g.operations)):
-                result = self.results[g.need]
-                result.status = "conflict"
-                what = ", ".join(blocked_ops) or f"{g.host}:{g.port}"
-                result.notes.append(f"Removed because a prohibition forbids: {what}.")
-                self._diag("warning", "prohibited", f"{g.need}: a prohibition removed {what}.", g.need)
+                self._conflict(g, ", ".join(blocked_ops) or f"{g.host}:{g.port}")
                 continue
+            floor = self._provider_floor(g, floors)
+            if floor is not None and not g.lifecycle:
+                narrowed = self._apply_provider_floor(g, *floor)
+                if narrowed is None:
+                    continue
+                g = narrowed
             kept.append(g)
-        return kept
+        return _drop_orphan_lifecycle(kept, grants)
+
+    def _provider_floor(self, g: Grant, floors: dict[str, tuple[Privilege, str]]) -> tuple[Privilege, str] | None:
+        """The lowest prohibited level among the providers that serve the grant's host."""
+        found = [floors[s.provider] for s in self.graph.services_for(g.host, g.port) if s.provider in floors]
+        return min(found, key=lambda f: f[0].rank) if found else None
+
+    def _apply_provider_floor(self, g: Grant, floor: Privilege, prohibition: str) -> Grant | None:
+        """Keep a grant on a prohibited provider's host only when it cannot reach the prohibited level.
+
+        Catalogued operations are checked by name (and denied under broader rules). What the catalog cannot
+        name fails closed: a connection-level grant is removed, an any-method rule is narrowed to GET (or
+        removed when reads are prohibited too), and a declared or uncatalogued rule is removed when its
+        method's guessed privilege reaches the prohibited level.
+        """
+        where = f"{g.host}:{g.port}"
+        rule = f"{prohibition} forbids this provider at {floor.value} level or above"
+        if g.matcher is None or g.protocol in (Protocol.L4, Protocol.TCP) or g.inspection == Inspection.OPAQUE:
+            self._conflict(g, f"connection-level access to {where} ({rule})")
+            return None
+        matcher = g.matcher
+        if matcher.method == "*" and g.protocol == Protocol.REST:
+            if not floor.rank > Privilege.READ.rank:
+                self._conflict(g, f"every method on {where} {matcher.path} ({rule})")
+                return None
+            operations = [op for op in g.operations if _get_reaches(self.graph.operations[op])]
+            g = replace(
+                g,
+                matcher=Matcher(method="GET", path=matcher.path),
+                operations=operations,
+                privilege=_max_privilege(self.graph.operations[op].privilege for op in operations)
+                if operations
+                else Privilege.READ,
+            )
+            detail = f"* {matcher.path} on {where} narrowed to GET by prohibition {prohibition}."
+            self._widen(g.need, "narrowed-by-prohibition", detail)
+            self.results[g.need].notes.append(f"The rule {detail[:-1]}: other methods are prohibited there.")
+            matcher = g.matcher
+        if (g.declared or not g.operations) and method_privilege(matcher.method or "").at_least(floor):
+            what = f"{matcher.method} {matcher.path or matcher.tool or ''}".strip()
+            self._conflict(g, f"{what} on {where}, whose privilege is unknown or guessed from the method ({rule})")
+            return None
+        return g
+
+    def _conflict(self, g: Grant, what: str) -> None:
+        result = self.results[g.need]
+        result.status = "conflict"
+        result.notes.append(f"Removed because a prohibition forbids: {what}.")
+        self._diag("warning", "prohibited", f"{g.need}: a prohibition removed {what}.", g.need)
 
     # ------------------------------------------------------------ boundary
 
     def _boundary_grants(self, grants: list[Grant], forbidden: set[str]) -> list[Grant]:
-        """Widen each catalogued grant to every operation its capabilities enable, without scope."""
-        boundary: list[Grant] = []
+        """The policy's own grants, plus every operation their capabilities enable, without scope.
+
+        Every grant stays in the boundary, so the policy always lies within it. Special-purpose clients
+        (git) widen only to their own implicit operations; general-purpose clients never receive those.
+        """
+        boundary: list[Grant] = list(grants)
         seen: set[tuple[str, tuple[str, ...]]] = set()
         for g in grants:
             if not g.operations:
-                boundary.append(g)
                 continue
             caps: set[str] = set()
             for op_id in g.operations:
                 caps.update(_cheapest_requirement(self.graph, self.graph.operations[op_id]))
             ops = list(self.graph.operations_enabled_by(caps)) if caps else []
             ops += [self.graph.operations[o] for o in g.operations]
-            for op in ops:
-                if op.id in forbidden or (op.id, g.clients) in seen:
+            special, generic = self._split_clients(g.clients)
+            for clients, implicit_only in ((generic, False), (special, True)):
+                if not clients:
                     continue
-                if not self._client_may_use(op, g.clients):
-                    continue
-                seen.add((op.id, g.clients))
-                stub = _need_stub(g.need)
-                boundary.extend(self._grants_for_operation(stub, op, g.clients, {}, None))
+                for op in ops:
+                    if op.id in forbidden or (op.id, clients) in seen:
+                        continue
+                    owners = self.client_specific.get(op.id)
+                    if implicit_only and not (owners and owners & set(clients)):
+                        continue
+                    if not implicit_only and owners:
+                        continue
+                    seen.add((op.id, clients))
+                    stub = _need_stub(g.need)
+                    boundary.extend(self._grants_for_operation(stub, op, clients, {}, None))
         return boundary
 
     # ------------------------------------------------------------ access set
@@ -748,6 +1044,45 @@ class _Resolver:
 
 def _need_stub(need_id: str) -> Need:
     return Need(id=need_id, target=Target(operation="-"), rationale="")
+
+
+def _valid_scope_value(value: object) -> bool:
+    return isinstance(value, str) and bool(_SCOPE_VALUE.match(value)) and value not in (".", "..")
+
+
+def _template_params(op: Operation) -> set[str]:
+    if isinstance(op.selector, RestSelector):
+        return set(re.findall(r"\{([^{}/]+)\}", op.selector.path))
+    return set()
+
+
+def _merge_bindings(items: Iterable[dict[str, str] | None]) -> dict[str, str]:
+    """Combine the parameters each matched operation binds; drop parameters bound inconsistently or unsafely."""
+    merged: dict[str, str] = {}
+    conflicting: set[str] = set()
+    for bindings in items:
+        for key, value in (bindings or {}).items():
+            if key in merged and merged[key] != value:
+                conflicting.add(key)
+            merged.setdefault(key, value)
+    return {k: v for k, v in merged.items() if k not in conflicting and _valid_scope_value(v)}
+
+
+def _get_reaches(op: Operation) -> bool:
+    """Whether a GET rule can reach the operation."""
+    selector = op.selector
+    return isinstance(selector, RestSelector) and (selector.method == "*" or paths.method_covers("GET", selector.method))
+
+
+def _drop_orphan_lifecycle(kept: list[Grant], original: list[Grant]) -> list[Grant]:
+    """Drop MCP lifecycle grants whose need lost every tools/call grant on that endpoint and client set."""
+
+    def key(g: Grant) -> tuple:
+        return (g.need, g.host, g.port, g.clients)
+
+    had = {key(g) for g in original if g.protocol == Protocol.MCP and not g.lifecycle}
+    has = {key(g) for g in kept if g.protocol == Protocol.MCP and not g.lifecycle}
+    return [g for g in kept if not g.lifecycle or key(g) in has or key(g) not in had]
 
 
 def _cheapest_requirement(graph: Graph, op: Operation) -> list[str]:

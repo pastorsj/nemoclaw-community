@@ -38,6 +38,12 @@ MANY = "many"
 _AGENTSPEC_PLACEHOLDER = re.compile(r"\{\{\s*([^{}]+?)\s*\}\}")
 _PARAM = re.compile(r"^\{([^{}/]+)\}$")
 _INNER_PARAM = re.compile(r"\{[^{}/]+\}")
+_STAR_RUN = re.compile(r"\*{2,}")
+
+
+def _collapse_stars(segment: str) -> str:
+    """Merge runs of ``*`` inside one segment: adjacent placeholders still match one segment, never ``**``."""
+    return _STAR_RUN.sub("*", segment)
 
 
 @dataclass(frozen=True)
@@ -70,7 +76,12 @@ def parse_template(path: str, multi_segment: frozenset[str] | set[str] = frozens
             name = whole.group(1)
             tokens.append(Tok(MANY if name in multi_segment else ONE, name))
         elif "{" in segment:
-            tokens.append(Tok(PART, _INNER_PARAM.sub("*", segment)))
+            pattern = _collapse_stars(_INNER_PARAM.sub("*", segment))
+            if pattern == "*":
+                # Only placeholders, such as ``{name}{ext}``: any single segment.
+                tokens.append(Tok(ONE, _INNER_PARAM.findall(segment)[0][1:-1]))
+            else:
+                tokens.append(Tok(PART, pattern))
         else:
             tokens.append(Tok(LIT, segment))
     return tuple(tokens)
@@ -201,9 +212,11 @@ def instantiate(
                 out.append("**" if name in multi_segment else "*")
         elif "{" in segment:
             out.append(
-                _INNER_PARAM.sub(
-                    lambda m: bindings.get(m.group(0)[1:-1], "*"),
-                    segment,
+                _collapse_stars(
+                    _INNER_PARAM.sub(
+                        lambda m: bindings.get(m.group(0)[1:-1], "*"),
+                        segment,
+                    )
                 )
             )
         else:
@@ -256,13 +269,14 @@ def align(declared: str, template: str, multi_segment: frozenset[str] | set[str]
         if tok.kind == LIT:
             out.append(tok.text)
         elif tok.kind == MANY:
-            pieces = []
+            # Keep every declared literal. A declared placeholder alone in a segment may hold a value with
+            # slashes (a file path), so it becomes ``**``; a partial one (``{name}.md``) stays one segment.
+            pieces: list[str] = []
             for dt in declared_toks:
-                if dt.kind == LIT:
+                if dt.kind in (LIT, PART):
                     pieces.append(dt.text)
-                else:
+                elif not pieces or pieces[-1] != "**":
                     pieces.append("**")
-                    break
             out.append("/".join(pieces))
         else:
             dt = declared_toks[0]
@@ -275,6 +289,56 @@ def align(declared: str, template: str, multi_segment: frozenset[str] | set[str]
             else:
                 out.append("*")
     return "/" + "/".join(out)
+
+
+def align_bindings(
+    declared: str,
+    template: str,
+    multi_segment: frozenset[str] | set[str] = frozenset(),
+    *,
+    glob: bool = False,
+) -> dict[str, str] | None:
+    """Template parameters that a declared call fixes with literal segments.
+
+    ``declared`` is a template, or an OpenShell glob when ``glob`` is True. For
+    ``/repos/NVIDIA/OpenShell/contents/{path}`` against
+    ``/repos/{owner}/{repo}/contents/{path}`` the result is
+    ``{"owner": "NVIDIA", "repo": "OpenShell"}``. Only whole-segment,
+    single-segment parameters are bound. Returns ``None`` when the declared path
+    cannot describe a request the template matches.
+    """
+    d = parse_glob(declared) if glob else parse_template(declared)
+    t = parse_template(template, multi_segment)
+
+    @lru_cache(maxsize=None)
+    def go(i: int, j: int) -> tuple[tuple[int, int], ...] | None:
+        """Pairs (declared index, template index) of single tokens aligned one to one."""
+        if i == len(d) and j == len(t):
+            return ()
+        if i == len(d) or j == len(t):
+            return None
+        a, b = d[i], t[j]
+        if b.kind == MANY:
+            for end in range(i + 1, len(d) + 1):
+                rest = go(end, j + 1)
+                if rest is not None:
+                    return rest
+            return None
+        if a.kind == MANY:
+            for end in range(j + 1, len(t) + 1):
+                rest = go(i + 1, end)
+                if rest is not None:
+                    return rest
+            return None
+        if not _single_overlap(a, b):
+            return None
+        rest = go(i + 1, j + 1)
+        return None if rest is None else ((i, j),) + rest
+
+    plan = go(0, 0)
+    if plan is None:
+        return None
+    return {t[j].text: d[i].text for i, j in plan if t[j].kind == ONE and d[i].kind == LIT}
 
 
 def template_to_glob(template: str) -> str:

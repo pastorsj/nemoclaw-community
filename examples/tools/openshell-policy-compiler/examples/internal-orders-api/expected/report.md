@@ -51,9 +51,9 @@ None.
 
 Concepts matched by the use case: `orders.read`.
 
-| Need | Note |
-| --- | --- |
-| need-04-cancel-order | Excluded because the use case does not justify: acme.cancelorder. |
+| Need | Action | Not justified by the use case |
+| --- | --- | --- |
+| need-04-cancel-order | excluded | acme.cancelorder |
 
 ## Prohibitions
 

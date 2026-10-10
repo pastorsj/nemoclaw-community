@@ -59,3 +59,24 @@ def test_unknown_host_becomes_mined_service_and_operations():
     graph = load_graph(extra_documents=[doc])
     matches = graph.match_rest("retail.example.com", 443, "GET", "/v1/items/{id}")
     assert [glob for _, glob in matches] == ["/v1/items/*"]
+
+
+def test_hosts_whose_slugs_collide_stay_separate_services():
+    a = policy("api.a-b.example", [{"allow": {"method": "GET", "path": "/public"}}])
+    b = policy("api-a.b.example", [{"allow": {"method": "DELETE", "path": "/admin/**"}}])
+    doc, _ = import_openshell_policies([("a.yaml", a), ("b.yaml", b)], known=load_graph())
+    origins = {s.id: [o.host for o in s.origins] for s in doc.services}
+    assert len(origins) == 2
+    assert sorted(hosts[0] for hosts in origins.values()) == ["api-a.b.example", "api.a-b.example"]
+    assert all(len(hosts) == 1 for hosts in origins.values())
+    by_service = {}
+    for op in doc.operations:
+        by_service.setdefault(op.service, []).append(op.selector.method)
+    host_of = {sid: hosts[0] for sid, hosts in origins.items()}
+    assert {host_of[sid]: methods for sid, methods in by_service.items()} == {
+        "api.a-b.example": ["GET"],
+        "api-a.b.example": ["DELETE"],
+    }
+    # The ID of the first host does not depend on what else was imported.
+    alone, _ = import_openshell_policies([("a.yaml", a)], known=load_graph())
+    assert [s.id for s in alone.services] == [next(s for s, h in host_of.items() if h == "api.a-b.example")]
