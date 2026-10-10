@@ -1,0 +1,56 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Requests that scripts/live_check.py sends from inside the sandbox with curl.
+# Every request is unauthenticated and safe to send. "allow" means OpenShell
+# lets the request through (the upstream status may still be an error, such as
+# 401 without an API key). "deny" means OpenShell blocks it.
+
+probes:
+  - method: GET
+    url: https://api.github.com/repos/NVIDIA/OpenShell
+    expect: allow
+    why: get_repository tool
+  - method: GET
+    url: https://api.github.com/repos/NVIDIA/OpenShell/contents/README.md
+    expect: allow
+    why: read_file tool
+  - method: GET
+    url: https://api.github.com/repos/NVIDIA/OpenShell/contents/crates
+    expect: allow
+    why: read_file tool, directory listing
+  - method: GET
+    url: https://api.github.com/repos/NVIDIA/OpenShell/commits
+    expect: allow
+    why: list_commits tool
+  - method: POST
+    url: https://integrate.api.nvidia.com/v1/chat/completions
+    body: {model: nvidia/llama-3.3-nemotron-super-49b-v1, messages: []}
+    expect: allow
+    why: the model call (upstream rejects it without an API key)
+  - method: GET
+    url: https://integrate.api.nvidia.com/v1/models
+    expect: deny
+    why: the agent never lists models
+  - method: GET
+    url: https://api.github.com/repos/NVIDIA/OpenShell/issues
+    expect: deny
+    why: issues are not part of this agent
+  - method: GET
+    url: https://api.github.com/repos/NVIDIA/NemoClaw
+    expect: deny
+    why: a different repository
+  - method: PUT
+    url: https://api.github.com/repos/NVIDIA/OpenShell/contents/probe.txt
+    body: {message: probe, content: cHJvYmU=}
+    expect: deny
+    why: writing is never declared
+  - method: POST
+    url: https://api.github.com/markdown
+    body: {text: probe}
+    expect: deny
+    why: a read-level POST the agent does not declare
+  - method: GET
+    url: https://example.com/
+    expect: deny
+    why: a host the agent never declares
