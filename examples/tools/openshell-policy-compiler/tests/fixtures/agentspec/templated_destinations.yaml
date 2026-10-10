@@ -1,7 +1,8 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-# Tools whose destination is chosen at run time, with and without an allow list.
+# Tools whose destination is chosen at run time, allow lists that admit nothing,
+# and malformed tools.
 component_type: Agent
 id: web-reader
 name: Web Reader
@@ -19,6 +20,8 @@ llm_config:
   api_type: responses
   url: https://proxy.example.com/v1
 tools:
+# Templated host: one need per admissible allow-list entry. The http entry can
+# never match, because the URL always uses https.
 - component_type: RemoteTool
   id: fetch-doc
   name: fetch_doc
@@ -28,7 +31,8 @@ tools:
   http_method: GET
   url_allow_list:
   - https://docs.example.com/api/
-  - http://intranet.example.com:8080
+  - https://intranet.example.com:8443
+  - http://legacy.example.com/
 - component_type: RemoteTool
   id: fetch-any-url
   name: fetch_any_url
@@ -44,11 +48,11 @@ tools:
   url: https://status.example.com:{{port}}/health
   http_method: GET
 - component_type: RemoteTool
-  id: local-benefits
-  name: local_benefits
+  id: local-inventory
+  name: local_inventory
   description: null
   metadata: {}
-  url: http://127.0.0.1:HOST_PORT/benefits/{{task}}
+  url: http://127.0.0.1:INVENTORY_PORT/stock/{{sku}}
   http_method: GET
 - component_type: RemoteTool
   id: blocked-tool
@@ -58,4 +62,37 @@ tools:
   url: https://api.example.com/orders
   http_method: GET
   url_allow_list: []
+- component_type: RemoteTool
+  id: wrong-prefix
+  name: wrong_prefix
+  description: null
+  metadata: {}
+  url: https://api.example.com/orders/{{order_id}}
+  http_method: GET
+  url_allow_list:
+  - https://api.example.com/customers/
+- component_type: RemoteTool
+  id: all-invalid
+  name: all_invalid
+  description: null
+  metadata: {}
+  url: https://{{region}}.api.example.com/v1/items
+  http_method: GET
+  url_allow_list:
+  - not a url
+  - 42
+- component_type: RemoteTool
+  id: no-method
+  name: no_method
+  description: null
+  metadata: {}
+  url: https://api.example.com/health
+- component_type: RemoteTool
+  id: bad-method
+  name: bad_method
+  description: null
+  metadata: {}
+  url: https://api.example.com/health
+  http_method:
+  - GET
 agentspec_version: 26.2.0

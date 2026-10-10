@@ -17,7 +17,8 @@ nodes:
 - $component_ref: lookup-order
 - $component_ref: notify
 - $component_ref: agent-node
-- $component_ref: regex
+- $component_ref: redact
+- $component_ref: fetch-status
 - $component_ref: end
 control_flow_connections:
 - component_type: ControlFlowEdge
@@ -116,19 +117,41 @@ $referenced_components:
     outputs: []
     url: https://mail.example.com/v1/messages
     http_method: POST
-  regex:
-    component_type: PluginRegexNode
-    id: regex
-    name: regex
+  redact:
+    component_type: AcmeRedactNode
+    id: redact
+    name: redact
     description: null
     metadata: {}
     inputs: []
     outputs: []
     branches:
     - next
-    regex_pattern: <result>(.*)</result>
-    component_plugin_name: PydanticComponentPlugin
-    component_plugin_version: 25.3.0.dev2
+    mask: "****"
+    component_plugin_name: AcmeFlowPlugin
+    component_plugin_version: 2.1.0
+  # Not a plugin, but not an Agent Spec type either: it must not pass as structural.
+  fetch-status:
+    component_type: HttpFetchNode
+    id: fetch-status
+    name: fetch_status
+    description: null
+    metadata: {}
+    inputs: []
+    outputs: []
+    branches:
+    - next
+    url: https://status.example.net/api/v1/summary
+    fallback_tool:
+      component_type: RemoteTool
+      id: status-fallback
+      name: status_fallback
+      description: Read the cached status page.
+      metadata: {}
+      inputs: []
+      outputs: []
+      url: https://cache.example.net/status
+      http_method: GET
   end:
     component_type: EndNode
     id: end

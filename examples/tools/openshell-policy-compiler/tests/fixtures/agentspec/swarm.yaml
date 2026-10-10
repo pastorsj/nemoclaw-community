@@ -153,11 +153,11 @@ $referenced_components:
       outputs: []
       tool_type: code_interpreter
       executor_name: orchestrator_builtin
-    - component_type: MyCustomComponent
-      component_plugin_name: MyCustomComponentPlugin
-      component_plugin_version: 1.2.3.4
-      id: custom
-      name: My custom component
+    - component_type: AcmeTicketRouter
+      component_plugin_name: AcmeRoutingPlugin
+      component_plugin_version: 0.4.0
+      id: ticket-router
+      name: ticket router
       metadata: {}
-      extra_field1: "..."
+      queue: priority
 agentspec_version: 26.3.1

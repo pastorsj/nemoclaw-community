@@ -2,31 +2,31 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # The main configuration of a disaggregated agent. The LLM configuration, the
-# client tool, and the forecast URL live in disaggregated_components.json.
+# client tool, and the pull-request URL live in disaggregated_components.json.
 component_type: Agent
-id: weather-agent
-name: Weather Agent
+id: release-notes-agent
+name: Release Notes Writer
 description: null
 metadata: {}
 inputs: []
 outputs: []
 llm_config:
-  $component_ref: llm_config
-system_prompt: You are a helpful weather assistant.
+  $component_ref: staging_llm
+system_prompt: Draft release notes from the merged pull requests.
 tools:
-- $component_ref: client_weather_tool
-- $component_ref: forecast_tool
-- $component_ref: missing_tool
+- $component_ref: confirm_draft_tool
+- $component_ref: pulls_tool
+- $component_ref: absent_tool
 $referenced_components:
-  forecast_tool:
+  pulls_tool:
     component_type: RemoteTool
-    id: forecast_tool
-    name: get_forecast
-    description: Get the forecast for a city.
+    id: pulls_tool
+    name: list_merged_pulls
+    description: List the merged pull requests of a repository.
     metadata: {}
     inputs: []
     outputs: []
     url:
-      $component_ref: forecast_url
+      $component_ref: pulls_url
     http_method: GET
-agentspec_version: 25.4.1
+agentspec_version: 26.2.0
