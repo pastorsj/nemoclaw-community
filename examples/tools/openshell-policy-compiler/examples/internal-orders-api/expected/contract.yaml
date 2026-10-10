@@ -1,0 +1,109 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+agent: Order Status Assistant
+sources:
+- examples/internal-orders-api/agent.yaml
+default_clients:
+- /usr/bin/python3
+default_effect: deny
+use_case: 'Answers customer questions about order status by looking up and searching
+  orders.
+
+
+  You answer questions about where an order is and when it will arrive. Look
+
+  up orders by ID or search for them by customer.'
+needs:
+- id: need-01-openshell-managed-inference
+  target:
+    raw:
+      host: inference.local
+      port: 443
+      scheme: https
+      protocol: rest
+      method: POST
+      path: /v1/chat/completions
+  rationale: OpenAiCompatibleConfig OpenShell managed inference (model nvidia/llama-3.3-nemotron-super-49b-v1)
+  evidence:
+  - kind: declared
+    source: agentspec:agent.yaml
+    pointer: $.llm_config
+    confidence: 1.0
+  necessity: required
+  phase: runtime
+  locus: sandbox
+  approval: none
+  subject: OpenShell managed inference
+- id: need-02-get-order
+  target:
+    raw:
+      host: orders.internal.example
+      port: 443
+      scheme: https
+      protocol: rest
+      method: GET
+      path: /v1/orders/{order_id}
+  rationale: Get one order with its status and tracking number.
+  evidence:
+  - kind: declared
+    source: agentspec:agent.yaml
+    pointer: $.tools[0]
+    confidence: 1.0
+  necessity: required
+  phase: runtime
+  locus: sandbox
+  approval: none
+  credential:
+    placement: header:X-API-Key
+    reference: sensitive_headers
+  subject: get_order
+- id: need-03-search-orders
+  target:
+    raw:
+      host: orders.internal.example
+      port: 443
+      scheme: https
+      protocol: rest
+      method: POST
+      path: /v1/orders/search
+  rationale: Search orders by customer or status.
+  evidence:
+  - kind: declared
+    source: agentspec:agent.yaml
+    pointer: $.tools[1]
+    confidence: 1.0
+  necessity: required
+  phase: runtime
+  locus: sandbox
+  approval: none
+  subject: search_orders
+- id: need-04-cancel-order
+  target:
+    raw:
+      host: orders.internal.example
+      port: 443
+      scheme: https
+      protocol: rest
+      method: POST
+      path: /v1/orders/{order_id}/cancel
+  rationale: Cancel an order that has not shipped.
+  evidence:
+  - kind: declared
+    source: agentspec:agent.yaml
+    pointer: $.tools[2]
+    confidence: 1.0
+  necessity: required
+  phase: runtime
+  locus: sandbox
+  approval: confirm
+  subject: cancel_order
+prohibitions:
+- id: forbid-01-acme
+  rationale: No acme operation at admin level or above (--forbid acme:admin).
+  provider: acme
+  min_privilege: admin
+notes:
+- Referenced spec openapi.yaml is already described by the catalog (acme.orders-internal-example);
+  it was not imported again.
+referenced_specs:
+- examples/internal-orders-api/openapi.yaml

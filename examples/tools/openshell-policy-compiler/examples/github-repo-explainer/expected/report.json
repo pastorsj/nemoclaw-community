@@ -1,0 +1,291 @@
+{
+  "version": "0.1.0",
+  "agent": "GitHub Repository Explainer",
+  "sources": [
+    "examples/github-repo-explainer/agent.yaml"
+  ],
+  "policy": {
+    "allow_rules": 5,
+    "deny_rules": 0,
+    "endpoints": 2,
+    "hosts": [
+      "integrate.api.nvidia.com",
+      "api.github.com"
+    ],
+    "permitted": {
+      "read": 5,
+      "write": 0,
+      "admin": 0,
+      "unknown": 0
+    },
+    "connection_level_endpoints": 0,
+    "unenforced_endpoints": 0,
+    "opaque_endpoints": 0,
+    "match_all_paths": 0,
+    "any_method_rules": 0,
+    "binary_globs": 0,
+    "wildcard_hosts": 0,
+    "score": 5
+  },
+  "boundary": {
+    "allow_rules": 14,
+    "deny_rules": 0,
+    "endpoints": 4,
+    "hosts": [
+      "integrate.api.nvidia.com",
+      "api.github.com",
+      "raw.githubusercontent.com",
+      "codeload.github.com"
+    ],
+    "permitted": {
+      "read": 14,
+      "write": 0,
+      "admin": 0,
+      "unknown": 0
+    },
+    "connection_level_endpoints": 0,
+    "unenforced_endpoints": 0,
+    "opaque_endpoints": 0,
+    "match_all_paths": 0,
+    "any_method_rules": 0,
+    "binary_globs": 0,
+    "wildcard_hosts": 0,
+    "score": 14
+  },
+  "permitted_operations": [
+    "github.repos.get",
+    "github.repos.get-content",
+    "github.repos.list-commits",
+    "github.search.code",
+    "nvidia.chat-completions"
+  ],
+  "needs": [
+    {
+      "need": "need-01-nemotron-on-nvidia-api-catalog",
+      "status": "resolved",
+      "operations": [
+        "nvidia.chat-completions"
+      ],
+      "justified_by": [
+        "llm.inference"
+      ]
+    },
+    {
+      "need": "need-02-get-repository",
+      "status": "resolved",
+      "operations": [
+        "github.repos.get"
+      ],
+      "justified_by": [
+        "source-code.read"
+      ]
+    },
+    {
+      "need": "need-03-read-file",
+      "status": "resolved",
+      "operations": [
+        "github.repos.get-content"
+      ],
+      "justified_by": [
+        "source-code.read"
+      ]
+    },
+    {
+      "need": "need-04-list-commits",
+      "status": "resolved",
+      "operations": [
+        "github.repos.list-commits"
+      ],
+      "justified_by": [
+        "source-code.read"
+      ]
+    },
+    {
+      "need": "need-05-search-code",
+      "status": "resolved",
+      "operations": [
+        "github.search.code"
+      ],
+      "notes": [
+        "Not justified by the use case (kept): github.search.code."
+      ]
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "unknown-01-summarize-architecture",
+      "kind": "opaque_impl",
+      "subject": "summarize_architecture",
+      "description": "ServerTool 'summarize_architecture' runs inside the agent runtime, so the compiler cannot see which hosts it contacts. Tool description: Summarizes the architecture of a repository by reading its source files and README.",
+      "evidence": [
+        {
+          "kind": "declared",
+          "source": "agentspec:agent.yaml",
+          "pointer": "$.tools[4]",
+          "confidence": 1.0
+        }
+      ],
+      "suggestions": [
+        {
+          "concept": "source-code.read",
+          "score": 0.6007,
+          "matched_terms": [
+            "architecture",
+            "description",
+            "file",
+            "read",
+            "readme",
+            "repository",
+            "source"
+          ]
+        },
+        {
+          "concept": "source-code.write",
+          "score": 0.3667,
+          "matched_terms": [
+            "description",
+            "file",
+            "read",
+            "readme",
+            "repository",
+            "source"
+          ]
+        },
+        {
+          "concept": "llm.inference",
+          "score": 0.1776,
+          "matched_terms": [
+            "host",
+            "summarize"
+          ]
+        }
+      ]
+    }
+  ],
+  "diagnostics": [
+    {
+      "level": "info",
+      "code": "write-concept-not-requested",
+      "message": "The use case does not ask for write access, so these concepts justify nothing: source-code.write (negated: change)."
+    }
+  ],
+  "forbidden_operations": [
+    "github.git.receive-pack",
+    "github.issues.create",
+    "github.issues.create-comment",
+    "github.pulls.create",
+    "github.repos.delete",
+    "github.repos.delete-content",
+    "github.repos.put-content"
+  ],
+  "use_case_concepts": [
+    "source-code.read"
+  ],
+  "rules": [
+    {
+      "effect": "allow",
+      "group": "nvidia_integrate",
+      "clients": [
+        "/usr/bin/python3"
+      ],
+      "host": "integrate.api.nvidia.com",
+      "ports": [
+        443
+      ],
+      "protocol": "rest",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "privilege": "read",
+      "operations": [
+        "nvidia.chat-completions"
+      ],
+      "reasons": [
+        "need-01-nemotron-on-nvidia-api-catalog"
+      ]
+    },
+    {
+      "effect": "allow",
+      "group": "github_rest",
+      "clients": [
+        "/usr/bin/python3"
+      ],
+      "host": "api.github.com",
+      "ports": [
+        443
+      ],
+      "protocol": "rest",
+      "method": "GET",
+      "path": "/repos/NVIDIA/OpenShell",
+      "privilege": "read",
+      "operations": [
+        "github.repos.get"
+      ],
+      "reasons": [
+        "need-02-get-repository"
+      ]
+    },
+    {
+      "effect": "allow",
+      "group": "github_rest",
+      "clients": [
+        "/usr/bin/python3"
+      ],
+      "host": "api.github.com",
+      "ports": [
+        443
+      ],
+      "protocol": "rest",
+      "method": "GET",
+      "path": "/repos/NVIDIA/OpenShell/contents/**",
+      "privilege": "read",
+      "operations": [
+        "github.repos.get-content"
+      ],
+      "reasons": [
+        "need-03-read-file"
+      ]
+    },
+    {
+      "effect": "allow",
+      "group": "github_rest",
+      "clients": [
+        "/usr/bin/python3"
+      ],
+      "host": "api.github.com",
+      "ports": [
+        443
+      ],
+      "protocol": "rest",
+      "method": "GET",
+      "path": "/repos/NVIDIA/OpenShell/commits",
+      "privilege": "read",
+      "operations": [
+        "github.repos.list-commits"
+      ],
+      "reasons": [
+        "need-04-list-commits"
+      ]
+    },
+    {
+      "effect": "allow",
+      "group": "github_rest",
+      "clients": [
+        "/usr/bin/python3"
+      ],
+      "host": "api.github.com",
+      "ports": [
+        443
+      ],
+      "protocol": "rest",
+      "method": "GET",
+      "path": "/search/code",
+      "privilege": "read",
+      "operations": [
+        "github.search.code"
+      ],
+      "reasons": [
+        "need-05-search-code"
+      ]
+    }
+  ]
+}

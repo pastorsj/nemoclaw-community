@@ -153,7 +153,10 @@ def _write_outputs(
             header=header + [generated, "Boundary (ceiling): the same capabilities without resource scope."],
         )
     )
-    contract_text = yaml.safe_dump(contract_to_dict(contract), sort_keys=False, allow_unicode=True)
+    contract_data = contract_to_dict(contract)
+    if "referenced_specs" in contract_data:
+        contract_data["referenced_specs"] = [_display_path(p) for p in contract_data["referenced_specs"]]
+    contract_text = yaml.safe_dump(contract_data, sort_keys=False, allow_unicode=True)
     outputs["contract.yaml"].write_text("".join(f"# {h}\n" for h in header) + contract_text)
     outputs["report.md"].write_text(
         render_compile_report(
@@ -189,6 +192,17 @@ def _write_outputs(
             print(f"  {d.level}: {d.code}: {d.message}")
     print(f"  wrote {out_dir}/: " + ", ".join(outputs))
     return outputs
+
+
+def _display_path(value: str) -> str:
+    """Show local paths relative to the working directory so generated files stay machine-independent."""
+    path = Path(value)
+    if not path.is_absolute():
+        return value
+    try:
+        return str(path.relative_to(Path.cwd()))
+    except ValueError:
+        return value
 
 
 def _load_base_policy(path: str | None) -> dict | None:

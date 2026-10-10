@@ -1,0 +1,47 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+agent: understand-openshell
+sources:
+- use-case
+default_clients:
+- /usr/bin/python3
+- /usr/bin/git
+default_effect: deny
+use_case: I need access to code in GitHub so that I can understand NVIDIA/OpenShell
+needs:
+- id: need-01-source-code-read
+  target:
+    concept: source-code.read
+    provider: github
+    scope:
+      owner: NVIDIA
+      repo: OpenShell
+  rationale: 'use case: matched code, understand'
+  evidence:
+  - kind: user
+    source: use-case
+    note: I need access to code in GitHub so that I can understand NVIDIA/OpenShell
+    confidence: 1.0
+  necessity: required
+  phase: runtime
+  locus: sandbox
+  approval: none
+- id: need-02-inference
+  target:
+    capability: openshell.inference:invoke
+  rationale: 'the agent needs a language model to act on the use case; inference:
+    local uses OpenShell managed inference (inference.local)'
+  evidence:
+  - kind: user
+    source: use-case
+    pointer: inference
+    note: local
+    confidence: 1.0
+  necessity: required
+  phase: runtime
+  locus: sandbox
+  approval: none
+notes:
+- 'Dropped write-level concepts that no write verb in the use case asks for: source-code.write.
+  Say what the agent should change (for example ''open issues'' or ''push commits'')
+  to grant them.'

@@ -1,0 +1,164 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+agent: GitHub Repository Explainer
+sources:
+- examples/github-repo-explainer/agent.yaml
+default_clients:
+- /usr/bin/python3
+default_effect: deny
+use_case: 'Explains how the NVIDIA/OpenShell project is structured by reading its
+  source code on GitHub.
+
+
+  You help engineers understand the NVIDIA/OpenShell repository. Read its files,
+
+  README, and commit history to answer questions about its architecture. Never
+
+  change the repository.'
+needs:
+- id: need-01-nemotron-on-nvidia-api-catalog
+  target:
+    raw:
+      host: integrate.api.nvidia.com
+      port: 443
+      scheme: https
+      protocol: rest
+      method: POST
+      path: /v1/chat/completions
+  rationale: OpenAiCompatibleConfig Nemotron on NVIDIA API Catalog (model nvidia/llama-3.3-nemotron-super-49b-v1)
+  evidence:
+  - kind: declared
+    source: agentspec:agent.yaml
+    pointer: $.llm_config
+    confidence: 1.0
+  necessity: required
+  phase: runtime
+  locus: sandbox
+  approval: none
+  subject: Nemotron on NVIDIA API Catalog
+- id: need-02-get-repository
+  target:
+    raw:
+      host: api.github.com
+      port: 443
+      scheme: https
+      protocol: rest
+      method: GET
+      path: /repos/NVIDIA/OpenShell
+  rationale: Get the repository description, default branch, and statistics.
+  evidence:
+  - kind: declared
+    source: agentspec:agent.yaml
+    pointer: $.tools[0]
+    confidence: 1.0
+  necessity: required
+  phase: runtime
+  locus: sandbox
+  approval: none
+  path_prefixes:
+  - /repos/NVIDIA/OpenShell
+  subject: get_repository
+- id: need-03-read-file
+  target:
+    raw:
+      host: api.github.com
+      port: 443
+      scheme: https
+      protocol: rest
+      method: GET
+      path: /repos/NVIDIA/OpenShell/contents/{path}
+  rationale: Read a file or list a directory in the repository.
+  evidence:
+  - kind: declared
+    source: agentspec:agent.yaml
+    pointer: $.tools[1]
+    confidence: 1.0
+  necessity: required
+  phase: runtime
+  locus: sandbox
+  approval: none
+  path_prefixes:
+  - /repos/NVIDIA/OpenShell/contents/
+  subject: read_file
+- id: need-04-list-commits
+  target:
+    raw:
+      host: api.github.com
+      port: 443
+      scheme: https
+      protocol: rest
+      method: GET
+      path: /repos/NVIDIA/OpenShell/commits
+  rationale: List recent commits to explain how the code changed.
+  evidence:
+  - kind: declared
+    source: agentspec:agent.yaml
+    pointer: $.tools[2]
+    confidence: 1.0
+  necessity: required
+  phase: runtime
+  locus: sandbox
+  approval: none
+  subject: list_commits
+- id: need-05-search-code
+  target:
+    raw:
+      host: api.github.com
+      port: 443
+      scheme: https
+      protocol: rest
+      method: GET
+      path: /search/code
+  rationale: Search code in the repository.
+  evidence:
+  - kind: declared
+    source: agentspec:agent.yaml
+    pointer: $.tools[3]
+    confidence: 1.0
+  necessity: required
+  phase: runtime
+  locus: sandbox
+  approval: none
+  subject: search_code
+prohibitions:
+- id: forbid-01-github
+  rationale: No github operation at write level or above (--forbid github:write).
+  provider: github
+  min_privilege: write
+unknowns:
+- id: unknown-01-summarize-architecture
+  kind: opaque_impl
+  subject: summarize_architecture
+  description: 'ServerTool ''summarize_architecture'' runs inside the agent runtime,
+    so the compiler cannot see which hosts it contacts. Tool description: Summarizes
+    the architecture of a repository by reading its source files and README.'
+  evidence:
+  - kind: declared
+    source: agentspec:agent.yaml
+    pointer: $.tools[4]
+    confidence: 1.0
+  suggestions:
+  - concept: source-code.read
+    score: 0.6007
+    matched_terms:
+    - architecture
+    - description
+    - file
+    - read
+    - readme
+    - repository
+    - source
+  - concept: source-code.write
+    score: 0.3667
+    matched_terms:
+    - description
+    - file
+    - read
+    - readme
+    - repository
+    - source
+  - concept: llm.inference
+    score: 0.1776
+    matched_terms:
+    - host
+    - summarize

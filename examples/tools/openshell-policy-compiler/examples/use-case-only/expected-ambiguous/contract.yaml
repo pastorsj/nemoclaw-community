@@ -1,0 +1,46 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+agent: ambiguous-code-access
+sources:
+- use-case
+default_clients:
+- /usr/bin/python3
+default_effect: deny
+use_case: I need access to code
+needs:
+- id: need-01-inference
+  target:
+    capability: openshell.inference:invoke
+  rationale: 'the agent needs a language model to act on the use case; inference:
+    local uses OpenShell managed inference (inference.local)'
+  evidence:
+  - kind: user
+    source: use-case
+    pointer: inference
+    note: local
+    confidence: 1.0
+  necessity: required
+  phase: runtime
+  locus: sandbox
+  approval: none
+unknowns:
+- id: unknown-01-source-code-read
+  kind: ambiguous
+  subject: source-code.read
+  description: 'The use case matches source-code.read (Read source code), which several
+    providers realize: github, gitlab. It names none of them, so no access was granted;
+    name the provider, for example ''on GitHub''.'
+  evidence:
+  - kind: user
+    source: use-case
+    note: I need access to code
+    confidence: 1.0
+  suggestions:
+  - concept: source-code.read
+    score: 1.0
+    matched_terms:
+    - code
+notes:
+- 'Dropped write-level concepts that no write verb in the use case asks for: source-code.write,
+  issues.write. Say what the agent should change (for example ''open issues'' or ''push
+  commits'') to grant them.'

@@ -1,0 +1,171 @@
+{
+  "version": "0.1.0",
+  "agent": "Order Status Assistant",
+  "sources": [
+    "examples/internal-orders-api/agent.yaml"
+  ],
+  "policy": {
+    "allow_rules": 3,
+    "deny_rules": 0,
+    "endpoints": 2,
+    "hosts": [
+      "inference.local",
+      "orders.internal.example"
+    ],
+    "permitted": {
+      "read": 3,
+      "write": 0,
+      "admin": 0,
+      "unknown": 0
+    },
+    "connection_level_endpoints": 0,
+    "unenforced_endpoints": 0,
+    "opaque_endpoints": 0,
+    "match_all_paths": 0,
+    "any_method_rules": 0,
+    "binary_globs": 0,
+    "wildcard_hosts": 0,
+    "score": 3
+  },
+  "boundary": {
+    "allow_rules": 5,
+    "deny_rules": 0,
+    "endpoints": 2,
+    "hosts": [
+      "inference.local",
+      "orders.internal.example"
+    ],
+    "permitted": {
+      "read": 5,
+      "write": 0,
+      "admin": 0,
+      "unknown": 0
+    },
+    "connection_level_endpoints": 0,
+    "unenforced_endpoints": 0,
+    "opaque_endpoints": 0,
+    "match_all_paths": 0,
+    "any_method_rules": 0,
+    "binary_globs": 0,
+    "wildcard_hosts": 0,
+    "score": 5
+  },
+  "permitted_operations": [
+    "acme.getorder",
+    "acme.searchorders",
+    "openshell.inference.chat-completions"
+  ],
+  "needs": [
+    {
+      "need": "need-01-openshell-managed-inference",
+      "status": "resolved",
+      "operations": [
+        "openshell.inference.chat-completions"
+      ],
+      "justified_by": [
+        "llm.inference"
+      ]
+    },
+    {
+      "need": "need-02-get-order",
+      "status": "resolved",
+      "operations": [
+        "acme.getorder"
+      ],
+      "justified_by": [
+        "orders.read"
+      ]
+    },
+    {
+      "need": "need-03-search-orders",
+      "status": "resolved",
+      "operations": [
+        "acme.searchorders"
+      ],
+      "justified_by": [
+        "orders.read"
+      ]
+    },
+    {
+      "need": "need-04-cancel-order",
+      "status": "excluded",
+      "operations": [
+        "acme.cancelorder"
+      ],
+      "notes": [
+        "Excluded because the use case does not justify: acme.cancelorder."
+      ]
+    }
+  ],
+  "forbidden_operations": [
+    "acme.deleteorder"
+  ],
+  "use_case_concepts": [
+    "orders.read"
+  ],
+  "rules": [
+    {
+      "effect": "allow",
+      "group": "openshell_inference_local",
+      "clients": [
+        "/usr/bin/python3"
+      ],
+      "host": "inference.local",
+      "ports": [
+        443
+      ],
+      "protocol": "rest",
+      "method": "POST",
+      "path": "/v1/chat/completions",
+      "privilege": "read",
+      "operations": [
+        "openshell.inference.chat-completions"
+      ],
+      "reasons": [
+        "need-01-openshell-managed-inference"
+      ]
+    },
+    {
+      "effect": "allow",
+      "group": "acme_orders_internal_example",
+      "clients": [
+        "/usr/bin/python3"
+      ],
+      "host": "orders.internal.example",
+      "ports": [
+        443
+      ],
+      "protocol": "rest",
+      "method": "GET",
+      "path": "/v1/orders/*",
+      "privilege": "read",
+      "operations": [
+        "acme.getorder"
+      ],
+      "reasons": [
+        "need-02-get-order"
+      ]
+    },
+    {
+      "effect": "allow",
+      "group": "acme_orders_internal_example",
+      "clients": [
+        "/usr/bin/python3"
+      ],
+      "host": "orders.internal.example",
+      "ports": [
+        443
+      ],
+      "protocol": "rest",
+      "method": "POST",
+      "path": "/v1/orders/search",
+      "privilege": "read",
+      "operations": [
+        "acme.searchorders"
+      ],
+      "reasons": [
+        "need-03-search-orders"
+      ]
+    }
+  ]
+}
