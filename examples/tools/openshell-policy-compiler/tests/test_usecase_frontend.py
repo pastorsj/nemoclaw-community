@@ -4,7 +4,8 @@
 import pytest
 
 from policy_compiler.frontends.usecase import contract_from_use_case
-from policy_compiler.graph.store import load_graph
+from policy_compiler.graph.model import CatalogDocument, Provider
+from policy_compiler.graph.store import Graph, load_graph
 from policy_compiler.ir.common import Evidence, EvidenceKind, Privilege
 from policy_compiler.ir.contract import Target, UnknownKind
 
@@ -307,6 +308,16 @@ def test_model_words_without_inference_need_ask_for_a_provider(graph):
     contract = compile_text(graph, "summarize text with a language model", inference="none")
     assert contract.needs == []
     assert [(u.kind, u.subject) for u in contract.unknowns] == [(UnknownKind.AMBIGUOUS, "llm.inference")]
+
+
+def test_inference_capability_missing_from_the_catalog_is_unknown():
+    graph = Graph()
+    graph.add_document(CatalogDocument(providers=[Provider(id="acme", name="ACME")], source="test"))
+    graph.finalize()
+    contract = contract_from_use_case("read orders", graph, default_clients=CLIENTS)
+    assert contract.needs == []
+    [unknown] = contract.unknowns
+    assert (unknown.kind, unknown.subject) == (UnknownKind.NOT_IN_CATALOG, "openshell.inference:invoke")
 
 
 def test_nothing_matched_is_noted(graph):

@@ -138,7 +138,9 @@ class SemanticIndex:
         self._provider_hosts: dict[str, list[str]] = {provider_id: [] for provider_id in graph.providers}
         for service in graph.services.values():
             hosts = self._provider_hosts.setdefault(service.provider, [])
-            hosts.extend(origin.host.lower() for origin in service.origins if origin.host.lower() not in hosts)
+            for origin in service.origins:
+                if origin.host.lower() not in hosts:
+                    hosts.append(origin.host.lower())
 
     def terms(self, concept_id: str) -> dict[str, float]:
         """The term bag of a concept (a copy), for explanations and debugging."""
@@ -294,10 +296,11 @@ def find_write_verbs(text: str) -> tuple[list[str], list[str]]:
 
     * a form right after a determiner ("the open issues", "a commit");
     * ``open`` before ``source``;
-    * ``file`` without an issue-like object ("read file contents");
+    * ``file`` without an issue-like object ("read file contents").
 
     A verb with a negation among the four words before it ("never push", "do not
-    open or comment") is reported as negated instead of asked.
+    open or comment") is reported as negated instead of asked. A negation after
+    the verb ("read/write is not needed") is not detected.
     """
     words = _words(text)
     asked: set[str] = set()
@@ -306,13 +309,13 @@ def find_write_verbs(text: str) -> tuple[list[str], list[str]]:
         verb = _VERB_FORMS.get(word)
         if verb is None or (i and words[i - 1] in _DETERMINERS):
             continue
-        following = words[i + 1 :]
-        if following and following[0] in _NOT_A_VERB_BEFORE.get(verb, ()):
+        following = words[i + 1] if i + 1 < len(words) else ""
+        if following in _NOT_A_VERB_BEFORE.get(verb, ()):
             continue
         objects = _NEEDS_OBJECT.get(verb)
         if objects is not None:
-            nouns = [w for w in following if w not in _OBJECT_FILLERS]
-            if not nouns or stem(nouns[0]) not in objects:
+            noun = next((w for w in words[i + 1 :] if w not in _OBJECT_FILLERS), "")
+            if stem(noun) not in objects:
                 continue
         before = words[max(0, i - _NEGATION_WINDOW) : i]
         (negated if any(w in _NEGATIONS for w in before) else asked).add(verb)
