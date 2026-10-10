@@ -11,6 +11,8 @@ from policy_compiler.semantic import (
     WRITE_VERBS,
     ConceptMatch,
     SemanticIndex,
+    WriteVerbUse,
+    find_write_verb_uses,
     find_write_verbs,
     stem,
     tokenize,
@@ -258,19 +260,40 @@ def test_write_verbs():
         ("read the source files", [], []),
         ("read the comments and the latest changes", [], []),  # plural nouns
         ("file a bug when a test fails", ["file"], []),
-        ("filed issues", ["file"], []),
         ("read file contents", [], []),  # "file" needs an issue-like object
         ("understand this open source project", [], []),
         ("triage the open issues", [], []),  # adjective after a determiner
-        ("updated the docs and created issues", ["create", "update"], []),
         ("an agent that opens pull requests and pushes commits", ["open", "push"], []),
-        ("committed and submitted", ["commit", "submit"], []),
-        ("replied to and modified", ["modify", "reply"], []),
         ("read code but never push", [], ["push"]),
         ("do not open or comment on issues", [], ["comment", "open"]),
         ("must not be able to delete anything", [], ["delete"]),
         ("don't merge", [], ["merge"]),
         ("WRITE the summary", ["write"], []),
+        # Requests: sentence start, after "to", a modal, a subject, or a joined requested verb.
+        ("Read the code. Push commits.", ["push"], []),
+        ("you can also open issues", ["open"], []),
+        ("please merge pull requests", ["merge"], []),
+        ("I want to fix bugs", ["fix"], []),
+        ("read the code and open issues for bugs", ["open"], []),
+        ("review and merge pull requests", ["merge"], []),
+        ("commit the fix and push it", ["commit", "push"], []),
+        # Not requests: past and -ing forms, and adjectives after read verbs.
+        ("filed issues", [], []),
+        ("updated the docs and created issues", [], []),
+        ("committed and submitted", [], []),
+        ("list open issues", [], []),
+        ("summarize open pull requests", [], []),
+        ("list merged pull requests", [], []),
+        ("which issues were opened last week", [], []),
+        ("find changed files in pull requests", [], []),
+        ("show recently updated issues", [], []),
+        ("issues and open pull requests", [], []),  # "and" joins no requested verb
+        ("I need read/write access", [], []),
+        # Negation: per occurrence, per sentence, and after the verb in its clause.
+        ("open issues but never open pull requests", ["open"], ["open"]),
+        ("Never change the code. Open issues.", ["open"], ["change"]),
+        ("push to main is not allowed", [], ["push"]),
+        ("opening issues is not allowed; read issues", [], []),
     ],
 )
 def test_find_write_verbs(text, asked, negated):
@@ -284,3 +307,29 @@ def test_commit_history_is_not_a_write_request():
     assert asked == []
     asked, _ = find_write_verbs("commit the fix and push it")
     assert "commit" in asked
+
+
+def test_wrapped_lines_keep_their_negation():
+    assert find_write_verbs("Read its files to answer questions. Never\nchange the repository.") == ([], ["change"])
+    assert find_write_verbs("Read the code.\n\nPush commits.") == (["push"], [])
+
+
+def test_write_verb_uses_are_per_occurrence_with_objects():
+    assert find_write_verb_uses("open issues but never open pull requests") == [
+        WriteVerbUse("open", False, ("issue",)),
+        WriteVerbUse("open", True, ("pull", "request")),
+    ]
+
+
+def test_write_verb_objects_stop_at_the_next_verb():
+    assert find_write_verb_uses("fix bugs and push commits") == [
+        WriteVerbUse("fix", False, ("bug",)),
+        WriteVerbUse("push", False, ("commit",)),
+    ]
+
+
+def test_keywords(index):
+    assert {"issue", "bug", "open"} <= index.keywords("issues.write")
+    assert "github" not in index.keywords("source-code.read")
+    assert "pr" in index.keyword_vocabulary
+    assert index.keywords("nope") == frozenset()
