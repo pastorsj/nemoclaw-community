@@ -31,7 +31,8 @@ for every rule.
 
 ![Terminal output of the live check: the compiled GitHub explainer policy applied to an OpenShell sandbox, with eleven probes passing](docs/assets/live-check.png)
 
-The policy compiled from [`examples/github-repo-explainer/agent.yaml`](examples/github-repo-explainer/agent.yaml)
+The image renders the commands and recorded results of a live check run. The
+policy compiled from [`examples/github-repo-explainer/agent.yaml`](examples/github-repo-explainer/agent.yaml)
 was applied to a throwaway OpenShell 0.0.106 sandbox. Requests the agent
 declares were allowed. OpenShell denied everything else with `policy_denied`:
 other repositories, issues, writes, GitHub's read-level `POST /markdown`, the
@@ -256,7 +257,36 @@ uv run policy-compiler from-use-case \
   --client /usr/bin/python3 --client /usr/bin/git
 ```
 
-USECASE_OUTPUT_PLACEHOLDER
+Expected output:
+
+```text
+use-case: 14 allow rules, 0 deny rules
+  hosts: api.github.com, raw.githubusercontent.com, codeload.github.com, github.com, inference.local
+  catalogued operations reachable: 14 read, 0 write, 0 admin, 0 unknown (boundary: 15)
+  needs: 2 resolved; unknowns: 0
+  wrote out/use-case/: policy.yaml, boundary.yaml, contract.yaml, report.md, report.json
+```
+
+The semantic layer matches the sentence to the `source-code.read` concept on
+GitHub, and pins the repository `NVIDIA/OpenShell` from the text. The graph
+expands the concept into read operations on the REST API, raw files, and
+archives, all pinned to that one repository. `git`'s clone traffic
+(`info/refs` and the read-only `POST git-upload-pack`) goes to `/usr/bin/git`
+only. The model call goes to OpenShell's managed `inference.local` route. The
+report notes that `source-code.write` was dropped because no write verb asks
+for it. The full output is in
+[`examples/use-case-only/expected/`](examples/use-case-only/expected/).
+
+If the text names no provider, the compiler asks instead of guessing. `"I need
+access to code"` grants only the model call and reports an `ambiguous` unknown:
+`source-code.read` is realized by both GitHub and GitLab, so you must name one.
+See [`examples/use-case-only/expected-ambiguous/`](examples/use-case-only/expected-ambiguous/).
+
+To check the needs of an Agent Spec agent against a stated use case, pass
+`--use-case` to `compile`. With `--strict-use-case`, needs the use case does not
+justify are left out. In [`examples/internal-orders-api/`](examples/internal-orders-api/),
+"Look up order status and search orders for customers" leaves out the
+`cancel_order` tool.
 
 ### Your own APIs
 
