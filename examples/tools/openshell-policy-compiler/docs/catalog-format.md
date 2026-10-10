@@ -93,8 +93,9 @@ clients:
     method and path (or MCP tool), and `privilege`. The node keeps its first
     definition and gains the later file's evidence. If those fields disagree,
     the loader reports an error that names both files.
-  - If any other field differs, for example an operation's `requires` or
-    `summary` or a capability's `implies`, the first definition still wins. The
+  - If any other field differs, for example an operation's `requires` or a
+    capability's `implies`, the first definition still wins. Wording fields
+    (`name`, `description`, `summary`, `tags`) are not compared. The
     loader reports an `ignored-redefinition` warning that names the node, the
     fields, and both files. The later file's evidence is kept with the note
     `redefinition ignored for: <fields>`.

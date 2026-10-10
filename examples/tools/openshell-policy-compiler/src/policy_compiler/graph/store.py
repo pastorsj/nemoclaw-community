@@ -554,7 +554,8 @@ When other fields differ, the first definition wins and an ``ignored-redefinitio
 warning names the fields that were ignored.
 """
 
-_NOT_COMPARED = frozenset({"id", "layer", "evidence"})
+_NOT_COMPARED = frozenset({"id", "layer", "evidence", "name", "description", "summary", "tags"})
+"""Fields an ``ignored-redefinition`` warning does not compare. Wording differences carry no access meaning."""
 
 
 class Graph:

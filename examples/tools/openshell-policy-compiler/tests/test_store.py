@@ -377,12 +377,12 @@ def test_duplicate_with_other_differences_merges_and_warns():
     assert graph.capabilities["acme.orders:read"].implies == []
     later = op.evidence[-1]
     assert later.source == "catalog:two.yaml"
-    assert later.note == "redefinition ignored for: requires, summary"
+    assert later.note == "redefinition ignored for: requires"
 
     warnings = [d for d in graph.diagnostics if d.code == "ignored-redefinition"]
     assert [d.level for d in warnings] == ["warning", "warning"]
     capability_warning, operation_warning = warnings
-    for text in ("acme.orders.get", "requires, summary", "one.yaml", "two.yaml"):
+    for text in ("acme.orders.get", "in requires;", "one.yaml", "two.yaml"):
         assert text in operation_warning.message
     assert "acme.orders:read" in capability_warning.message and "implies" in capability_warning.message
     assert operation_warning.pointer == "catalog:two.yaml#operations[0]"

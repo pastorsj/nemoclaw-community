@@ -86,8 +86,9 @@ The graph is built from **layers**:
 3. **agent** layers are built automatically from specs that an agent references.
 
 Later layers may add nodes and may attach new realizations to existing concepts.
-A later layer may not redefine a node ID that an earlier layer already defines;
-the loader reports an error. Provider-owned IDs carry the provider prefix, for
+A later layer never replaces an earlier definition. A reused ID merges only when
+its identifying fields agree, and the loader warns when other fields differ.
+See [the catalog format](catalog-format.md#layering-rules). Provider-owned IDs carry the provider prefix, for
 example `acme.orders:read`.
 
 ### Contract (high-level internal representation)
