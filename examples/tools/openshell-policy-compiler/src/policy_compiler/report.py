@@ -175,11 +175,11 @@ def render_compile_report(
             + "."
         )
         lines.append("")
-        unjustified = [n for n in resolution.needs if any("justif" in note for note in n.notes)]
+        unjustified = [n for n in resolution.needs if n.unjustified]
         if unjustified:
-            lines += ["| Need | Note |", "| --- | --- |"]
+            lines += ["| Need | Action | Not justified by the use case |", "| --- | --- | --- |"]
             for n in unjustified:
-                lines.append(f"| {n.need} | {_cell(' '.join(x for x in n.notes if 'justif' in x))} |")
+                lines.append(f"| {n.need} | {n.unjustified_action} | {_cell(', '.join(n.unjustified))} |")
             lines.append("")
 
     if access.widenings:
@@ -192,7 +192,7 @@ def render_compile_report(
         lines += ["## Prohibitions", "", "| Prohibition | Rule | Operations forbidden |", "| --- | --- | --- |"]
         for p in contract.prohibitions:
             subject = p.target.describe() if p.target else f"{p.provider} at {p.min_privilege.value if p.min_privilege else 'any'} level or above"
-            lines.append(f"| {p.id} | {_cell(p.rationale or subject)} | {len(resolution.forbidden_operations)} |")
+            lines.append(f"| {p.id} | {_cell(p.rationale or subject)} | {len(resolution.forbidden_by.get(p.id, []))} |")
         lines.append("")
 
     if access.diagnostics:
@@ -241,6 +241,7 @@ def compile_report_data(
             "widenings": to_plain(resolution.access.widenings),
             "diagnostics": to_plain(resolution.access.diagnostics),
             "forbidden_operations": resolution.forbidden_operations,
+            "forbidden_by_prohibition": resolution.forbidden_by,
             "use_case_concepts": resolution.use_case_concepts,
             "rules": [
                 {

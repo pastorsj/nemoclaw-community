@@ -32,12 +32,12 @@ network_policies:
         rules:
           - allow:
               method: GET
-              path: /v1/orders
+              path: /v1/orders/*
           - allow:
               method: POST
               path: /v1/orders/search
           - allow:
               method: GET
-              path: /v1/orders/*
+              path: /v1/orders
     binaries:
       - path: /usr/bin/python3

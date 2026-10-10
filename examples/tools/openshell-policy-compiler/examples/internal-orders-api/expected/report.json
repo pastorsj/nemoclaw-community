@@ -94,12 +94,21 @@
       ],
       "notes": [
         "Excluded because the use case does not justify: acme.cancelorder."
-      ]
+      ],
+      "unjustified": [
+        "acme.cancelorder"
+      ],
+      "unjustified_action": "excluded"
     }
   ],
   "forbidden_operations": [
     "acme.deleteorder"
   ],
+  "forbidden_by_prohibition": {
+    "forbid-01-acme": [
+      "acme.deleteorder"
+    ]
+  },
   "use_case_concepts": [
     "orders.read"
   ],

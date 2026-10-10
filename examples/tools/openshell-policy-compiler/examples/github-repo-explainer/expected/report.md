@@ -58,9 +58,9 @@ The compiler cannot see what these components do on the network. Nothing is gran
 
 Concepts matched by the use case: `source-code.read`.
 
-| Need | Note |
-| --- | --- |
-| need-05-search-code | Not justified by the use case (kept): github.search.code. |
+| Need | Action | Not justified by the use case |
+| --- | --- | --- |
+| need-05-search-code | kept | github.search.code |
 
 ## Prohibitions
 
@@ -72,7 +72,7 @@ Concepts matched by the use case: `source-code.read`.
 
 | Level | Code | Message |
 | --- | --- | --- |
-| info | write-concept-not-requested | The use case does not ask for write access, so these concepts justify nothing: source-code.write (negated: change). |
+| info | write-concept-not-requested | The use case does not request write access for these concepts, so they justify nothing: source-code.write (negated: change repository). |
 
 ## Next steps
 

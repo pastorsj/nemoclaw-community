@@ -108,7 +108,11 @@
       ],
       "notes": [
         "Not justified by the use case (kept): github.search.code."
-      ]
+      ],
+      "unjustified": [
+        "github.search.code"
+      ],
+      "unjustified_action": "kept"
     }
   ],
   "unknowns": [
@@ -166,7 +170,7 @@
     {
       "level": "info",
       "code": "write-concept-not-requested",
-      "message": "The use case does not ask for write access, so these concepts justify nothing: source-code.write (negated: change)."
+      "message": "The use case does not request write access for these concepts, so they justify nothing: source-code.write (negated: change repository)."
     }
   ],
   "forbidden_operations": [
@@ -178,6 +182,17 @@
     "github.repos.delete-content",
     "github.repos.put-content"
   ],
+  "forbidden_by_prohibition": {
+    "forbid-01-github": [
+      "github.git.receive-pack",
+      "github.issues.create",
+      "github.issues.create-comment",
+      "github.pulls.create",
+      "github.repos.delete",
+      "github.repos.delete-content",
+      "github.repos.put-content"
+    ]
+  },
   "use_case_concepts": [
     "source-code.read"
   ],

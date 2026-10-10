@@ -31,7 +31,7 @@
     "score": 14
   },
   "boundary": {
-    "allow_rules": 26,
+    "allow_rules": 15,
     "deny_rules": 0,
     "endpoints": 5,
     "hosts": [
@@ -103,6 +103,13 @@
         "openshell.inference.chat-completions",
         "openshell.inference.list-models"
       ]
+    }
+  ],
+  "widenings": [
+    {
+      "need": "need-01-source-code-read",
+      "reason": "concept-level",
+      "detail": "Concept source-code.read expanded to github.contents:read. Every operation those capabilities enable is allowed within the scope."
     }
   ],
   "rules": [

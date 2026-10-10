@@ -4,6 +4,7 @@
 import json
 from pathlib import Path
 
+import pytest
 import yaml
 
 from policy_compiler.cli import main
@@ -132,3 +133,57 @@ def test_import_openshell_policies(tmp_path, capsys):
     usage = json.loads((tmp_path / "u.json").read_text())
     assert usage  # hosts were recorded
     assert main(["catalog", "check", "--catalog", str(tmp_path)]) == 0
+
+
+@pytest.mark.parametrize(
+    ("value", "message"),
+    [
+        ("gihub:write", "unknown provider"),
+        ("github:unknown", "read, write, or admin"),
+        ("github:WRITE", "read, write, or admin"),
+        ("github", "PROVIDER:LEVEL"),
+    ],
+)
+def test_forbid_rejects_unknown_providers_and_levels(tmp_path, value, message):
+    with pytest.raises(SystemExit) as exc:
+        main(
+            [
+                "compile",
+                str(TOOL / "examples/github-repo-explainer/agent.yaml"),
+                "--client",
+                "/usr/bin/python3",
+                "--forbid",
+                value,
+                "--out",
+                str(tmp_path / "out"),
+            ]
+        )
+    assert message in str(exc.value)
+    assert not (tmp_path / "out").exists()
+
+
+def test_report_counts_forbidden_operations_per_prohibition(tmp_path):
+    out = tmp_path / "out"
+    assert (
+        main(
+            [
+                "compile",
+                str(TOOL / "examples/github-repo-explainer/agent.yaml"),
+                "--client",
+                "/usr/bin/python3",
+                "--forbid",
+                "github:admin",
+                "--forbid",
+                "github:write",
+                "--out",
+                str(out),
+            ]
+        )
+        == 0
+    )
+    report = json.loads((out / "report.json").read_text())
+    counts = {k: len(v) for k, v in report["forbidden_by_prohibition"].items()}
+    assert counts["forbid-01-github"] < counts["forbid-02-github"]
+    markdown = (out / "report.md").read_text()
+    assert f"| {counts['forbid-01-github']} |" in markdown
+    assert f"| {counts['forbid-02-github']} |" in markdown

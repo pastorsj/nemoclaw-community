@@ -78,3 +78,41 @@ def test_method_covers():
     assert paths.method_covers("*", "DELETE")
     assert paths.method_covers("GET", "HEAD")
     assert not paths.method_covers("GET", "POST")
+
+
+def test_adjacent_placeholders_collapse_to_one_segment():
+    assert paths.template_to_glob("/v1/files/{name}{ext}") == "/v1/files/*"
+    assert paths.instantiate("/v1/{a}{b}.tar/{c}") == "/v1/*.tar/*"
+    assert paths.parse_template("/{name}{ext}") == (paths.Tok(paths.ONE, "name"),)
+    assert paths.align("/repos/NVIDIA/OpenShell/{a}{b}", "/repos/{owner}/{repo}/{x}") == "/repos/NVIDIA/OpenShell/*"
+
+
+def test_align_keeps_literals_after_a_placeholder_under_a_multi_segment_parameter():
+    template = "/repos/{owner}/{repo}/contents/{path}"
+    glob = paths.align("/repos/NVIDIA/OpenShell/contents/{dir}/README.md", template, {"path"})
+    assert glob == "/repos/NVIDIA/OpenShell/contents/**/README.md"
+    assert paths.glob_matches(glob, "/repos/NVIDIA/OpenShell/contents/docs/README.md")
+    assert not paths.glob_matches(glob, "/repos/NVIDIA/OpenShell/contents/docs/setup.py")
+
+    glob = paths.align("/repos/NVIDIA/OpenShell/contents/{name}.md", template, {"path"})
+    assert glob == "/repos/NVIDIA/OpenShell/contents/*.md"
+    assert paths.glob_matches(glob, "/repos/NVIDIA/OpenShell/contents/README.md")
+    assert not paths.glob_matches(glob, "/repos/NVIDIA/OpenShell/contents/setup.py")
+    assert not paths.glob_matches(glob, "/repos/NVIDIA/OpenShell/contents/docs/README.txt")
+
+    glob = paths.align("/repos/NVIDIA/OpenShell/contents/{dir}/{name}.md", template, {"path"})
+    assert glob == "/repos/NVIDIA/OpenShell/contents/**/*.md"
+
+
+def test_align_bindings_returns_parameters_fixed_by_declared_literals():
+    template = "/repos/{owner}/{repo}/contents/{path}"
+    assert paths.align_bindings("/repos/NVIDIA/OpenShell/contents/{path}", template, {"path"}) == {
+        "owner": "NVIDIA",
+        "repo": "OpenShell",
+    }
+    assert paths.align_bindings("/repos/{o}/OpenShell/contents/{path}", template, {"path"}) == {"repo": "OpenShell"}
+    assert paths.align_bindings("/orgs/NVIDIA", template, {"path"}) is None
+    assert paths.align_bindings("/repos/NVIDIA/OpenShell/**", template, {"path"}, glob=True) == {
+        "owner": "NVIDIA",
+        "repo": "OpenShell",
+    }

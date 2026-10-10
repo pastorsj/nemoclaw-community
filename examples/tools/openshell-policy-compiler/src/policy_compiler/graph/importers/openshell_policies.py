@@ -17,6 +17,7 @@ not sizing:
 
 from __future__ import annotations
 
+import hashlib
 import os
 import re
 from typing import Any
@@ -75,6 +76,8 @@ def import_openshell_policies(
     """Return a catalog document for hosts the graph does not know, plus a usage index for every host."""
     doc = CatalogDocument(source="mined")
     services: dict[str, Service] = {}
+    service_ids: dict[str, str] = {}
+    """Lower-cased host -> service ID. Different hosts never share an ID, even when their slugs collide."""
     operations: dict[tuple[str, str, str], Operation] = {}
     used_ids: set[str] = set()
     clients: dict[str, Client] = {}
@@ -124,7 +127,7 @@ def import_openshell_policies(
 
             if catalogued or not endpoint.host or "*" in endpoint.host:
                 continue
-            service_id = f"{PROVIDER_ID}.{slug(endpoint.host)}"
+            service_id = _service_id(endpoint.host, service_ids)
             evidence = Evidence(
                 EvidenceKind.LIFTED, source, rule.reasons[0].split("#", 1)[-1] if rule.reasons else ""
             )
@@ -175,6 +178,23 @@ def import_openshell_policies(
     doc.operations = list(operations.values())
     doc.clients = list(clients.values())
     return doc, usage
+
+
+def _service_id(host: str, service_ids: dict[str, str]) -> str:
+    """A service ID for ``host``: its slug, plus a hash of the host when another host already has that slug."""
+    key = host.lower().rstrip(".")
+    if key in service_ids:
+        return service_ids[key]
+    taken = set(service_ids.values())
+    candidate = f"{PROVIDER_ID}.{slug(key)}"
+    if candidate in taken:
+        candidate = f"{candidate}-{hashlib.sha256(key.encode()).hexdigest()[:10]}"
+        n = 2
+        while candidate in taken:
+            candidate = f"{candidate}-{n}"
+            n += 1
+    service_ids[key] = candidate
+    return candidate
 
 
 def _selector_key(op: Operation) -> tuple[str, str]:
