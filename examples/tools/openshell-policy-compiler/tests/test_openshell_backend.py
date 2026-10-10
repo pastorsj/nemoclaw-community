@@ -176,7 +176,12 @@ def test_lower_endpoint_key_order_and_fields():
 
 def test_lower_opaque_endpoint_is_l4_with_tls_skip():
     key = EndpointKey(host="mtls.example.com", ports=(443,), protocol=Protocol.REST, inspection=Inspection.OPAQUE)
-    access = AccessSet(rules=[AccessRule(Effect.ALLOW, "mtls", PYTHON, key, Matcher(method="GET", path="/v1/x"))])
+    access = AccessSet(
+        rules=[
+            AccessRule(Effect.ALLOW, "mtls", PYTHON, key),  # the whole-endpoint grant
+            AccessRule(Effect.ALLOW, "mtls", PYTHON, key, Matcher(method="GET", path="/v1/x")),
+        ]
+    )
     (endpoint,) = lower(access)["network_policies"]["mtls"]["endpoints"]
     assert endpoint == {"host": "mtls.example.com", "port": 443, "tls": "skip", "enforcement": "enforce"}
     assert list(endpoint) == ["host", "port", "tls", "enforcement"]
@@ -184,6 +189,20 @@ def test_lower_opaque_endpoint_is_l4_with_tls_skip():
     # Without normalization the authored combination is reproduced, in key order.
     authored = lower(access, normalize=False)["network_policies"]["mtls"]["endpoints"][0]
     assert list(authored) == ["host", "port", "protocol", "tls", "enforcement", "rules"]
+
+
+@pytest.mark.parametrize("inspection", [Inspection.OPAQUE, Inspection.L7])
+def test_lower_uninspected_matchers_without_whole_grant_fail_closed(inspection):
+    protocol = Protocol.REST if inspection is Inspection.OPAQUE else Protocol.L4
+    key = EndpointKey(host="mtls.example.com", ports=(443,), protocol=protocol, inspection=inspection)
+    access = AccessSet(
+        rules=[
+            AccessRule(Effect.ALLOW, "mtls", PYTHON, key, Matcher(method="GET", path="/v1/x")),
+            AccessRule(Effect.ALLOW, "mtls", PYTHON, key, access_preset="read-only"),
+        ]
+    )
+    assert lower(access)["network_policies"] == {}  # never silently an allow-all
+    assert {(d.level, d.code) for d in access.diagnostics} == {("error", "endpoint-dropped-fail-closed")}
 
 
 def test_lower_opaque_endpoint_with_deny_fails_closed():
@@ -1211,13 +1230,254 @@ def test_repository_policy_round_trip(path):
 def test_repository_policy_normalizes(path):
     out = lower(lift(load_policy_file(path)))
     assert out["version"] == 1
+    assert set(out) <= {"version", "filesystem_policy", "landlock", "process", "network_policies"}
     for entry in out["network_policies"].values():
         assert entry["binaries"]
         for endpoint in entry["endpoints"]:
-            assert endpoint.get("tls") in (None, "skip") or "__" in str(endpoint["tls"])
+            assert endpoint.get("tls") in (None, "skip")
             assert endpoint.get("protocol") in (None, "rest", "websocket", "graphql", "mcp", "json-rpc", "tcp", "sql")
             if endpoint.get("protocol") != "tcp":
                 assert endpoint["enforcement"] in ("enforce", "audit")
+
+
+def _ports_of(endpoint: dict) -> set:
+    return set(endpoint.get("ports") or []) | ({endpoint["port"]} if "port" in endpoint else set())
+
+
+def _binary_host_ports(policy: dict) -> set[tuple]:
+    pairs = set()
+    for entry in policy["network_policies"].values():
+        for binary in entry.get("binaries") or []:
+            path = binary["path"] if isinstance(binary, dict) else binary
+            for endpoint in entry.get("endpoints") or []:
+                pairs.update((path, endpoint.get("host", ""), port) for port in _ports_of(endpoint))
+    return pairs
+
+
+@pytest.mark.parametrize("path", REPO_POLICIES, ids=[str(p.relative_to(EXAMPLES)) for p in REPO_POLICIES])
+def test_repository_policy_normalization_never_widens(path):
+    authored = load_policy_file(path)
+    normalized = lower(lift(authored))
+    assert _binary_host_ports(normalized) <= _binary_host_ports(authored)
+    sources = canonicalize(authored)["network_policies"]
+    for key, entry in canonicalize(normalized)["network_policies"].items():
+        for endpoint in entry["endpoints"]:
+            same = [
+                s
+                for s in sources[key]["endpoints"]
+                if (s.get("host"), s.get("ports"), s.get("path"))
+                == (endpoint.get("host"), endpoint["ports"], endpoint.get("path"))
+            ]
+            assert same, endpoint
+            for source in same:
+                assert all(d in endpoint.get("deny_rules", []) for d in source.get("deny_rules", []))
+            if "access" in endpoint:
+                assert any(s.get("access") for s in same)
+            if "rules" in endpoint:
+                assert any(all(r in s.get("rules", []) for r in endpoint["rules"]) for s in same)
+            if endpoint.get("mcp", {}).get("allow_all_known_mcp_methods"):
+                assert any(s.get("mcp", {}).get("allow_all_known_mcp_methods") for s in same)
+
+
+# --- fail-open regressions ------------------------------------------------------------
+
+
+def _mcp_policy(rules=None, deny_rules=None) -> dict:
+    endpoint = {
+        "host": "mcp.example.com",
+        "port": 443,
+        "protocol": "mcp",
+        "enforcement": "enforce",
+        "mcp": {"versions": ["2025-11-25"], "allow_all_known_mcp_methods": True},
+    }
+    if rules is not None:
+        endpoint["rules"] = rules
+    if deny_rules is not None:
+        endpoint["deny_rules"] = deny_rules
+    return {"version": 1, "network_policies": {"mcp": {"endpoints": [endpoint], "binaries": [{"path": "/bin/x"}]}}}
+
+
+def _assert_no_allow_all(policy: dict) -> None:
+    for entry in policy["network_policies"].values():
+        for endpoint in entry["endpoints"]:
+            assert not endpoint.get("mcp", {}).get("allow_all_known_mcp_methods")
+            assert "rules" not in endpoint and "access" not in endpoint
+
+
+@pytest.mark.parametrize(
+    "rules,deny_rules",
+    [
+        pytest.param(None, [{"tool": "a"}, {"tool": None}], id="P1-invalid-deny"),
+        pytest.param(
+            [{"allow": {"method": "vendor/ext"}}, {"allow": {"tool": {"glob": "a*"}}}], None, id="P2-unsupported-tool"
+        ),
+        pytest.param(
+            [{"allow": {"method": "vendor/ext"}}, {"allow": {"tool": "a", "params": {"name": "a"}}}],
+            None,
+            id="P2-tool-and-params",
+        ),
+        pytest.param(
+            [{"allow": {"tool": {"glob": "a*"}}}],
+            [{"method": "tools/call", "tool": "b"}],
+            id="P2c-unsupported-and-deny",
+        ),
+    ],
+)
+def test_allow_all_mcp_never_widens_when_a_rule_is_dropped(rules, deny_rules):
+    access = lift(_mcp_policy(rules, deny_rules))
+    assert ("error", "mcp-allow-all-cleared") in [(d.level, d.code) for d in access.diagnostics]
+    assert not [r for r in access.rules if r.effect is Effect.ALLOW]
+    assert all("allow_all_known_mcp_methods" not in r.endpoint_extras.get("mcp", {}) for r in access.rules)
+    assert lower(access)["network_policies"] == {}
+    _assert_no_allow_all(lower(access, normalize=False))
+
+
+def test_lower_allow_all_mcp_needs_an_allow_rule():
+    mcp = EndpointKey(host="mcp.example.com", ports=(443,), protocol=Protocol.MCP)
+    extras = {"mcp": {"allow_all_known_mcp_methods": True}}
+    deny = AccessRule(Effect.DENY, "mcp", PYTHON, mcp, Matcher(method="tools/call", tool="x"), endpoint_extras=extras)
+    access = AccessSet(rules=[deny])
+    assert lower(access)["network_policies"] == {}
+    assert _codes(access) == {"endpoint-dropped-fail-closed"}
+
+
+def test_lower_extras_never_override_modelled_fields():
+    injected = {
+        "host": "evil.example.com",
+        "rules": [{"allow": {"method": "*", "path": "/**"}}],
+        "deny_rules": [],
+        "access": "full",
+    }
+    rule = AccessRule(Effect.ALLOW, "gh", PYTHON, GITHUB, Matcher(method="GET", path="/zen"), endpoint_extras=injected)
+    access = AccessSet(rules=[rule])
+    (endpoint,) = lower(access)["network_policies"]["gh"]["endpoints"]
+    assert endpoint["host"] == "api.github.com"
+    assert endpoint["rules"] == [{"allow": {"method": "GET", "path": "/zen"}}]
+    assert "access" not in endpoint and "deny_rules" not in endpoint
+    overrides = [d for d in access.diagnostics if d.code == "extras-override"]
+    assert len(overrides) == 4 and all(d.level == "error" for d in overrides)
+
+
+def test_lift_adds_whole_endpoint_grant_and_widening_for_uninspected_rules():
+    policy = {
+        "network_policies": {
+            "discord": {
+                "endpoints": [{"host": "gateway.discord.gg", "port": 443, "tls": "skip", "access": "full"}],
+                "binaries": [{"path": "/usr/bin/node"}],
+            }
+        }
+    }
+    access = lift(policy, source="p.yaml")
+    assert [(r.matcher, r.access_preset) for r in access.rules] == [(None, None), (None, "full")]
+    (widening,) = access.widenings
+    assert (widening.need, widening.reason) == ("p.yaml#network_policies.discord.endpoints[0]", "uninspected-rules")
+    assert lower(access)["network_policies"]["discord"]["endpoints"] == [
+        {"host": "gateway.discord.gg", "port": 443, "tls": "skip", "enforcement": "audit"}
+    ]
+    assert canonicalize(lower(access, normalize=False)) == canonicalize({"version": 1, **policy})
+
+
+def test_lower_dropped_deny_drops_overlapping_endpoints_across_entries():
+    opaque = EndpointKey(host="api.github.com", ports=(443,), protocol=Protocol.REST, inspection=Inspection.OPAQUE)
+    wildcard = EndpointKey(host="*.github.com", ports=(443, 8443), protocol=Protocol.REST)
+    other = EndpointKey(host="api.gitlab.com", ports=(443,), protocol=Protocol.REST)
+    curl = ClientSet.of(["/usr/bin/curl"])
+    python_glob = ClientSet.of(["/usr/bin/python*"])
+    get = Matcher(method="GET", path="/zen")
+    access = AccessSet(
+        rules=[
+            AccessRule(Effect.ALLOW, "a", PYTHON, opaque),
+            AccessRule(Effect.DENY, "a", PYTHON, opaque, Matcher(method="DELETE", path="/**")),
+            AccessRule(Effect.ALLOW, "b", python_glob, wildcard, get),  # overlaps host, port, and binary
+            AccessRule(Effect.ALLOW, "c", curl, GITHUB, get),  # different binary
+            AccessRule(Effect.ALLOW, "d", PYTHON, other, get),  # different host
+        ]
+    )
+    assert list(lower(access)["network_policies"]) == ["c", "d"]
+    dropped = [d for d in access.diagnostics if d.code == "endpoint-dropped-fail-closed"]
+    assert len(dropped) == 2
+    assert "applies deny rules across overlapping rules" in dropped[1].message
+
+
+def test_lower_credential_binding_only_from_allow_rules():
+    deny = AccessRule(
+        Effect.DENY, "gh", PYTHON, GITHUB, Matcher(method="DELETE", path="/x"), credential_binding="from-deny"
+    )
+    allow = AccessRule(Effect.ALLOW, "gh", PYTHON, GITHUB, Matcher(method="GET", path="/x"))
+    access = AccessSet(rules=[deny, allow])
+    assert "credential_binding" not in lower(access)["network_policies"]["gh"]["endpoints"][0]
+
+
+def test_lower_conflicting_credential_bindings_are_an_error():
+    rules = [
+        AccessRule(Effect.ALLOW, "gh", PYTHON, GITHUB, Matcher(method="GET", path="/a"), credential_binding="one"),
+        AccessRule(Effect.ALLOW, "gh", PYTHON, GITHUB, Matcher(method="GET", path="/b"), credential_binding="two"),
+    ]
+    access = AccessSet(rules=rules)
+    assert "credential_binding" not in lower(access)["network_policies"]["gh"]["endpoints"][0]
+    assert ("error", "conflicting-credential-binding") in [(d.level, d.code) for d in access.diagnostics]
+
+
+def test_lower_drops_unknown_top_level_and_l4_protocol_options():
+    access = lift(load_policy_file(EXAMPLES / "recipes/nvidia/nv-tech-assistant/policies/github_ext.yaml"))
+    assert "preset" not in lower(access)
+    assert "dropped-top-level-field" in _codes(access)
+    assert "preset" in lower(access, normalize=False)
+    l4 = EndpointKey(host="a.example.com", ports=(443,), protocol=Protocol.L4)
+    extras = {"mcp": {"versions": ["2025-11-25"]}, "graphql_max_body_bytes": 10, "allow_encoded_slash": True}
+    access = AccessSet(rules=[AccessRule(Effect.ALLOW, "g", PYTHON, l4, endpoint_extras=extras)])
+    (endpoint,) = lower(access)["network_policies"]["g"]["endpoints"]
+    assert "mcp" not in endpoint and "graphql_max_body_bytes" not in endpoint
+    assert endpoint["allow_encoded_slash"] is True
+    assert _codes(access) == {"dropped-l7-options"}
+
+
+@pytest.mark.parametrize(
+    "endpoint,code",
+    [
+        pytest.param(
+            {"host": "a.example.com", "port": 443, "allowed_ips": "10.0.0.0/8"}, "invalid-allowed-ips", id="ips"
+        ),
+        pytest.param({"host": "a.example.com", "ports": "443"}, "invalid-ports", id="ports"),
+        pytest.param({"host": "a.example.com", "port": True}, "invalid-port", id="port-bool"),
+        pytest.param({"host": 5, "port": 443}, "invalid-host", id="host"),
+        pytest.param({"host": "a.example.com", "port": 443, "rules": {"allow": {}}}, "invalid-rules", id="rules"),
+        pytest.param({"host": "a.example.com", "port": 443, "deny_rules": "x"}, "invalid-deny-rules", id="deny"),
+    ],
+)
+def test_lift_rejects_wrongly_typed_endpoint_fields(endpoint, code):
+    access = lift({"network_policies": {"g": {"endpoints": [endpoint], "binaries": [{"path": "/bin/x"}]}}})
+    assert access.rules == []  # skipped: it allows nothing
+    assert ("error", code) in [(d.level, d.code) for d in access.diagnostics]
+
+
+def test_lift_rejects_non_list_binaries():
+    access = lift(
+        {"network_policies": {"g": {"endpoints": [{"host": "a.example.com", "port": 443}], "binaries": "/x"}}}
+    )
+    assert access.rules[0].clients == ClientSet("none")
+    assert "invalid-binaries" in _codes(access)
+
+
+def test_lift_reports_unknown_keys_in_a_rules_entry():
+    policy = {
+        "network_policies": {
+            "g": {
+                "endpoints": [
+                    {
+                        "host": "a.example.com",
+                        "port": 443,
+                        "protocol": "rest",
+                        "enforcement": "enforce",
+                        "rules": [{"allow": {"method": "GET", "path": "/x"}, "deny": {"method": "POST"}}],
+                    }
+                ],
+                "binaries": [{"path": "/bin/x"}],
+            }
+        }
+    }
+    (diag,) = [d for d in lift(policy).diagnostics if d.code == "unknown-field"]
+    assert (diag.level, diag.pointer) == ("error", "#network_policies.g.endpoints[0].rules[0].deny")
 
 
 # --- canonicalize, load, dump ---------------------------------------------------------
