@@ -1,0 +1,118 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# MCP tools and toolboxes over each transport kind.
+component_type: Agent
+id: mcp-agent
+name: MCP Agent
+description: Uses MCP servers.
+metadata: {}
+inputs: []
+outputs: []
+llm_config:
+  component_type: OllamaConfig
+  id: local-llama
+  name: local-llama
+  description: null
+  metadata: {}
+  url: localhost:11434
+  model_id: llama3.3
+system_prompt: Use the tools at your disposal.
+tools:
+- component_type: MCPTool
+  id: get-weather
+  name: get_weather
+  description: Get the weather for a city.
+  metadata: {}
+  inputs: []
+  outputs: []
+  client_transport:
+    component_type: StreamableHTTPTransport
+    id: weather-transport
+    name: weather transport
+    description: null
+    metadata: {}
+    url: https://weather.example.com/mcp
+    headers: null
+toolboxes:
+- component_type: MCPToolBox
+  id: github-mcp
+  name: GitHub MCP
+  description: Read code through the GitHub MCP server.
+  metadata: {}
+  client_transport:
+    component_type: StreamableHTTPTransport
+    id: github-transport
+    name: github transport
+    description: null
+    metadata: {}
+    url: https://api.githubcopilot.com/mcp/
+    headers: null
+    sensitive_headers:
+      $component_ref: github-transport.sensitive_headers
+  tool_filter:
+  - get_file_contents
+  - component_type: MCPToolSpec
+    id: search-code
+    name: search_code
+    description: null
+    metadata: {}
+    inputs: []
+    outputs: []
+    requires_confirmation: true
+- component_type: MCPToolBox
+  id: payslip
+  name: Payslip MCP ToolBox
+  description: null
+  metadata: {}
+  client_transport:
+    component_type: SSETransport
+    id: payslip-transport
+    name: MCP Client
+    description: null
+    metadata: {}
+    session_parameters:
+      read_timeout_seconds: 60.0
+    url: http://localhost:8080/sse
+    headers: null
+  tool_filter: null
+- component_type: MCPToolBox
+  id: filesystem
+  name: Filesystem MCP
+  description: null
+  metadata: {}
+  client_transport:
+    component_type: StdioTransport
+    id: filesystem-transport
+    name: filesystem transport
+    description: null
+    metadata: {}
+    command: npx
+    args:
+    - -y
+    - "@modelcontextprotocol/server-filesystem"
+    - /workspace
+  tool_filter:
+  - read_file
+- component_type: MCPToolBox
+  id: secure
+  name: Secure MCP
+  description: null
+  metadata: {}
+  client_transport:
+    component_type: StreamableHTTPmTLSTransport
+    id: secure-transport
+    name: secure transport
+    description: null
+    metadata: {}
+    url: https://mcp.secure.example.com:8443/mcp
+    headers: null
+    key_file:
+      $component_ref: secure-transport.key_file
+    cert_file:
+      $component_ref: secure-transport.cert_file
+    ca_file:
+      $component_ref: secure-transport.ca_file
+  tool_filter:
+  - lookup
+agentspec_version: 26.2.0

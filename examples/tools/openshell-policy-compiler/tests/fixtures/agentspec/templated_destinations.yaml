@@ -1,0 +1,61 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# Tools whose destination is chosen at run time, with and without an allow list.
+component_type: Agent
+id: web-reader
+name: Web Reader
+description: Reads documentation pages.
+metadata: {}
+inputs: []
+outputs: []
+llm_config:
+  component_type: OpenAiConfig
+  id: gpt
+  name: gpt-5
+  description: null
+  metadata: {}
+  model_id: gpt-5
+  api_type: responses
+  url: https://proxy.example.com/v1
+tools:
+- component_type: RemoteTool
+  id: fetch-doc
+  name: fetch_doc
+  description: null
+  metadata: {}
+  url: https://{{host}}/api/{{page}}
+  http_method: GET
+  url_allow_list:
+  - https://docs.example.com/api/
+  - http://intranet.example.com:8080
+- component_type: RemoteTool
+  id: fetch-any-url
+  name: fetch_any_url
+  description: Fetch any URL the model chooses.
+  metadata: {}
+  url: "{{url}}"
+  http_method: GET
+- component_type: RemoteTool
+  id: fetch-port
+  name: fetch_port
+  description: null
+  metadata: {}
+  url: https://status.example.com:{{port}}/health
+  http_method: GET
+- component_type: RemoteTool
+  id: local-benefits
+  name: local_benefits
+  description: null
+  metadata: {}
+  url: http://127.0.0.1:HOST_PORT/benefits/{{task}}
+  http_method: GET
+- component_type: RemoteTool
+  id: blocked-tool
+  name: blocked_tool
+  description: null
+  metadata: {}
+  url: https://api.example.com/orders
+  http_method: GET
+  url_allow_list: []
+agentspec_version: 26.2.0
