@@ -23,6 +23,7 @@ needs:
       protocol: rest
       method: POST
       path: /v1/chat/completions
+      path_is_glob: false
   rationale: OpenAiCompatibleConfig OpenShell managed inference (model nvidia/llama-3.3-nemotron-super-49b-v1)
   evidence:
   - kind: declared
@@ -43,6 +44,7 @@ needs:
       protocol: rest
       method: GET
       path: /v1/orders/{order_id}
+      path_is_glob: false
   rationale: Get one order with its status and tracking number.
   evidence:
   - kind: declared
@@ -66,6 +68,7 @@ needs:
       protocol: rest
       method: POST
       path: /v1/orders/search
+      path_is_glob: false
   rationale: Search orders by customer or status.
   evidence:
   - kind: declared
@@ -86,6 +89,7 @@ needs:
       protocol: rest
       method: POST
       path: /v1/orders/{order_id}/cancel
+      path_is_glob: false
   rationale: Cancel an order that has not shipped.
   evidence:
   - kind: declared

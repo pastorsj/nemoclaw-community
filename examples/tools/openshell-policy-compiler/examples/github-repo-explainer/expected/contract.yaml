@@ -25,6 +25,7 @@ needs:
       protocol: rest
       method: POST
       path: /v1/chat/completions
+      path_is_glob: false
   rationale: OpenAiCompatibleConfig Nemotron on NVIDIA API Catalog (model nvidia/llama-3.3-nemotron-super-49b-v1)
   evidence:
   - kind: declared
@@ -45,6 +46,7 @@ needs:
       protocol: rest
       method: GET
       path: /repos/NVIDIA/OpenShell
+      path_is_glob: false
   rationale: Get the repository description, default branch, and statistics.
   evidence:
   - kind: declared
@@ -67,6 +69,7 @@ needs:
       protocol: rest
       method: GET
       path: /repos/NVIDIA/OpenShell/contents/{path}
+      path_is_glob: false
   rationale: Read a file or list a directory in the repository.
   evidence:
   - kind: declared
@@ -89,6 +92,7 @@ needs:
       protocol: rest
       method: GET
       path: /repos/NVIDIA/OpenShell/commits
+      path_is_glob: false
   rationale: List recent commits to explain how the code changed.
   evidence:
   - kind: declared
@@ -109,6 +113,7 @@ needs:
       protocol: rest
       method: GET
       path: /search/code
+      path_is_glob: false
   rationale: Search code in the repository.
   evidence:
   - kind: declared
