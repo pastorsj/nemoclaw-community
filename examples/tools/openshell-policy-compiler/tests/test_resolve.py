@@ -252,3 +252,39 @@ def test_negated_write_verb_does_not_justify_write_needs(graph):
     assert "source-code.write" not in result.use_case_concepts
     assert result.needs[0].status == "excluded"
     assert result.access.rules == []
+
+
+def test_opaque_service_becomes_connection_level_with_widening():
+    from policy_compiler.graph.model import CatalogDocument, Operation, Origin, Provider, RestSelector, Service
+    from policy_compiler.ir.common import Inspection
+
+    doc = CatalogDocument(
+        providers=[Provider(id="corp", name="Corp")],
+        services=[
+            Service(
+                id="corp.mtls",
+                provider="corp",
+                name="mTLS API",
+                origins=[Origin("mtls.corp.example")],
+                inspection=Inspection.OPAQUE,
+            )
+        ],
+        operations=[
+            Operation(
+                id="corp.mtls.get",
+                service="corp.mtls",
+                selector=RestSelector("GET", "/v1/items"),
+                privilege=Privilege.READ,
+            )
+        ],
+    )
+    graph = load_graph(extra_documents=[doc])
+    contract = Contract(
+        agent="x", default_clients=[PY], needs=[Need(id="n1", target=Target(operation="corp.mtls.get"), rationale="")]
+    )
+    result = resolve(contract, graph)
+    rule = result.access.rules[0]
+    assert rule.matcher is None and rule.endpoint.protocol == Protocol.L4
+    assert any(w.reason == "opaque" for w in result.access.widenings)
+    endpoint = lower(result.access)["network_policies"]["corp_mtls"]["endpoints"][0]
+    assert endpoint.get("tls") == "skip" and "rules" not in endpoint

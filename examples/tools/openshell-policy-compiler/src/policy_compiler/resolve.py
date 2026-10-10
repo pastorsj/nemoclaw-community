@@ -275,16 +275,24 @@ class _Resolver:
         glob: str | None = None,
     ) -> list[Grant]:
         service = self.graph.services[op.service]
+        opaque = service.inspection == Inspection.OPAQUE
+        if opaque:
+            self._widen(
+                need.id,
+                "opaque",
+                f"{service.id} cannot be inspected (tls: skip); {op.id} is allowed at the connection level, "
+                "so every request to the host is allowed.",
+            )
         grants = []
         for origin in service.origins:
-            matcher = self._matcher_for_operation(op, scope, glob)
+            matcher = None if opaque else self._matcher_for_operation(op, scope, glob)
             grants.append(
                 Grant(
                     need=need.id,
                     service=service,
                     host=origin.host,
                     port=origin.port,
-                    protocol=service.protocol,
+                    protocol=Protocol.L4 if opaque else service.protocol,
                     clients=clients,
                     matcher=matcher,
                     operations=[op.id],
