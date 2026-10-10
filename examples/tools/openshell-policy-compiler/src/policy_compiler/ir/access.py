@@ -43,7 +43,8 @@ class ClientSet:
 class EndpointKey:
     host: str
     """Exact host or OpenShell host pattern. Empty only for hostless ``allowed_ips`` endpoints."""
-    ports: tuple[int, ...]
+    ports: tuple[int | str, ...]
+    """Ports. Lifted templates may carry placeholder strings such as ``__VSS_PORT__``."""
     protocol: Protocol
     inspection: Inspection = Inspection.L7
     enforcement: Enforcement = Enforcement.ENFORCE
