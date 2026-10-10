@@ -142,7 +142,7 @@ uv run pytest -o addopts="" -q
 **Expected result:**
 
 ```text
-NNN passed
+678 passed
 ```
 
 The suite includes a round trip of every OpenShell policy file in this
@@ -181,9 +181,11 @@ uv run python scripts/live_check.py \
 ```
 
 An upstream error such as `410` on an allowed probe is expected: the request
-reached the provider without credentials. A denied probe returns OpenShell's
-`policy_denied` body, or no HTTP response (`000`) when the connection is
-refused.
+reached the provider without credentials. A probe counts as denied only when
+OpenShell returns its `policy_denied` response, or when OpenShell's proxy refuses
+the connection (`000`, with curl reporting `CONNECT tunnel failed, response 403`).
+Any other failure, such as a DNS error, a timeout, or a failed `sandbox exec`,
+is reported as an error and fails the run.
 
 **This verifies:** that the compiled policy is accepted by OpenShell 0.0.106,
 allows the declared requests, and denies undeclared methods, paths,

@@ -210,6 +210,15 @@ the union of all providers.
 | Need phases | Compile `startup`, `auth`, `runtime`, and `telemetry`; report `install` and `build` | Package-registry access should not leak into the runtime policy. |
 | Ask/confirm semantics | Compiled as allow, and flagged in the report | OpenShell cannot prompt a person in the middle of a request. Policy Advisor approval is the intended follow-up. |
 | Semantic layer | Keyword and IDF matching, not embeddings | Deterministic and testable offline. Embeddings can be added behind the same interface. |
+| Declared methods | A catalogued `*` operation never widens the method an agent declares | Policies mined from hand-written files often use `*`. |
+| GitHub's flat permission data | Require every listed permission when GitHub marks additional permissions, and classify at the highest level | The flat data cannot tell "either" from "both". Under-granting is visible in the report; escalation is not. |
+| Prohibitions on broad or uncatalogued grants | A provider prohibition removes connection-level grants on that provider's hosts, narrows `*` methods to `GET`, and removes uncatalogued rules at or above the forbidden level | Templated destinations produce `* /prefix/**` rules that catalogued deny rules alone cannot contain. |
+| Opaque services | One connection-level grant plus a recorded widening | L7 rules under `tls: skip` would be ignored by OpenShell, so emitting them would mislead the reader. |
+| Concepts realized by several providers | Grant nothing and ask for a provider | Taking the union of every provider is the opposite of least privilege. |
+| Write intent in use cases | Only requested, non-negated write verbs that name an object keyword justify write access | Read-only phrasings such as "list open issues" must not grant writes. Under-granting is reported with a rephrasing hint. |
+| Special-purpose clients | Binaries with implicit uses, such as `git`, receive only those uses, pinned to the declared repository | Prevents `git` from cloning any repository when the agent declares one. |
+| Boundary | The boundary always contains the policy | Tested on every example and on the review's probe contracts. |
+| Lowering | `lower` never emits a policy broader than the access set; it drops what it cannot express and reports an error | A policy file that silently widens access is worse than one that is rejected. |
 
 ## Known gaps (by design in the proof of concept)
 
