@@ -10,7 +10,9 @@ graph. The base catalog ships in `catalog/base/`. Your own catalogs are
 directories you pass with `--catalog DIR`, one flag per directory, in order.
 They form the org layer.
 
-Every top-level key is optional except `catalog_version`.
+Every top-level key is optional except `catalog_version`. The loader is
+strict: an unknown key, or a key repeated in the same mapping, is an error, so
+a typo such as `require:` cannot silently make an operation public.
 
 ```yaml
 catalog_version: 1
@@ -29,7 +31,7 @@ services:
     origins:
       - host: orders.internal.example
         port: 443                 # default 443
-        scheme: https             # default https
+        scheme: https             # https | http (default https)
     allowed_ips: [10.20.0.0/16]   # optional; needed for private addresses
     description: ...
 
@@ -44,7 +46,7 @@ capabilities:
 operations:
   - id: acme.orders.list          # <provider>.<...>
     service: acme.orders
-    method: GET                   # REST operations: method + path
+    method: GET                   # REST operations: method + path; an HTTP method or *
     path: /v1/orders/{order_id}   # template; {name} is one segment
     multi_segment: []             # parameters that may contain "/"
     privilege: read               # read | write | admin | unknown
@@ -83,18 +85,41 @@ clients:
 - Files load in sorted order within a directory, and directories load in the
   order given: the base catalog first, then each `--catalog`, then the agent
   layer.
-- Every ID must be unique across all layers. If a later layer reuses an ID, the
-  loader reports an error instead of replacing the earlier definition.
+- A later definition never replaces an earlier one. When a file reuses an ID,
+  in the same layer or a later one:
+  - **Providers, services, capabilities, and operations** merge if their
+    identifying fields agree: a provider's `name`; a service's `provider` and
+    `origins`; a capability's `provider` and `level`; an operation's `service`,
+    method and path (or MCP tool), and `privilege`. The node keeps its first
+    definition and gains the later file's evidence. If those fields disagree,
+    the loader reports an error that names both files.
+  - If any other field differs, for example an operation's `requires` or
+    `summary` or a capability's `implies`, the first definition still wins. The
+    loader reports an `ignored-redefinition` warning that names the node, the
+    fields, and both files. The later file's evidence is kept with the note
+    `redefinition ignored for: <fields>`.
+  - **Concepts and clients** never merge. Any reused ID is an error.
 - Services, capabilities, and operations must use their provider's ID as a
   prefix. Concepts form a shared vocabulary. Use `concept_links` to add
   realizations to a concept that an earlier layer defines.
-- References must resolve after all layers load. This covers an operation's
-  `service` and `requires`, a concept's `realized_by`, and a client's `uses`.
+- References must resolve after all layers load. This covers a service's or
+  capability's `provider`, a capability's `implies`, an operation's `service`
+  and `requires`, a concept's `realized_by`, a concept link's `concept`, and a
+  client's `uses` (both `operations` and `when_capability`).
+- The agent layer comes from specs that an agent definition references, so it
+  is less trusted. An agent-layer operation that attaches to a base or org
+  service, or that only base or org capabilities gate, changes what an
+  existing grant allows. The loader reports an `agent-layer-extends` warning
+  for it.
 
 ## Evidence
 
 Every node gets a `curated` evidence record that points at its file and list
-index. To record a different source, add an `evidence` list to the node:
+index, for example source `catalog:base/github.yaml` with pointer
+`operations[3]`. Files in the base catalog are labelled `base/<file>`. Files in
+the n-th `--catalog` directory are labelled `org<n>:<directory name>/<file>`, so
+two directories with the same name stay distinct. To record a different source,
+add an `evidence` list to the node:
 
 ```yaml
 evidence:
