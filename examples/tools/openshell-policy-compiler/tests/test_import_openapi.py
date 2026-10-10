@@ -180,6 +180,37 @@ def test_overlay_rejects_malformed_documents():
         apply_overlay(SPEC, _overlay({"update": {}}))
 
 
+def test_overlay_requires_version_and_info():
+    actions = [{"target": "$.info", "update": {"x": 1}}]
+    with pytest.raises(ValueError, match="overlay"):
+        apply_overlay(SPEC, {"info": {"title": "t", "version": "1"}, "actions": actions})
+    with pytest.raises(ValueError, match="overlay"):
+        apply_overlay(SPEC, {"overlay": 1.0, "info": {"title": "t", "version": "1"}, "actions": actions})
+    with pytest.raises(ValueError, match="info"):
+        apply_overlay(SPEC, {"overlay": "1.0.0", "actions": actions})
+
+
+def test_overlay_remove_on_primitive_target_is_a_warning():
+    diagnostics = []
+    result = apply_overlay(SPEC, _overlay({"target": "$.info.title", "remove": True}), diagnostics=diagnostics)
+    assert result["info"]["title"] == "Demo"
+    assert [(d.level, d.code) for d in diagnostics] == [("warning", "overlay-invalid-target")]
+
+
+def test_overlay_unsupported_action_key_is_a_warning_and_skips_the_action():
+    diagnostics = []
+    overlay = _overlay(
+        {"target": "$.info", "copy": "$.paths['/x'].get", "update": {"title": "ignored"}},
+        {"target": "$.info", "description": "kept", "x-note": "extensions are allowed", "update": {"x-ok": True}},
+    )
+    result = apply_overlay(SPEC, overlay, diagnostics=diagnostics)
+    assert result["info"]["title"] == "Demo"
+    assert result["info"]["x-ok"] is True
+    (warning,) = diagnostics
+    assert (warning.level, warning.code, warning.pointer) == ("warning", "overlay-unsupported-action", "actions[0]")
+    assert "copy" in warning.message
+
+
 # --- OpenAPI: OAuth scopes --------------------------------------------------------
 
 
@@ -293,6 +324,10 @@ def test_scope_level_heuristic_rounds_up():
                     "admin.read",
                     "delete_repo",
                     "orders:view",
+                    "administration:write",
+                    "administrator",
+                    "repo:management",
+                    "deletion",
                 ]
             )
         },
@@ -306,6 +341,11 @@ def test_scope_level_heuristic_rounds_up():
         "admin.read": Privilege.ADMIN,
         "delete_repo": Privilege.ADMIN,
         "orders:view": Privilege.READ,
+        # Admin words match anywhere in the name, so longer forms never understate the level.
+        "administration:write": Privilege.ADMIN,
+        "administrator": Privilege.ADMIN,
+        "repo:management": Privilege.ADMIN,
+        "deletion": Privilege.ADMIN,
     }
 
 
@@ -556,6 +596,71 @@ def test_server_url_overrides_an_absolute_server():
     )
     assert doc.services[0].origins == [Origin(host="staging.example", port=80, scheme="http")]
     assert doc.operations[0].selector == RestSelector("GET", "/base/things/{id}")
+
+
+@pytest.mark.parametrize("servers", [None, []])
+def test_server_url_is_used_as_given_when_the_spec_has_no_servers(servers):
+    spec = {"info": {"title": "NoServers"}, "paths": {"/things": {"get": {"operationId": "list"}}}}
+    if servers is not None:
+        spec["servers"] = servers
+    doc, diagnostics = import_openapi(
+        spec, provider_id="ns", source="t", layer=Layer.AGENT, server_url="https://api.example.com/v1/"
+    )
+    assert "relative-server-url" not in _codes(diagnostics)
+    assert doc.services[0].origins == [Origin(host="api.example.com")]
+    assert doc.services[0].evidence[0].kind is EvidenceKind.USER
+    assert doc.operations[0].selector == RestSelector("GET", "/v1/things")
+
+
+def test_path_and_operation_servers_are_ignored_with_a_warning():
+    spec = {
+        "info": {"title": "S"},
+        "servers": [{"url": "https://root.example"}],
+        "paths": {
+            "/a": {"servers": [{"url": "https://other.example"}], "get": {"operationId": "a"}},
+            "/b": {"get": {"operationId": "b", "servers": [{"url": "https://third.example"}]}},
+        },
+    }
+    doc, diagnostics = import_openapi(spec, provider_id="s", source="t", layer=Layer.ORG)
+    assert [op.service for op in doc.operations] == ["s.root-example", "s.root-example"]
+    ignored = [d for d in diagnostics if d.code == "ignored-server-override"]
+    assert [(d.level, d.pointer) for d in ignored] == [
+        ("warning", "paths./a.servers"),
+        ("warning", "paths./b.get.servers"),
+    ]
+    assert "root.example" in ignored[0].message
+
+
+def test_capability_without_level_gets_the_operation_level():
+    spec = {
+        "info": {"title": "Acme"},
+        "servers": [{"url": "https://x.example"}],
+        "paths": {
+            "/orders": {
+                "get": {"operationId": "list", "x-openshell-capability": "orders"},
+                "post": {"operationId": "create", "x-openshell-capability": ["orders", "acme.billing"]},
+            },
+            "/orders/search": {
+                "post": {"operationId": "search", "x-openshell-capability": "orders", "x-openshell-privilege": "read"}
+            },
+        },
+    }
+    doc, diagnostics = import_openapi(spec, provider_id="acme", source="t", layer=Layer.ORG)
+    ops, caps = _ops(doc), _caps(doc)
+    # The level comes from the HTTP method, so it is inferred.
+    assert ops["acme.list"].requires == [["acme.orders:read"]]
+    assert ops["acme.list"].privilege is Privilege.READ
+    assert ops["acme.list"].evidence[0].kind is EvidenceKind.INFERRED
+    assert ops["acme.list"].evidence[0].confidence == 0.5
+    assert caps["acme.orders:read"].name == "orders:read"
+    assert caps["acme.orders:read"].evidence[0].kind is EvidenceKind.INFERRED
+    assert ops["acme.create"].requires == [["acme.orders:write"], ["acme.billing:write"]]
+    assert ops["acme.create"].privilege is Privilege.WRITE
+    # The level comes from x-openshell-privilege, so it is documented.
+    assert ops["acme.search"].requires == [["acme.orders:read"]]
+    assert ops["acme.search"].evidence[0].kind is EvidenceKind.DOCUMENTED
+    (summary,) = [d for d in diagnostics if d.code == "inferred-privilege"]
+    assert "2 of 3" in summary.message
 
 
 def test_malformed_shapes_do_not_crash():

@@ -10,9 +10,13 @@ inspection mode) to specs that lack them.
 
 Semantics follow https://spec.openapis.org/overlay/v1.0.0.html:
 
-* Actions apply in order, each to the result of the previous one.
-* ``remove: true`` removes every selected node from the object or array that
-  contains it. ``update`` is then ignored.
+* The overlay must have an ``overlay`` version string, an ``info`` object, and
+  an ``actions`` list. Actions apply in order, each to the result of the
+  previous one. An action with a key this module does not know, such as
+  Overlay 1.1's ``copy``, is skipped with a warning.
+* ``remove: true`` removes every selected object or array from the object or
+  array that contains it. ``update`` is then ignored. Primitive values cannot be
+  selected; select the object that contains them.
 * ``update`` on a selected object is merged recursively: a primitive replaces a
   primitive, objects merge, and new properties are added. Overlay 1.0.0 does
   not say what happens to an array property inside the update; this module
@@ -47,6 +51,8 @@ _FILTER = re.compile(
 _QUOTED = re.compile(r"""\[\s*(?P<quoted>'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")\s*\]""")
 _WILDCARD = re.compile(r"\[\s*\*\s*\]")
 
+_ACTION_KEYS = frozenset({"target", "description", "update", "remove"})
+
 _Step = tuple
 """One parsed selector: ``("name", str)``, ``("wild",)``, ``("index", int)``, or ``("filter", keys, value)``."""
 
@@ -60,6 +66,10 @@ def apply_overlay(spec: dict, overlay: dict, *, diagnostics: list[Diagnostic] | 
     """
     if not isinstance(overlay, dict):
         raise ValueError("an overlay must be a mapping")
+    if not isinstance(overlay.get("overlay"), str):
+        raise ValueError("an overlay needs an 'overlay' version string, for example '1.0.0'")
+    if not isinstance(overlay.get("info"), dict):
+        raise ValueError("an overlay needs an 'info' object")
     actions = overlay.get("actions")
     if not isinstance(actions, list):
         raise ValueError("an overlay needs an 'actions' list")
@@ -70,7 +80,16 @@ def apply_overlay(spec: dict, overlay: dict, *, diagnostics: list[Diagnostic] | 
         if not isinstance(action, dict) or not isinstance(action.get("target"), str):
             raise ValueError(f"overlay {pointer} needs a string 'target'")
         target = action["target"]
-        matches = _select(result, parse_jsonpath(target))
+        steps = parse_jsonpath(target)
+        unsupported = sorted(str(key) for key in action if key not in _ACTION_KEYS and not str(key).startswith("x-"))
+        if unsupported:
+            message = (
+                f"overlay action for {target} uses unsupported key(s) {', '.join(unsupported)}; "
+                "only Overlay 1.0.0 update and remove are applied, so the action was skipped"
+            )
+            sink.append(Diagnostic("warning", "overlay-unsupported-action", message, pointer))
+            continue
+        matches = _select(result, steps)
         if not matches:
             sink.append(Diagnostic("warning", "overlay-no-match", f"overlay target {target} selects nothing", pointer))
             continue
@@ -234,9 +253,12 @@ def _merge(target: dict, update: dict) -> None:
 
 def _remove(matches: list[_Match], pointer: str, sink: list[Diagnostic]) -> None:
     list_indices: dict[int, tuple[list, set[int]]] = {}
-    for container, key, _ in matches:
+    for container, key, node in matches:
         if container is None:
             sink.append(Diagnostic("warning", "overlay-invalid-target", "overlay cannot remove the root ($)", pointer))
+        elif not isinstance(node, (dict, list)):
+            message = "overlay remove selects a primitive value; select the object or array that contains it"
+            sink.append(Diagnostic("warning", "overlay-invalid-target", message, pointer))
         elif isinstance(container, dict):
             container.pop(key, None)
         else:
