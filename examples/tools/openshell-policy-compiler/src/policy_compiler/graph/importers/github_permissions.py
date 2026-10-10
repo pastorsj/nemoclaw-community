@@ -19,6 +19,8 @@ needs any one of them (OR) or all of them (AND), so the importer fails safe:
   operation requires every distinct capability listed for it, as one AND-list.
   This can demand more than GitHub does (issue comments accept Issues *or*
   Pull requests), but it never lets a read permission reach a write endpoint.
+  When the data lists only one permission for such an endpoint, the others are
+  missing from the data, and only the listed one can be required.
 * Otherwise each entry is an alternative on its own (OR).
 * The operation's privilege is the highest capability level across its entries.
 
@@ -54,6 +56,9 @@ importer does the same to keep one level per capability ID.
 _REQUIRED_FIELDS = ("verb", "requestPath", "access", "category", "slug")
 _AND_FALLBACK_NOTE = (
     "GitHub lists additional permissions; required all of them because the flat data cannot distinguish OR from AND"
+)
+_MISSING_ADDITIONAL_NOTE = (
+    "GitHub lists additional permissions that are not present in this data; only the listed permission is required"
 )
 
 
@@ -169,7 +174,12 @@ def _operation(
     capabilities = list(dict.fromkeys(_capability_id(perm_key, record["access"]) for perm_key, _, record in listed))
     all_required = any(record.get("additional-permissions") is True for _, _, record in listed)
     requires = [capabilities] if all_required else [[cap] for cap in capabilities]
-    note = _AND_FALLBACK_NOTE if all_required else ""
+    if not all_required:
+        note = ""
+    elif len(capabilities) == 1:
+        note = _MISSING_ADDITIONAL_NOTE
+    else:
+        note = _AND_FALLBACK_NOTE
     return Operation(
         id=op_id,
         service=SERVICE_ID,

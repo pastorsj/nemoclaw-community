@@ -181,6 +181,17 @@ def test_fork_style_endpoint_is_not_enabled_by_contents_read_alone():
     assert op.privilege is Privilege.ADMIN
 
 
+def test_additional_permissions_missing_from_the_data_keep_the_listed_permission():
+    path = "/orgs/{org}/teams/{team_slug}/repos/{owner}/{repo}"
+    data = {"members": {"title": "Members", "permissions": [_record("read", "get", path, additional=True)]}}
+    (op,) = import_github_permissions(data, source="x.json", layer=Layer.ORG).operations
+    assert op.requires == [["github.members:read"]]
+    assert op.privilege is Privilege.READ
+    assert [e.note for e in op.evidence] == [
+        "GitHub lists additional permissions that are not present in this data; only the listed permission is required"
+    ]
+
+
 def test_privilege_is_the_maximum_capability_level(doc):
     ops = _ops(doc)
     # A POST that GitHub classifies as read.

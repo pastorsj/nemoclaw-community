@@ -13,7 +13,8 @@ editing the spec:
     ``read``, ``write``, or ``admin``. Overrides every other source of privilege.
 ``x-openshell-capability`` (operation)
     A capability ID, or a list of IDs any one of which suffices. The provider
-    prefix is added when missing.
+    prefix is added when missing, and so is the ``:<level>`` suffix (the
+    operation's ``x-openshell-privilege``, or else the HTTP method's level).
 ``x-openshell-scope-levels`` (root)
     A mapping from OAuth scope to privilege level.
 ``x-openshell-allowed-ips`` (root or server)
@@ -61,7 +62,8 @@ _LEVELS = {"read": Privilege.READ, "write": Privilege.WRITE, "admin": Privilege.
 _OAUTH_TYPES = {"oauth2", "openIdConnect"}
 _INFERRED_METHOD_CONFIDENCE = 0.5
 _INFERRED_SCOPE_CONFIDENCE = 0.6
-_ADMIN_WORDS = {"admin", "delete", "manage"}
+_ADMIN_STEMS = ("admin", "delet", "manag")
+"""Matched as substrings: admin, administration, delete, deletion, manage, management."""
 _READ_WORDS = {"read", "readonly", "view"}
 _WRITE_WORDS = {"write", "readwrite"}
 _TEMPLATE_PARAM = re.compile(r"\{([^{}/]+)\}")
@@ -97,8 +99,11 @@ def import_openapi(
 
     ``server_url`` replaces an absolute ``servers[0].url``. A relative server
     URL is resolved against it, the way OpenAPI resolves relative server URLs
-    against the document's location. Without ``server_url`` a relative server
-    URL is an error, and no service or operations are produced.
+    against the document's location. When the spec has no server URL at all,
+    ``server_url`` is used as given, including its path. Without ``server_url``
+    a relative or missing server URL is an error, and no service or operations
+    are produced. Path- and operation-level ``servers`` are ignored with a
+    warning, because every operation is placed on the root server.
 
     Problems in the description are returned as diagnostics. An invalid
     ``provider_id`` or a malformed overlay raises ``ValueError``.
@@ -174,8 +179,10 @@ class _OpenApiImporter:
             item = self._deref(item)
             if not isinstance(item, dict):
                 continue
+            self._ignore_servers(item, f"paths.{path}", origin)
             for method, operation in item.items():
                 if str(method).lower() in HTTP_METHODS and isinstance(operation, dict):
+                    self._ignore_servers(operation, f"paths.{path}.{method}", origin)
                     self._operation(service.id, base_path, str(path), str(method).lower(), item, operation, used_ids)
         if self.inferred_count:
             self.diagnostics.append(
@@ -200,6 +207,9 @@ class _OpenApiImporter:
     def _server(self, server_url: str | None) -> tuple[Origin, str, dict, Evidence] | None:
         servers = _list(self.spec.get("servers"))
         server_object = servers[0] if servers and isinstance(servers[0], dict) else {}
+        if not server_object.get("url") and server_url is not None:
+            # No server in the spec: the given URL is the whole base URL, path included.
+            return self._origin(server_url, server_object, self._evidence(EvidenceKind.USER, "server_url"))
         raw = str(server_object.get("url") or "/")
         url = self._substitute_variables(raw, _dict(server_object.get("variables")))
         if url is None:
@@ -218,6 +228,10 @@ class _OpenApiImporter:
         elif server_url is not None:
             url = server_url
             evidence = self._evidence(EvidenceKind.USER, "server_url", note=f"replaces server URL {raw!r}")
+        return self._origin(url, server_object, evidence)
+
+    def _origin(self, url: str, server_object: dict, evidence: Evidence) -> tuple[Origin, str, dict, Evidence] | None:
+        """Split an absolute URL into an origin and a base path without a trailing slash."""
         parts = urlsplit(url)
         scheme = parts.scheme.lower()
         try:
@@ -232,6 +246,15 @@ class _OpenApiImporter:
             return None
         origin = Origin(host=parts.hostname.lower(), port=port or _DEFAULT_PORTS[scheme], scheme=scheme)
         return origin, parts.path.rstrip("/"), server_object, evidence
+
+    def _ignore_servers(self, node: dict, pointer: str, origin: Origin) -> None:
+        if _list(node.get("servers")):
+            self._warning(
+                "ignored-server-override",
+                f"{pointer} declares its own servers; its operations are placed on the root server "
+                f"{origin.host}:{origin.port} instead",
+                f"{pointer}.servers",
+            )
 
     def _substitute_variables(self, url: str, variables: dict) -> str | None:
         def replace(match: re.Match) -> str:
@@ -372,29 +395,38 @@ class _OpenApiImporter:
     ) -> tuple[list[list[str]], Privilege, Evidence]:
         """Return the operation's requirement (OR of AND-lists), its privilege, and the privilege's evidence."""
         declared = self._declared_privilege(operation, pointer)
-        requires, origin = self._explicit_capabilities(operation, declared, pointer), "x-openshell-capability"
-        if not requires:
-            requires, origin = self._scope_requirements(operation, pointer), "OAuth scopes"
-        if requires:
+        explicit, level_guessed = self._explicit_capabilities(operation, method, declared, pointer)
+        if explicit:
             if declared is not None:
-                return requires, declared, self._declared_evidence(pointer)
-            privilege = self._dnf_privilege(requires)
-            if all(cap in self.documented for and_set in requires for cap in and_set):
-                note = f"privilege from the levels of its {origin}"
-                return requires, privilege, self._evidence(EvidenceKind.DOCUMENTED, pointer, note=note)
+                return explicit, declared, self._declared_evidence(pointer)
+            if level_guessed:
+                return explicit, self._dnf_privilege(explicit), self._method_evidence(method, pointer)
+            note = "privilege from the levels of its x-openshell-capability"
+            return explicit, self._dnf_privilege(explicit), self._evidence(EvidenceKind.DOCUMENTED, pointer, note=note)
+        scopes = self._scope_requirements(operation, pointer)
+        if scopes:
+            if declared is not None:
+                return scopes, declared, self._declared_evidence(pointer)
+            privilege = self._dnf_privilege(scopes)
+            if all(cap in self.documented for and_set in scopes for cap in and_set):
+                note = "privilege from the levels of its OAuth scopes"
+                return scopes, privilege, self._evidence(EvidenceKind.DOCUMENTED, pointer, note=note)
             self.inferred_count += 1
-            note = f"privilege from {origin} whose levels were inferred from their names"
+            note = "privilege from OAuth scopes whose levels were inferred from their names"
             evidence = self._evidence(EvidenceKind.INFERRED, pointer, note=note, confidence=_INFERRED_SCOPE_CONFIDENCE)
-            return requires, privilege, evidence
+            return scopes, privilege, evidence
         # Nothing in the description: guess from the method, name the capability after the first tag.
         if declared is not None:
             privilege, evidence = declared, self._declared_evidence(pointer)
         else:
-            privilege = method_privilege(method)
-            self.inferred_count += 1
-            note = f"privilege inferred from the HTTP method {method.upper()}"
-            evidence = self._evidence(EvidenceKind.INFERRED, pointer, note=note, confidence=_INFERRED_METHOD_CONFIDENCE)
+            privilege, evidence = method_privilege(method), self._method_evidence(method, pointer)
         return [[self._tag_capability(privilege, tags, pointer)]], privilege, evidence
+
+    def _method_evidence(self, method: str, pointer: str) -> Evidence:
+        """Evidence for a privilege guessed from the HTTP method. Counts toward the inferred-privilege summary."""
+        self.inferred_count += 1
+        note = f"privilege inferred from the HTTP method {method.upper()}"
+        return self._evidence(EvidenceKind.INFERRED, pointer, note=note, confidence=_INFERRED_METHOD_CONFIDENCE)
 
     def _dnf_privilege(self, requires: list[list[str]]) -> Privilege:
         """The cheapest way to satisfy the requirement: minimum over OR-sets of the maximum level in each."""
@@ -403,8 +435,7 @@ class _OpenApiImporter:
         )
 
     def _tag_capability(self, privilege: Privilege, tags: list[str], pointer: str) -> str:
-        # A method with no known level (TRACE) only becomes reachable through an admin grant.
-        level = privilege if privilege is not Privilege.UNKNOWN else Privilege.ADMIN
+        level = _grant_level(privilege)
         group = tags[0] if tags else "api"
         cap_id = f"{self.provider}.{slug(group) or 'api'}:{level.value}"
         note = f"synthesized from the tag {group!r}" if tags else "synthesized for an untagged operation"
@@ -431,40 +462,54 @@ class _OpenApiImporter:
     def _declared_evidence(self, pointer: str) -> Evidence:
         return self._evidence(EvidenceKind.DOCUMENTED, pointer, note="privilege from x-openshell-privilege")
 
-    def _explicit_capabilities(self, operation: dict, declared: Privilege | None, pointer: str) -> list[list[str]]:
+    def _explicit_capabilities(
+        self, operation: dict, method: str, declared: Privilege | None, pointer: str
+    ) -> tuple[list[list[str]], bool]:
+        """The OR of ``x-openshell-capability`` IDs, and whether any level had to be guessed from the method.
+
+        IDs follow ``<provider>.<name>:<level>``. An ID without a level gets the
+        operation's level appended: ``x-openshell-privilege`` when set
+        (documented), else the HTTP method's level (inferred).
+        """
         value = operation.get("x-openshell-capability")
         if value is None:
-            return []
+            return [], False
         values = [value] if isinstance(value, str) else value if isinstance(value, list) else None
         if not values or not all(isinstance(entry, str) and entry for entry in values):
             self._warning(
                 "invalid-extension", "x-openshell-capability must be a capability ID or a list of them", pointer
             )
-            return []
+            return [], False
         requires: list[list[str]] = []
+        guessed = False
         for entry in values:
             cap_id = entry if entry.startswith(f"{self.provider}.") else f"{self.provider}.{entry}"
-            name = cap_id[len(self.provider) + 1 :]
-            suffix = name.rsplit(":", 1)[1] if ":" in name else ""
+            suffix = cap_id.rsplit(":", 1)[1] if ":" in cap_id else ""
             if suffix in _LEVELS:
                 level = _LEVELS[suffix]
                 evidence = self._evidence(EvidenceKind.DOCUMENTED, pointer, note="level from the capability ID")
-            elif declared is not None:
-                level = declared
-                evidence = self._evidence(EvidenceKind.DOCUMENTED, pointer, note="level from x-openshell-privilege")
             else:
-                level = _level_from_name(name)
-                note = "level inferred from the name"
-                evidence = self._evidence(
-                    EvidenceKind.INFERRED, pointer, note=note, confidence=_INFERRED_SCOPE_CONFIDENCE
-                )
+                if declared is not None:
+                    level = declared
+                    evidence = self._evidence(
+                        EvidenceKind.DOCUMENTED, pointer, note="level appended from x-openshell-privilege"
+                    )
+                else:
+                    guessed = True
+                    level = _grant_level(method_privilege(method))
+                    note = f"level appended from the HTTP method {method.upper()}"
+                    evidence = self._evidence(
+                        EvidenceKind.INFERRED, pointer, note=note, confidence=_INFERRED_METHOD_CONFIDENCE
+                    )
+                cap_id = f"{cap_id}:{level.value}"
+            name = cap_id[len(self.provider) + 1 :]
             self._add_capability(cap_id, name=name, level=level, evidence=evidence, pointer=pointer)
             if suffix in _LEVELS:
                 # The ID states the level, even if another operation created the capability by inference.
                 self.documented.add(cap_id)
             if [cap_id] not in requires:
                 requires.append([cap_id])
-        return requires
+        return requires, guessed
 
     def _scope_requirements(self, operation: dict, pointer: str) -> list[list[str]]:
         """OR of AND-lists of scope capabilities. Requirements without OAuth scopes are skipped."""
@@ -636,16 +681,23 @@ def _rank(level: Privilege) -> int:
     return level.rank
 
 
-def _level_from_name(name: str) -> Privilege:
-    """Guess a level from a scope or capability name. Mixed names round up.
+def _grant_level(privilege: Privilege) -> Privilege:
+    """The capability level for an operation privilege. Unknown (TRACE) is only reachable through an admin grant."""
+    return privilege if privilege is not Privilege.UNKNOWN else Privilege.ADMIN
 
-    The name is split into words, so ``files.readwrite`` and ``spreadsheets`` do
-    not count as read. Admin words win over everything, and a write word wins
-    over a read word.
+
+def _level_from_name(name: str) -> Privilege:
+    """Guess a level from an OAuth scope name. Mixed names round up, so the level is never understated.
+
+    Admin stems match anywhere in the name (``administration``, ``deletion``,
+    ``repo:management``) and win over everything. Read words must be whole
+    words, so ``files.readwrite`` and ``spreadsheets`` do not count as read, and
+    a write word wins over a read word.
     """
-    words = set(re.split(r"[^a-z0-9]+", name.lower()))
-    if words & _ADMIN_WORDS:
+    lowered = name.lower()
+    if any(stem in lowered for stem in _ADMIN_STEMS):
         return Privilege.ADMIN
+    words = set(re.split(r"[^a-z0-9]+", lowered))
     if words & _READ_WORDS and not words & _WRITE_WORDS:
         return Privilege.READ
     return Privilege.WRITE
