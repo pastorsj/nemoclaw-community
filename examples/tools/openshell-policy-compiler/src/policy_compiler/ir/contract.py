@@ -84,6 +84,9 @@ class RawEndpoint:
     path: str | None = None
     """Template path with ``{name}`` parameters, or ``None`` for endpoint-level needs."""
     mcp_tools: tuple[str, ...] = ()
+    path_is_glob: bool = False
+    """True only when ``path`` is an OpenShell glob the compiler built (for example from a
+    ``url_allow_list`` prefix). Glob characters in a declared literal path are never trusted."""
 
 
 @dataclass
