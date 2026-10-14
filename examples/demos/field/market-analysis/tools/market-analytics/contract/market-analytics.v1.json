@@ -1,0 +1,76 @@
+{
+  "$comment": "What the market-analytics tools read from a data pack. A pack that sets analytics.contract = market-analytics/v1 must provide these tables and columns; extra tables and columns are allowed. `demo-data validate` checks packs against this file, and the service checks the active pack at startup. `for` lists the tools that read a table ('*' = every daily tool). Changing a required column needs a new contract id.",
+  "id": "market-analytics/v1",
+  "logical_types": {
+    "string": ["VARCHAR"],
+    "date": ["DATE"],
+    "timestamp": ["TIMESTAMP WITH TIME ZONE", "TIMESTAMP"],
+    "float": ["DOUBLE", "FLOAT"],
+    "integer": ["BIGINT", "INTEGER"],
+    "boolean": ["BOOLEAN"]
+  },
+  "tables": {
+    "assets": {
+      "for": ["*"],
+      "columns": { "asset_id": "string", "company_name": "string" },
+      "primary_key": ["asset_id"],
+      "notes": "analytics.universes[].where is a SQL predicate over this table, so it may use any other column (e.g. is_reviewed)."
+    },
+    "ticker_history": {
+      "for": ["price_context", "sentiment_timeline", "analyze_news_price_relationship", "intraday_scan"],
+      "columns": { "asset_id": "string", "ticker": "string", "effective_to": "date" },
+      "notes": "The current ticker is the row with effective_to IS NULL. Tools accept it as an asset reference."
+    },
+    "daily_prices": {
+      "for": ["*"],
+      "columns": {
+        "asset_id": "string",
+        "trading_date": "date",
+        "adjusted_close": "float",
+        "volume": "integer",
+        "total_return_1d": "float"
+      },
+      "unique": [["asset_id", "trading_date"]],
+      "notes": "A bar's timestamp is trading_date + analytics.session_close_utc (UTC). Session numbers count each asset's bars in date order."
+    },
+    "asset_relationships": {
+      "for": ["analyze_market_relationships"],
+      "columns": { "source_asset_id": "string", "target_asset_id": "string" },
+      "notes": "Read only when analytics.relationship_graph.mode is sparse_declared_peers: the graph then links only these pairs (both directions)."
+    },
+    "$news_table": {
+      "for": ["sentiment_timeline", "analyze_news_price_relationship"],
+      "columns": {
+        "news_id": "string",
+        "primary_asset_id": "string",
+        "published_at": "timestamp",
+        "source_name": "string",
+        "sentiment_label": "string"
+      },
+      "enums": { "sentiment_label": ["positive", "neutral", "negative"] },
+      "unique": [["news_id"]],
+      "notes": "Optional: the table name comes from analytics.news_table, and a pack without ticker-linked news sets it to null, which makes both news tools report news_unavailable. Naive timestamps are read as UTC. Each article aligns to its asset's first session at or after publication."
+    }
+  },
+  "pack": {
+    "$comment": "The resolved pack.json keys the service reads.",
+    "structured": ["source", "database_name"],
+    "analytics": {
+      "contract": "market-analytics/v1",
+      "news_table": "table name, or null",
+      "session_close_utc": "HH:MM",
+      "universes": "{id: {description, where}}, already filtered to the build's profile",
+      "relationship_graph": "{window_start, window_end, mode: full_correlation | sparse_declared_peers}"
+    },
+    "prediction": {
+      "for": ["predict_asset_outcomes"],
+      "keys": "schema, anchor, entity {table, key}, population {ids}, tables {name: {primary_key, time_column?, links_to_entity?}}, templates [{id, name, description, pql}]",
+      "notes": "The tables are views in structured/<database_name>.duckdb under `schema`. Each template's horizon is read from its PQL window, e.g. `, 0, 5, days)`."
+    },
+    "market": {
+      "for": ["intraday_scan"],
+      "bars": "{root, files, symbol_from_path | symbol_column, columns {time, open, high, low, close, volume}, frequency: 1min, timezone, regular_session: [HH:MM, HH:MM]}",
+      "notes": "Optional: without it, or when frequency is not 1min, intraday_scan reports minute_bars_unavailable. The raw dataset's symbols are the pack's asset ids. pack.yaml's market.bars plus `root`, the raw dataset's directory as the service sees it (read-only), which the data build resolves. The time column holds naive wall-clock times in `timezone`, or tz-aware times that intraday_scan converts to it, ordered by time within each symbol; in month=YYYY-MM partitions, a part never splits one symbol's month."
+    }
+  }
+}

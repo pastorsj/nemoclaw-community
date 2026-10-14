@@ -1,0 +1,298 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "RetrievalBackend": {
+      "additionalProperties": false,
+      "description": "One index's timed searches in one profile.",
+      "properties": {
+        "role": {
+          "enum": [
+            "cpu",
+            "gpu"
+          ],
+          "type": "string"
+        },
+        "indexType": {
+          "description": "e.g. HNSW or GPU_IVF_FLAT",
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "completed",
+            "failed"
+          ],
+          "type": "string"
+        },
+        "requestCount": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "vectorCount": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "p50Ms": {
+          "minimum": 0,
+          "type": "number"
+        },
+        "p95Ms": {
+          "minimum": 0,
+          "type": "number"
+        },
+        "vectorSearchMs": {
+          "description": "Every timed search request, summed",
+          "minimum": 0,
+          "type": "number"
+        },
+        "vectorQps": {
+          "description": "Query vectors searched per second of search time",
+          "minimum": 0,
+          "type": "number"
+        }
+      },
+      "required": [
+        "role",
+        "indexType",
+        "status",
+        "requestCount",
+        "vectorCount",
+        "p50Ms",
+        "p95Ms",
+        "vectorSearchMs",
+        "vectorQps"
+      ],
+      "title": "RetrievalBackend",
+      "type": "object"
+    },
+    "RetrievalClaim": {
+      "additionalProperties": false,
+      "properties": {
+        "decision": {
+          "enum": [
+            "gpu_speedup",
+            "cpu_faster_or_equal",
+            "no_claim"
+          ],
+          "type": "string"
+        },
+        "observedCpuOverGpuRatio": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "gpuSpeedupFactor": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Only for gpu_speedup"
+        }
+      },
+      "required": [
+        "decision",
+        "observedCpuOverGpuRatio",
+        "gpuSpeedupFactor"
+      ],
+      "title": "RetrievalClaim",
+      "type": "object"
+    },
+    "RetrievalProfile": {
+      "additionalProperties": false,
+      "description": "One workload shape: single queries, batches of query vectors, or concurrent requests.",
+      "properties": {
+        "profileId": {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        "executionMode": {
+          "enum": [
+            "single",
+            "batch",
+            "concurrency"
+          ],
+          "type": "string"
+        },
+        "batchSize": {
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        "concurrency": {
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        "repetitions": {
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        "topK": {
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        "cpu": {
+          "$ref": "#/$defs/RetrievalBackend"
+        },
+        "gpu": {
+          "$ref": "#/$defs/RetrievalBackend"
+        },
+        "quality": {
+          "$ref": "#/$defs/RetrievalQuality"
+        },
+        "claim": {
+          "$ref": "#/$defs/RetrievalClaim"
+        }
+      },
+      "required": [
+        "profileId",
+        "executionMode",
+        "batchSize",
+        "concurrency",
+        "repetitions",
+        "topK",
+        "cpu",
+        "gpu",
+        "quality",
+        "claim"
+      ],
+      "title": "RetrievalProfile",
+      "type": "object"
+    },
+    "RetrievalQuality": {
+      "additionalProperties": false,
+      "description": "Recall against exact inner-product neighbors, and how much the two indexes agree.",
+      "properties": {
+        "passed": {
+          "type": "boolean"
+        },
+        "cpuRecallAtK": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "gpuRecallAtK": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "cpuGpuOverlapAtK": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Mean Jaccard overlap of the top-k ids"
+        },
+        "failureReasons": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 16,
+          "type": "array"
+        }
+      },
+      "required": [
+        "passed",
+        "cpuRecallAtK",
+        "gpuRecallAtK",
+        "cpuGpuOverlapAtK",
+        "failureReasons"
+      ],
+      "title": "RetrievalQuality",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "``retrieval-benchmark.json``, ``GET /v1/jobs/async/job/{id}/retrieval-benchmark`` and a recorded turn's\n``retrievalBenchmark``.",
+  "properties": {
+    "schemaVersion": {
+      "const": "1",
+      "default": "1",
+      "type": "string"
+    },
+    "collection": {
+      "description": "The alias retrieve_evidence searches",
+      "maxLength": 255,
+      "minLength": 1,
+      "type": "string"
+    },
+    "collectionVersion": {
+      "description": "The build both indexes hold, as retrieval receipts name it",
+      "maxLength": 255,
+      "minLength": 1,
+      "type": "string"
+    },
+    "embedModel": {
+      "maxLength": 255,
+      "minLength": 1,
+      "type": "string"
+    },
+    "sourceIds": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 32,
+      "minItems": 1,
+      "type": "array"
+    },
+    "queryCount": {
+      "exclusiveMinimum": 0,
+      "type": "integer"
+    },
+    "measuredAt": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "profiles": {
+      "items": {
+        "$ref": "#/$defs/RetrievalProfile"
+      },
+      "maxItems": 3,
+      "minItems": 1,
+      "type": "array"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "collection",
+    "collectionVersion",
+    "embedModel",
+    "sourceIds",
+    "queryCount",
+    "measuredAt",
+    "profiles"
+  ],
+  "title": "RetrievalBenchmark",
+  "type": "object"
+}

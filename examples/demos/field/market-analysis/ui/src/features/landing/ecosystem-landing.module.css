@@ -1,0 +1,902 @@
+/* SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+   SPDX-License-Identifier: Apache-2.0 */
+
+.page {
+  --logo-label-gap: 7px;
+  display: flex;
+  min-height: 100dvh;
+  padding: 16px;
+  color: var(--text-color-primary);
+  background: var(--background-color-surface-sunken);
+}
+
+.shell {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-color-base);
+  background-color: var(--background-color-surface-base);
+  background-image:
+    radial-gradient(
+      circle at 52% 43%,
+      color-mix(in srgb, #76b900 9%, transparent),
+      transparent 34%
+    ),
+    linear-gradient(
+      color-mix(in srgb, var(--border-color-base) 34%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--border-color-base) 34%, transparent) 1px,
+      transparent 1px
+    );
+  background-size:
+    auto,
+    30px 30px,
+    30px 30px;
+}
+
+.header {
+  display: flex;
+  min-height: 72px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 14px 30px;
+  border-bottom: 1px solid var(--border-color-base);
+  background: color-mix(in srgb, var(--background-color-surface-base) 88%, transparent);
+  backdrop-filter: blur(16px);
+}
+
+.brand,
+.context,
+.capabilityTitle,
+.hermesHeader,
+.inference,
+.technology,
+.groupLabel,
+.gpuIdentity,
+.gpuScope,
+.observability,
+.observabilityItem,
+.application,
+.application span {
+  display: flex;
+  align-items: center;
+}
+
+.brand {
+  gap: var(--logo-label-gap);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+}
+
+.nvidiaMark {
+  display: inline-flex;
+  width: 26px;
+  height: 20px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.brandMark {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  overflow: hidden;
+}
+
+.brandMarkSmall {
+  width: 17px;
+  height: 17px;
+}
+
+.brandMarkLarge {
+  width: 34px;
+  height: 34px;
+}
+
+.brandMarkWide {
+  width: 46px;
+  height: 19px;
+}
+
+.brandImage {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.brandMarkLightTile {
+  padding: 2px;
+  border-radius: 3px;
+  background: #fff;
+}
+
+.brandMarkCircle {
+  border-radius: 50%;
+  clip-path: circle(48%);
+}
+
+:global(.nv-dark) .brandMarkMonochrome .brandImage {
+  filter: invert(1);
+}
+
+.nvidiaMark > span {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.nvidiaMark svg {
+  width: 100%;
+  height: 100%;
+}
+
+.nvidiaMarkSmall {
+  width: 18px;
+  height: 15px;
+}
+
+.context {
+  gap: 9px;
+  color: var(--text-color-secondary);
+  font-size: 12px;
+}
+
+.statusDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #76b900;
+  box-shadow: 0 0 14px color-mix(in srgb, #76b900 65%, transparent);
+}
+
+.content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  width: 100%;
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 32px 32px 24px;
+}
+
+.intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 390px);
+  align-items: end;
+  gap: 40px;
+  margin-bottom: 20px;
+}
+
+.eyebrow,
+.nodeKicker,
+.role,
+.groupLabel,
+.observability > strong,
+.application > strong {
+  text-transform: uppercase;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: var(--text-color-brand);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+}
+
+.intro h1 {
+  max-width: 12em;
+  margin: 0;
+  font-size: clamp(38px, min(4.2vw, 5.6vh), 62px);
+  font-weight: 500;
+  line-height: 1.02;
+  letter-spacing: -0.045em;
+}
+
+.introCopy {
+  margin: 0;
+  color: var(--text-color-secondary);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.disclaimer {
+  margin: 8px 0 0;
+  color: var(--text-color-secondary);
+  font-size: 11px;
+}
+
+.architecture {
+  --flow-gap: clamp(20px, 2.3vw, 36px);
+  display: grid;
+  grid-template-columns: minmax(140px, 0.8fr) minmax(200px, 1.1fr) minmax(400px, 2.45fr) minmax(
+      170px,
+      0.9fr
+    );
+  grid-template-rows: auto auto;
+  align-items: center;
+  gap: 10px var(--flow-gap);
+  padding: 4px;
+}
+
+.node {
+  position: relative;
+  min-width: 0;
+  border: 1px solid var(--border-color-base);
+  background: color-mix(in srgb, var(--background-color-surface-raised) 94%, transparent);
+  box-shadow: 0 16px 38px
+    color-mix(in srgb, var(--background-color-surface-sunken) 28%, transparent);
+  clip-path: polygon(
+    10px 0,
+    100% 0,
+    100% calc(100% - 10px),
+    calc(100% - 10px) 100%,
+    0 100%,
+    0 10px
+  );
+}
+
+.node::before,
+.node::after,
+.capabilities::before,
+.capabilities::after,
+.capability::before,
+.capability::after {
+  position: absolute;
+  z-index: -1;
+  display: block;
+  background: color-mix(in srgb, #76b900 74%, var(--border-color-base));
+  content: '';
+}
+
+.question::after,
+.hermes::before,
+.hermes::after,
+.answer::before,
+.capability::before,
+.capability::after {
+  top: 50%;
+  width: calc(var(--flow-gap) / 2 + 2px);
+  height: 1px;
+}
+
+.question::after,
+.hermes::after,
+.capability::after {
+  right: calc(var(--flow-gap) / -2 - 2px);
+}
+
+.hermes::before,
+.answer::before,
+.capability::before {
+  left: calc(var(--flow-gap) / -2 - 2px);
+}
+
+.capabilities {
+  position: relative;
+  z-index: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.capabilities::before,
+.capabilities::after {
+  top: 36px;
+  bottom: 36px;
+  width: 1px;
+}
+
+.capabilities::before {
+  left: calc(var(--flow-gap) / -2 - 2px);
+}
+
+.capabilities::after {
+  right: calc(var(--flow-gap) / -2 - 2px);
+}
+
+.terminal {
+  padding: 21px 16px;
+  text-align: center;
+}
+
+.terminalIcon {
+  display: inline-grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  margin-bottom: 12px;
+  border: 1px solid color-mix(in srgb, #76b900 34%, var(--border-color-base));
+  border-radius: 50%;
+  color: var(--text-color-brand);
+  background: color-mix(in srgb, #76b900 10%, transparent);
+  font-size: 18px;
+}
+
+.nodeKicker,
+.groupLabel,
+.role {
+  color: var(--text-color-secondary);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+}
+
+.nodeKicker {
+  margin: 0 0 6px;
+}
+
+.node h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.nodeNote {
+  margin: 7px 0 0;
+  color: var(--text-color-secondary);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.hermes {
+  padding: 20px 17px 15px;
+}
+
+.hermesHeader {
+  gap: var(--logo-label-gap);
+  margin-bottom: 14px;
+}
+
+.agentSteps {
+  display: grid;
+  grid-template-columns: 0.92fr 1fr 1.18fr;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.hermes .technologyRow {
+  margin-bottom: 11px;
+}
+
+.agentSteps span {
+  display: grid;
+  min-height: 36px;
+  place-items: center;
+  padding: 6px 4px;
+  color: var(--text-color-secondary);
+  background: var(--background-color-surface-overlay);
+  font-size: 9px;
+  letter-spacing: 0.03em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.inference {
+  gap: var(--logo-label-gap);
+  padding-top: 11px;
+  border-top: 1px solid var(--border-color-base);
+  color: var(--text-color-secondary);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.inference strong,
+.technology strong,
+.gpuIdentity strong {
+  color: var(--text-color-primary);
+  font-weight: 500;
+}
+
+.capability {
+  padding: 11px 15px;
+}
+
+.capabilityHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.capabilityTitle {
+  min-width: 0;
+  gap: var(--logo-label-gap);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.role {
+  flex: 0 0 auto;
+}
+
+.technologyRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+}
+
+.technology {
+  min-height: 25px;
+  gap: var(--logo-label-gap);
+  padding: 4px 8px;
+  color: var(--text-color-secondary);
+  background: var(--background-color-surface-overlay);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.technologyGroups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
+
+.groupLabel {
+  gap: var(--logo-label-gap);
+  margin: 0 0 5px;
+}
+
+.answer {
+  border-color: color-mix(in srgb, #76b900 48%, var(--border-color-base));
+}
+
+.answerList {
+  display: grid;
+  gap: 8px;
+  margin: 15px 0 0;
+  padding: 0;
+  color: var(--text-color-secondary);
+  font-size: 10px;
+  list-style: none;
+  text-align: left;
+}
+
+.answerList li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.answerList li::before {
+  width: 5px;
+  height: 5px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #76b900;
+  content: '';
+}
+
+.gpuFoundation {
+  display: flex;
+  grid-column: 2 / 5;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 48px;
+  padding: 8px 16px;
+  border: 1px solid color-mix(in srgb, #76b900 46%, var(--border-color-base));
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, #76b900 15%, transparent),
+    var(--background-color-surface-raised)
+  );
+  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
+}
+
+.gpuIdentity {
+  gap: var(--logo-label-gap);
+  color: var(--text-color-secondary);
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.gpuIdentity strong {
+  font-size: 12px;
+}
+
+.gpuScope {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0;
+  color: var(--text-color-secondary);
+  font-size: 9px;
+}
+
+.gpuScope span {
+  padding: 0 10px;
+  border-left: 1px solid var(--border-color-base);
+  white-space: nowrap;
+}
+
+.observability {
+  flex-wrap: wrap;
+  gap: 10px;
+  color: var(--text-color-secondary);
+  font-size: 10px;
+}
+
+.observability > strong,
+.application > strong {
+  color: var(--text-color-primary);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+}
+
+.observabilityItem {
+  gap: var(--logo-label-gap);
+}
+
+.arrow {
+  color: var(--text-color-brand);
+}
+
+.featured {
+  margin-top: 16px;
+}
+
+.featured li {
+  min-width: 0;
+}
+
+.featuredTitle {
+  margin: 0 0 8px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.featuredList {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.featuredQuestion {
+  display: grid;
+  height: 100%;
+  align-content: start;
+  gap: 3px;
+  padding: 9px 12px;
+  border: 1px solid var(--border-color-base);
+  color: var(--text-color-secondary);
+  background: var(--background-color-surface-raised);
+  font-size: 11px;
+  line-height: 1.4;
+  text-decoration: none;
+}
+
+.featuredQuestion strong {
+  color: var(--text-color-primary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.featuredText {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.featuredQuestion:hover {
+  border-color: #76b900;
+}
+
+.featuredQuestion:focus-visible,
+.enterLink:focus-visible {
+  outline: 2px solid #76b900;
+  outline-offset: 2px;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px 24px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color-base);
+}
+
+.application {
+  flex-wrap: wrap;
+  gap: 12px;
+  color: var(--text-color-secondary);
+  font-size: 10px;
+}
+
+.application span {
+  gap: var(--logo-label-gap);
+}
+
+.enterLink {
+  display: inline-flex;
+  min-height: 44px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 14px;
+  padding: 0 19px;
+  color: #0a1200;
+  background: #76b900;
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
+  transition:
+    filter 120ms ease,
+    transform 120ms ease;
+}
+
+.enterLink:hover {
+  filter: brightness(1.08);
+}
+
+.enterLink:active {
+  transform: translateY(1px);
+}
+
+@media (min-width: 981px) {
+  .page {
+    padding: 12px;
+  }
+
+  .header {
+    min-height: 60px;
+    padding: 10px 24px;
+  }
+
+  .content {
+    padding: 24px 28px 18px;
+  }
+
+  .intro {
+    margin-bottom: 18px;
+  }
+}
+
+@media (min-width: 981px) and (max-height: 820px) {
+  .header {
+    min-height: 52px;
+    padding-block: 8px;
+  }
+
+  .content {
+    padding-top: 16px;
+    padding-bottom: 10px;
+  }
+
+  .intro {
+    margin-bottom: 12px;
+  }
+
+  .intro h1 {
+    font-size: 40px;
+    line-height: 1;
+  }
+
+  .featured {
+    margin-top: 12px;
+  }
+
+  .featuredQuestion {
+    padding-block: 7px;
+  }
+
+  .featuredTitle {
+    margin-bottom: 6px;
+  }
+
+  .architecture {
+    row-gap: 8px;
+  }
+
+  .capabilities {
+    gap: 8px;
+  }
+
+  .capability {
+    padding-block: 9px;
+  }
+
+  .gpuFoundation {
+    min-height: 44px;
+    padding-block: 6px;
+  }
+
+  .footer {
+    margin-top: 12px;
+    padding-top: 10px;
+  }
+
+  .enterLink {
+    min-height: 38px;
+  }
+}
+
+@media (min-width: 981px) and (max-height: 740px) {
+  .page {
+    padding: 8px;
+  }
+
+  .header {
+    min-height: 52px;
+    padding: 8px 20px;
+  }
+
+  .content {
+    padding: 16px 24px 6px;
+  }
+
+  .intro {
+    margin-bottom: 8px;
+  }
+
+  .intro h1 {
+    font-size: 38px;
+  }
+
+  .architecture {
+    row-gap: 6px;
+  }
+
+  .gpuFoundation {
+    min-height: 46px;
+    padding-block: 6px;
+  }
+
+  .featured {
+    margin-top: 8px;
+  }
+
+  .footer {
+    margin-top: 8px;
+    padding-top: 8px;
+  }
+
+  .enterLink {
+    min-height: 36px;
+  }
+}
+
+@media (max-width: 1120px) {
+  .content {
+    padding-inline: 24px;
+  }
+
+  .architecture {
+    grid-template-columns: minmax(135px, 0.82fr) minmax(185px, 1.08fr) minmax(360px, 2.2fr) minmax(
+        175px,
+        1fr
+      );
+    column-gap: 18px;
+  }
+}
+
+@media (max-width: 980px) {
+  .intro {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .architecture {
+    grid-template-columns: 1fr 1.2fr;
+    gap: 18px;
+  }
+
+  .question {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .hermes {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .capabilities {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+  }
+
+  .answer {
+    grid-column: 1 / -1;
+    grid-row: 3;
+  }
+
+  .featuredList {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .answerList {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .gpuFoundation {
+    grid-column: 1 / -1;
+    grid-row: 4;
+  }
+
+  .node::before,
+  .node::after,
+  .capabilities::before,
+  .capabilities::after,
+  .capability::before,
+  .capability::after {
+    display: none;
+  }
+}
+
+@media (max-width: 800px) {
+  .page {
+    padding: 0;
+  }
+
+  .shell {
+    min-height: 100dvh;
+    border: 0;
+  }
+
+  .header,
+  .footer,
+  .gpuFoundation {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .header {
+    min-height: auto;
+    padding: 16px 20px;
+  }
+
+  .content {
+    padding: 24px 20px;
+  }
+
+  .capabilities,
+  .featuredList {
+    grid-template-columns: 1fr;
+  }
+
+  .answerList {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .gpuScope {
+    justify-content: flex-start;
+  }
+
+  .footer {
+    gap: 18px;
+  }
+
+  .enterLink {
+    justify-content: center;
+    align-self: stretch;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .enterLink {
+    transition: none;
+  }
+}

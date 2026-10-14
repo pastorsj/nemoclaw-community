@@ -1,0 +1,348 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "DisplayAttributes": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "description": "Open, bounded display facts; keys stay snake_case on the wire.\n\nOnly the routing keys are typed. LLM call events set them so the UI can show\nwhich model Switchyard served and on which tier. Every other key is an open\nJSON value, bounded like the rest of the display projection.",
+      "properties": {
+        "served_model": {
+          "type": "string"
+        },
+        "tier": {
+          "enum": [
+            "efficient",
+            "capable"
+          ],
+          "type": "string"
+        }
+      },
+      "title": "DisplayAttributes",
+      "type": "object"
+    },
+    "DisplaySafeProjection": {
+      "additionalProperties": false,
+      "description": "Small browser-safe representation of an observed execution event.",
+      "properties": {
+        "label": {
+          "maxLength": 256,
+          "minLength": 1,
+          "type": "string"
+        },
+        "summary": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "attributes": {
+          "$ref": "#/$defs/DisplayAttributes"
+        },
+        "inspectable": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "label",
+        "summary",
+        "attributes",
+        "inspectable"
+      ],
+      "title": "DisplaySafeProjection",
+      "type": "object"
+    },
+    "EventProvenance": {
+      "additionalProperties": false,
+      "description": "Origin and normalization facts without raw/private runtime payloads.",
+      "properties": {
+        "sourceSystem": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+          "type": "string"
+        },
+        "sourceEventId": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "pattern": "^[^\\s\\x00-\\x1f\\x7f]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "sourceEventKind": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "normalizationVersion": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+          "type": "string"
+        },
+        "observation": {
+          "default": "observed",
+          "enum": [
+            "observed",
+            "prepared",
+            "derived"
+          ],
+          "type": "string"
+        },
+        "configDigest": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "sourceSystem",
+        "sourceEventId",
+        "sourceEventKind",
+        "normalizationVersion",
+        "observation",
+        "configDigest"
+      ],
+      "title": "EventProvenance",
+      "type": "object"
+    },
+    "JsonValue": {}
+  },
+  "additionalProperties": false,
+  "description": "One immutable, correlated event used by live execution and replay.\n\nEvent, component, capability, and tool identities are bounded open strings.\nAdding a tool therefore does not require adding a route enum or changing this\nschema.",
+  "properties": {
+    "schemaVersion": {
+      "const": "2",
+      "default": "2",
+      "type": "string"
+    },
+    "eventId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "cursor": {
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "jobId": {
+      "maxLength": 256,
+      "minLength": 1,
+      "pattern": "^[^\\s\\x00-\\x1f\\x7f]+$",
+      "type": "string"
+    },
+    "runId": {
+      "maxLength": 256,
+      "minLength": 1,
+      "pattern": "^[^\\s\\x00-\\x1f\\x7f]+$",
+      "type": "string"
+    },
+    "sessionId": {
+      "maxLength": 256,
+      "minLength": 1,
+      "pattern": "^[^\\s\\x00-\\x1f\\x7f]+$",
+      "type": "string"
+    },
+    "turnId": {
+      "anyOf": [
+        {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\s\\x00-\\x1f\\x7f]+$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "eventKind": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+      "type": "string"
+    },
+    "state": {
+      "enum": [
+        "started",
+        "progress",
+        "completed",
+        "failed",
+        "cancelled"
+      ],
+      "type": "string"
+    },
+    "componentId": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+      "type": "string"
+    },
+    "invocationId": {
+      "anyOf": [
+        {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\s\\x00-\\x1f\\x7f]+$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "parentInvocationId": {
+      "anyOf": [
+        {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\s\\x00-\\x1f\\x7f]+$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "toolServer": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "toolName": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "capabilityId": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "artifactRefs": {
+      "default": [],
+      "items": {
+        "maxLength": 256,
+        "minLength": 1,
+        "pattern": "^[^\\s\\x00-\\x1f\\x7f]+$",
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "metricsRef": {
+      "anyOf": [
+        {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\s\\x00-\\x1f\\x7f]+$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "occurredAt": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "display": {
+      "$ref": "#/$defs/DisplaySafeProjection"
+    },
+    "provenance": {
+      "$ref": "#/$defs/EventProvenance"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "eventId",
+    "cursor",
+    "jobId",
+    "runId",
+    "sessionId",
+    "turnId",
+    "eventKind",
+    "state",
+    "componentId",
+    "invocationId",
+    "parentInvocationId",
+    "toolServer",
+    "toolName",
+    "capabilityId",
+    "artifactRefs",
+    "metricsRef",
+    "occurredAt",
+    "display",
+    "provenance"
+  ],
+  "title": "ExecutionEventV2",
+  "type": "object"
+}

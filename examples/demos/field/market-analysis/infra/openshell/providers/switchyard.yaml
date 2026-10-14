@@ -1,0 +1,22 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# Credential-free inference provider for Switchyard, the model router on the
+# host. Switchyard holds the model key, so the sandbox needs none; Hermes sends
+# the non-secret SWITCHYARD_CLIENT_API_KEY. Same shape as OpenShell's host-local
+# Ollama example (docs/how-it-works/inference.mdx).
+id: switchyard
+display_name: Switchyard
+description: Model router on the gateway host (OpenAI-compatible, no inbound auth)
+category: inference
+inference_capable: true
+credentials: []
+endpoints:
+  - host: host.openshell.internal
+    port: 4000
+    protocol: rest
+    enforcement: enforce
+    rules:
+      - allow: { method: POST, path: /v1/chat/completions }
+      - allow: { method: GET, path: /v1/models }
+binaries: [/usr/bin/python3.13]

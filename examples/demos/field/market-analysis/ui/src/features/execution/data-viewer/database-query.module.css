@@ -1,0 +1,153 @@
+/* SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved. */
+/* SPDX-License-Identifier: Apache-2.0 */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.queryToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.querySelect {
+  width: min(260px, 100%);
+  min-width: 0;
+}
+.querySelect :global(.nv-select-trigger) {
+  width: 100%;
+}
+.runButton {
+  min-width: 96px;
+}
+.editorLabel {
+  font-weight: 600;
+}
+.editorShell {
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 150px;
+  height: clamp(150px, 22vh, 230px);
+  resize: vertical;
+  overflow: hidden;
+  background: var(--background-color-surface-base);
+  border: 1px solid #80808066;
+  border-radius: 8px;
+}
+.editorShell:focus-within {
+  border-color: var(--border-color-interaction-primary-base);
+  box-shadow: 0 0 0 1px var(--border-color-interaction-primary-base);
+}
+.syntaxLayer,
+.editorInput {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 16px;
+  overflow: auto;
+  white-space: pre;
+  overflow-wrap: normal;
+  font: 14px/1.6 monospace;
+  tab-size: 2;
+}
+.syntaxLayer {
+  z-index: 0;
+  color: var(--text-color-primary);
+  pointer-events: none;
+  scrollbar-width: none;
+}
+.syntaxLayer::-webkit-scrollbar {
+  display: none;
+}
+.editorInput {
+  z-index: 1;
+  resize: none;
+  color: transparent;
+  caret-color: var(--text-color-primary);
+  background: transparent;
+  border: 0;
+  outline: 0;
+  -webkit-text-fill-color: transparent;
+}
+.editorInput::selection {
+  background: color-mix(in srgb, var(--color-green-300) 32%, transparent);
+}
+.tokenkeyword {
+  color: var(--text-color-accent-blue);
+  font-weight: 700;
+}
+.tokenfunction {
+  color: var(--text-color-accent-teal);
+}
+.tokenstring {
+  color: var(--text-color-accent-green);
+}
+.tokennumber {
+  color: var(--text-color-accent-purple);
+}
+.tokenidentifier {
+  color: var(--text-color-accent-teal);
+}
+.tokenoperator {
+  color: var(--text-color-secondary);
+}
+.tokencomment {
+  color: var(--text-color-secondary);
+  font-style: italic;
+}
+.results {
+  overflow: auto;
+  max-height: 480px;
+  min-height: 130px;
+}
+.results table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 14px;
+}
+.results th,
+.results td {
+  text-align: left;
+  vertical-align: top;
+  padding: 12px;
+  border-bottom: 1px solid #80808044;
+  min-width: 90px;
+  max-width: 400px;
+  overflow-wrap: anywhere;
+}
+.results small {
+  display: block;
+  font-weight: normal;
+  opacity: 0.7;
+}
+
+@media (max-height: 800px) {
+  .editorShell {
+    min-height: 120px;
+    height: 120px;
+  }
+}
+
+@media (max-width: 720px) {
+  .querySelect {
+    width: min(220px, calc(100% - 106px));
+  }
+}
+
+@media (forced-colors: active) {
+  .syntaxLayer {
+    display: none;
+  }
+  .editorInput {
+    color: CanvasText;
+    -webkit-text-fill-color: currentColor;
+  }
+}

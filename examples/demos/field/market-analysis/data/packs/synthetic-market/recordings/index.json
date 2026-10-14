@@ -1,0 +1,231 @@
+{
+  "schemaVersion": 2,
+  "pack": {
+    "id": "synthetic-market",
+    "version": "1.0.0"
+  },
+  "recordedAt": "2026-10-02T18:37:06.759110Z",
+  "sessions": [
+    {
+      "id": "market-leaders",
+      "title": "Market Leaders",
+      "featured": true,
+      "turns": [
+        {
+          "jobId": "07631ed8-6cb3-4223-ab6f-027552cfda34",
+          "question": "Among the 12 most liquid issuers, which had the strongest and weakest returns over the 20 trading sessions ending August 31, 2026, and how did their daily volatility compare?"
+        }
+      ],
+      "tools": [
+        {
+          "pill": "cudf",
+          "device": "gpu",
+          "tools": [
+            "market_scan"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "news-sentiment-reaction",
+      "title": "News & Price Reaction",
+      "featured": true,
+      "turns": [
+        {
+          "jobId": "43d02da8-0df2-44b8-8562-e7c121c8caa5",
+          "question": "For company news about the 12 most liquid issuers published from August 17 through August 24, 2026, how did the sentiment labels line up with the issuers' returns over the following five sessions? Describe the relationship without claiming causation."
+        }
+      ],
+      "tools": [
+        {
+          "pill": "cudf",
+          "device": "gpu",
+          "tools": [
+            "analyze_news_price_relationship"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "unusual-sessions",
+      "title": "Unusual Sessions",
+      "featured": true,
+      "turns": [
+        {
+          "jobId": "bf2af98d-dccc-4e7f-83aa-bc1d18bc4064",
+          "question": "Treat January 2 through June 30, 2026 as the baseline for every issuer. Which 10 issuer sessions from July 1 through August 31, 2026 were the most unusual in return, volatility and volume, and which features made each one unusual? Anomaly scores are neither forecasts nor explanations."
+        }
+      ],
+      "tools": [
+        {
+          "pill": "cudf",
+          "device": "gpu",
+          "tools": [
+            "market_anomaly_scan"
+          ]
+        },
+        {
+          "pill": "cuml",
+          "device": "gpu",
+          "tools": [
+            "market_anomaly_scan"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "peer-network",
+      "title": "Peer Network",
+      "featured": true,
+      "turns": [
+        {
+          "jobId": "7100b7f9-8b4d-433c-8164-0d80489f0054",
+          "question": "In the return-correlation network from June through August 2026, which issuers are the most central, and which pairs moved together most closely?"
+        }
+      ],
+      "tools": [
+        {
+          "pill": "cudf",
+          "device": "gpu",
+          "tools": [
+            "analyze_market_relationships"
+          ]
+        },
+        {
+          "pill": "cugraph",
+          "device": "gpu",
+          "tools": [
+            "analyze_market_relationships"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cyber-disclosure-rules",
+      "title": "Cybersecurity Disclosures",
+      "featured": true,
+      "turns": [
+        {
+          "jobId": "8ca23d60-5726-4245-b751-afc8a31f04ed",
+          "question": "What does Form 8-K Item 1.05 require a company to disclose about a material cybersecurity incident, and by when? Cite the regulation, and any second-quarter 2026 filings in the corpus that report an incident."
+        }
+      ],
+      "tools": [
+        {
+          "pill": "retrieval",
+          "device": null,
+          "tools": [
+            "retrieve_evidence"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "news-and-filings",
+      "title": "News & Filings",
+      "featured": true,
+      "turns": [
+        {
+          "jobId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66",
+          "question": "Which of the 12 most liquid issuers had the most negative company news in July and August 2026, and how did their prices react? Separately, which real second-quarter 2026 SEC filings describe operational disruptions? The issuers are fictional and are not the filers: keep the two apart."
+        }
+      ],
+      "tools": [
+        {
+          "pill": "cudf",
+          "device": "gpu",
+          "tools": [
+            "analyze_news_price_relationship"
+          ]
+        },
+        {
+          "pill": "retrieval",
+          "device": null,
+          "tools": [
+            "retrieve_evidence"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "story-event-context",
+      "title": "Story Price Context",
+      "featured": false,
+      "turns": [
+        {
+          "jobId": "5b3c1d8e-b4ce-4366-a901-f19db72ad2b4",
+          "question": "For each company news story about the 12 most liquid issuers published from August 17 through August 28, 2026, what was the issuer's return on the publication session and over the two sessions after it?"
+        }
+      ],
+      "tools": [
+        {
+          "pill": "cudf",
+          "device": "gpu",
+          "tools": [
+            "analyze_news_price_relationship"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "outcome-prediction",
+      "title": "Five-Session Outlook",
+      "featured": false,
+      "turns": [
+        {
+          "jobId": "9debc964-3ed2-499d-89b4-4775783f25e3",
+          "question": "At the August 24, 2026 market-close anchor, rank the 12 most liquid issuers by the likelihood of a positive return over the next five trading sessions."
+        }
+      ],
+      "tools": [
+        {
+          "pill": "kumo",
+          "device": null,
+          "tools": [
+            "predict_asset_outcomes"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sector-sql",
+      "title": "Sector Breakdown",
+      "featured": false,
+      "turns": [
+        {
+          "jobId": "60333f13-db07-485c-a13d-63d156c9b816",
+          "question": "How many issuers are in each sector, and what was each sector's median return over the 20 trading sessions ending August 31, 2026?"
+        }
+      ],
+      "tools": [
+        {
+          "pill": "ontology",
+          "device": null,
+          "tools": [
+            "ask_question"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "large-universe-scan",
+      "title": "Whole-Market Scan",
+      "featured": false,
+      "turns": [
+        {
+          "jobId": "1cd6e226-d882-4bef-9db2-72fc15a0b341",
+          "question": "Across every issuer in the pack, which 20 had the strongest and the weakest returns from January 2, 2024 through August 31, 2026, and how did their volatility compare?"
+        }
+      ],
+      "tools": [
+        {
+          "pill": "cudf",
+          "device": "gpu",
+          "tools": [
+            "market_scan"
+          ]
+        }
+      ]
+    }
+  ]
+}

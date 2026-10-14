@@ -1,0 +1,127 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# The constants of the synthetic market. Both stages read this file:
+#   data/generate (`demo.sh data generate`): the roster (industries, exchanges) and the Nemotron text jobs;
+#   generator/build.py (`demo.sh data prepare`): prices, volumes and news.
+# Every random draw comes from numpy's default_rng([seed, crc32(stream), *keys]), one named stream per concern.
+# Changing `seed` or any number here changes the data; changing the roster or text sections needs `data generate`.
+seed: 20260929
+
+# Industries use real SEC SIC codes and SEC's descriptions, so the synthetic issuers look like the real pack's.
+# `weight` is the share of the roster; `volatility` scales an issuer's daily volatility.
+industries:
+  - { sic: 3674, industry: Semiconductors & Related Devices, weight: 6, volatility: 1.4, price: 90 }
+  - { sic: 7372, industry: Services-Prepackaged Software, weight: 9, volatility: 1.3, price: 70 }
+  - { sic: 7370, industry: "Services-Computer Programming, Data Processing, Etc.", weight: 4, volatility: 1.1, price: 55 }
+  - { sic: 3576, industry: Computer Communications Equipment, weight: 3, volatility: 1.1, price: 45 }
+  - { sic: 2834, industry: Pharmaceutical Preparations, weight: 8, volatility: 1.5, price: 40 }
+  - { sic: 2836, industry: "Biological Products, (No Diagnostic Substances)", weight: 5, volatility: 1.8, price: 25 }
+  - { sic: 3841, industry: Surgical & Medical Instruments & Apparatus, weight: 4, volatility: 1.0, price: 60 }
+  - { sic: 6022, industry: State Commercial Banks, weight: 7, volatility: 0.8, price: 35 }
+  - { sic: 6211, industry: "Security Brokers, Dealers & Flotation Companies", weight: 3, volatility: 1.1, price: 50 }
+  - { sic: 6331, industry: "Fire, Marine & Casualty Insurance", weight: 3, volatility: 0.7, price: 65 }
+  - { sic: 6798, industry: Real Estate Investment Trusts, weight: 6, volatility: 0.8, price: 30 }
+  - { sic: 4911, industry: Electric Services, weight: 3, volatility: 0.6, price: 55 }
+  - { sic: 4813, industry: Telephone Communications (No Radiotelephone), weight: 2, volatility: 0.8, price: 25 }
+  - { sic: 4512, industry: "Air Transportation, Scheduled", weight: 2, volatility: 1.3, price: 30 }
+  - { sic: 4213, industry: Trucking (No Local), weight: 2, volatility: 1.0, price: 45 }
+  - { sic: 1311, industry: Crude Petroleum & Natural Gas, weight: 4, volatility: 1.3, price: 35 }
+  - { sic: 1040, industry: Gold and Silver Ores, weight: 2, volatility: 1.5, price: 20 }
+  - { sic: 3711, industry: Motor Vehicles & Passenger Car Bodies, weight: 2, volatility: 1.6, price: 40 }
+  - { sic: 3714, industry: Motor Vehicle Parts & Accessories, weight: 3, volatility: 1.0, price: 40 }
+  - { sic: 3560, industry: General Industrial Machinery & Equipment, weight: 3, volatility: 0.9, price: 60 }
+  - { sic: 3812, industry: "Search, Detection, Navagation, Guidance, Aeronautical Sys", weight: 2, volatility: 0.9, price: 80 }
+  - { sic: 5961, industry: Retail-Catalog & Mail-Order Houses, weight: 3, volatility: 1.3, price: 50 }
+  - { sic: 5812, industry: Retail-Eating Places, weight: 3, volatility: 0.9, price: 45 }
+  - { sic: 2080, industry: Beverages, weight: 2, volatility: 0.6, price: 50 }
+  - { sic: 1531, industry: Operative Builders, weight: 2, volatility: 1.1, price: 55 }
+  - { sic: 7011, industry: Hotels & Motels, weight: 2, volatility: 1.0, price: 40 }
+
+# SEC's SIC divisions: the first two digits of the code give the sector, as in the real pack.
+sectors:
+  - { from: 1, to: 9, sector: "Agriculture, Forestry and Fishing" }
+  - { from: 10, to: 14, sector: Mining }
+  - { from: 15, to: 17, sector: Construction }
+  - { from: 20, to: 39, sector: Manufacturing }
+  - { from: 40, to: 49, sector: "Transportation, Communications, Electric, Gas and Sanitary Services" }
+  - { from: 50, to: 51, sector: Wholesale Trade }
+  - { from: 52, to: 59, sector: Retail Trade }
+  - { from: 60, to: 67, sector: "Finance, Insurance and Real Estate" }
+  - { from: 70, to: 89, sector: Services }
+  - { from: 91, to: 99, sector: Public Administration }
+
+exchanges: { Nasdaq: 0.6, NYSE: 0.4 }
+
+# Every profile's window lies in this calendar: prices are simulated over all of it, so an issuer's prices are the
+# same in every profile. Sessions are weekdays without the NYSE holidays (computed) and these unscheduled closures.
+calendar:
+  range: ["2016-01-04", "2026-08-31"]
+  closures: ["2018-12-05", "2025-01-09"]
+
+# Slots 0-11 are the story issuers: one planted news event each, between 2026-08-17 and 2026-08-28.
+# `shock` is added to the publication session's return (see news.story_follow_through for the sessions after).
+# The date is the publication session; each story is published before the open.
+story:
+  - { sic: 3674, date: "2026-08-17", event_type: earnings, sentiment: positive, shock: 0.09 }
+  - { sic: 7372, date: "2026-08-18", event_type: guidance, sentiment: negative, shock: -0.08 }
+  - { sic: 2836, date: "2026-08-18", event_type: regulatory, sentiment: positive, shock: 0.12 }
+  - { sic: 6022, date: "2026-08-19", event_type: operations, sentiment: negative, shock: -0.07 }
+  - { sic: 3812, date: "2026-08-20", event_type: contract, sentiment: positive, shock: 0.06 }
+  - { sic: 5961, date: "2026-08-21", event_type: management, sentiment: negative, shock: -0.06 }
+  - { sic: 3841, date: "2026-08-24", event_type: product, sentiment: positive, shock: 0.07 }
+  - { sic: 4512, date: "2026-08-24", event_type: regulatory, sentiment: negative, shock: -0.09 }
+  - { sic: 6798, date: "2026-08-25", event_type: partnership, sentiment: positive, shock: 0.10 }
+  - { sic: 3711, date: "2026-08-26", event_type: operations, sentiment: negative, shock: -0.08 }
+  - { sic: 4911, date: "2026-08-27", event_type: capital, sentiment: positive, shock: 0.06 }
+  - { sic: 1311, date: "2026-08-28", event_type: legal, sentiment: negative, shock: -0.07 }
+
+# News event types, what each covers (the text jobs' prompts use it), and how often each occurs.
+event_types:
+  earnings: { weight: 4, about: quarterly results }
+  guidance: { weight: 2, about: a change to the full-year outlook }
+  product: { weight: 3, about: a product launch or a product delay }
+  contract: { weight: 2, about: a customer contract won or lost }
+  partnership: { weight: 2, about: a partnership or an acquisition }
+  regulatory: { weight: 2, about: a regulatory approval, review or probe }
+  legal: { weight: 1, about: a lawsuit, a settlement or a court ruling }
+  management: { weight: 1, about: an executive appointment or departure }
+  operations: { weight: 2, about: an operational disruption, a cybersecurity incident or a plant expansion }
+  capital: { weight: 1, about: a dividend, a buyback or a share offering }
+sentiments: { positive: 0.4, neutral: 0.3, negative: 0.3 }
+headline_variants: 12 # templates per (event type, sentiment)
+
+# The price model. Daily returns: r = beta * market + gamma * industry + vol * noise + news, where each factor and
+# the noise are Student-t with `tail_df` degrees of freedom, scaled to unit variance.
+prices:
+  tail_df: 4
+  market_volatility: 0.010
+  industry_volatility: 0.008
+  issuer_volatility: [0.010, 0.022] # uniform range, before the industry's multiplier
+  beta: [0.6, 1.4]
+  gamma: [0.5, 1.2]
+  annual_drift: [-0.05, 0.15]
+  start_price_spread: [0.3, 3.0] # multiplies the industry's price
+  gap_volatility: 0.3 # the open's gap from the previous close, as a fraction of the issuer's volatility
+  range_volatility: 0.6 # the half-normal high/low range, as a fraction of the issuer's volatility
+volumes:
+  # An issuer's typical daily dollar volume (log-uniform in the range). The story issuers trade far more than any
+  # other, so they are always the 12 most liquid: the universe the questions call "the 12 most liquid issuers".
+  dollar_volume: [2.0e+6, 4.0e+8]
+  story_dollar_volume: [2.0e+9, 6.0e+9]
+  daily_noise: 0.25
+  move_sensitivity: 0.35 # log-volume rises by this much per |r| / the issuer's total daily volatility
+  news_multiplier: [2.0, 4.0]
+news:
+  per_issuer_month: 1.0 # background items, a Poisson rate
+  story_per_issuer_month: 3.0
+  # A background item moves the next session's return by this many issuer volatilities, with its sentiment:
+  # a modest relationship that analyze_news_price_relationship (returns after the item's session) can find.
+  tilt: 0.3
+  story_follow_through: [5, 0.3] # after its own session, a story drifts 30% of its shock more over 5 sessions
+  publish_utc: ["11:00", "20:30"] # published at a uniform minute in this window, on its session's date
+  story_utc: "12:30" # before the open, so the story's session is its publication date
+  source_name: Synthetic Newswire
+minute_bars:
+  session: ["09:30", "16:00"] # one bar per minute, both ends included; the 16:00 bar is the closing auction
+  closing_auction_share: 0.08

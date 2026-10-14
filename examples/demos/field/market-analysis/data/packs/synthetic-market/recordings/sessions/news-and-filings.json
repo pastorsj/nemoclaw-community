@@ -1,0 +1,2648 @@
+{
+  "schemaVersion": 2,
+  "id": "news-and-filings",
+  "title": "News & Filings",
+  "turns": [
+    {
+      "jobId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66",
+      "question": "Which of the 12 most liquid issuers had the most negative company news in July and August 2026, and how did their prices react? Separately, which real second-quarter 2026 SEC filings describe operational disruptions? The issuers are fictional and are not the filers: keep the two apart.",
+      "submittedAt": "2026-10-02T18:34:09.297484Z",
+      "completedAt": "2026-10-02T18:36:46.985794Z",
+      "status": "success",
+      "report": {
+        "markdown": "**1️⃣  Most‑negative news among the 12 most‑liquid (fictional) issuers – July & August 2026**\n\n| Issuer (ticker) | Negative‑news articles (Jul‑Aug 2026) | Mean 5‑session forward return* |\n|----------------|---------------------------------------|--------------------------------|\n| **GIOR** | 4 | **+2.13 %** |\n| **KASI** | 4 | **+1.80 %** |\n\n*Forward return is the average adjusted‑close change over the 5 trading sessions after each article’s publication (the tool’s `mean_forward_return`).\n\nBoth GIOR and KASI tied for the highest count of negative‑sentiment stories (4 each).  Their average post‑news price reaction was modestly positive (≈ +2 % for GIOR, +1.8 % for KASI) [1].\n\n**How the numbers were derived**\n- The `analyze_news_price_relationship` call (window 2026‑07‑01 → 2026‑08‑31, universe `top_12`) returned per‑asset `negative_count` and `mean_forward_return` in the `asset_summaries` array.\n- GIOR and KASI each show `negative_count: 4`; all other issuers have ≤ 3.\n- Their `mean_forward_return` values are 0.02135 (GIOR) and 0.01799 (KASI), which are converted to percentages for readability.\n\n---\n\n**2️⃣  Real second‑quarter 2026 SEC filings that *describe operational disruptions***\n\nThe SEC‑filings source (real companies, not the fictional issuers) was searched for language indicating an actual disruption to production or operations.  The top matches are risk‑factor disclosures rather than confirmed incident reports, but they explicitly discuss operational‑disruption scenarios that occurred or could occur in Q2 2026.\n\n| Filing (company) | Form | Filing date (Q2 2026) | Excerpt showing disruption language |\n|------------------|------|-----------------------|--------------------------------------|\n| **ESCO TECHNOLOGIES INC** | 8‑K (EX‑99.1) | 2026‑05‑07 | “disruptions in manufacturing or delivery arrangements due to shortages or unavailability of materials or components; restrictions or closures of critical supply routes … other supply chain disruptions; inability to access work sites” [2] |\n| **CENTERRA GOLD INC.** | 6‑K (EX‑99.2) | 2026‑04‑29 | “there being no significant disruptions affecting the activities of the Company whether due to extreme weather events … labour disruptions, supply disruptions, power disruptions, damage to equipment or other force‑majeure events” [2] |\n| **CLEVELAND‑CLIFFS INC.** | 8‑K (EX‑99.1) | 2026‑04‑20 | “uncertainties associated with natural or human‑caused disasters, adverse weather conditions, unanticipated geological conditions, critical equipment failures … cybersecurity incidents relating to, disruptions in, or failures of, information technology systems” [3] |\n| **IAMGOLD CORP** | 6‑K (EX‑99.1) | 2026‑05‑05 | “disruptions from weather related events resulting in limited or no productivity such as forest fires, severe storms, flooding, drought, heavy snowfall, poor air quality, and extreme heat or cold” [3] |\n| **SILVERCORP METALS INC** | 6‑K (EX‑99.1) | 2026‑06‑29 | “Power supply lack of power supply in heavy load season, leading to production unstable … TSF Dam failure leading tailings leak out … forcing the mine to suspend production” [3] |\n\n**Note** – All of the above passages are *forward‑looking risk‑factor* sections (Item 1A‑type language) that describe the *possibility* or *past occurrence* of operational disruptions.  The SEC snapshot does not contain a separate “current‑report” (e.g., 8‑K Item 1.01) that announces a specific, confirmed disruption event for Q2 2026.  If you need only filings that *announce* an actual disruption (rather than discuss risk), the current document set does not provide any such filing.\n\n---\n\n### Limitations\n- The market‑data analysis covers only the synthetic “top‑12” universe; results are not linked to any real securities.\n- The SEC‑filing search returned risk‑factor language; no definitive incident‑report filings (e.g., 8‑K Item 1.01) were found in the Q2 2026 snapshot.\n- Forward‑return averages are descriptive correlations, not causal evidence.\n\n## Sources\n\n- [1] Market analytics result — analyze news price relationship — evidence `hermes-receipt:a8f9cb15ad8cfa01a102bc70065fd1016697fb16873ccadbffb5b32ab02e893d`\n- [2] Unstructured Retrieval evidence — 8 documents — evidence `hermes-receipt:db99f3675ef165fa986586da41dc8cfb86bfcb96784b5bc4da5f7bc55b019776`\n- [3] Unstructured Retrieval evidence — 8 documents — evidence `hermes-receipt:83bd7a5eabe50b374d1fd4afcd91dd495ccd2b8a0bde508c967b7eab43454962`",
+        "citations": [
+          {
+            "number": 1,
+            "evidenceId": "hermes-receipt:a8f9cb15ad8cfa01a102bc70065fd1016697fb16873ccadbffb5b32ab02e893d",
+            "label": "Market analytics result — analyze news price relationship",
+            "capabilityId": "market_analytics",
+            "invocationId": "hermes-tool:call-61d21310-80ba-4a99-a4bf-d38b2729d762"
+          },
+          {
+            "number": 2,
+            "evidenceId": "hermes-receipt:db99f3675ef165fa986586da41dc8cfb86bfcb96784b5bc4da5f7bc55b019776",
+            "label": "Unstructured Retrieval evidence — 8 documents",
+            "capabilityId": "unstructured_retrieval",
+            "invocationId": "hermes-tool:call-2cf6a8ed-7bce-4960-9077-11ad00ff897f"
+          },
+          {
+            "number": 3,
+            "evidenceId": "hermes-receipt:83bd7a5eabe50b374d1fd4afcd91dd495ccd2b8a0bde508c967b7eab43454962",
+            "label": "Unstructured Retrieval evidence — 8 documents",
+            "capabilityId": "unstructured_retrieval",
+            "invocationId": "hermes-tool:call-d175f8a8-38c9-4186-97da-4f72d0fd983d"
+          }
+        ]
+      },
+      "events": [
+        {
+          "schemaVersion": "2",
+          "eventId": "1df4db33-4089-516c-abcd-855294a0b61c",
+          "cursor": 17807,
+          "jobId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66",
+          "runId": "run_ba1e248101f44ea7a34faa122dcc2861",
+          "sessionId": "record-e0927e8a-580f-4545-9d83-74946a0a01e6",
+          "turnId": null,
+          "eventKind": "run.created",
+          "state": "started",
+          "componentId": "hermes.agent",
+          "invocationId": "hermes-run:641e0f14096b1b7af5046885:0",
+          "parentInvocationId": null,
+          "toolServer": null,
+          "toolName": null,
+          "capabilityId": null,
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:34:09.415537Z",
+          "display": {
+            "label": "Run accepted",
+            "summary": null,
+            "attributes": {},
+            "inspectable": false
+          },
+          "provenance": {
+            "sourceSystem": "hermes.runs",
+            "sourceEventId": "hermes-event:ec1be75a1c953df65a4c6751e974cfa9b33295eaca3243e42bc41eb9d7d11067",
+            "sourceEventKind": "run.created",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "1beeb68d-0500-548b-8a83-d3e06400171a",
+          "cursor": 17808,
+          "jobId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66",
+          "runId": "run_ba1e248101f44ea7a34faa122dcc2861",
+          "sessionId": "record-e0927e8a-580f-4545-9d83-74946a0a01e6",
+          "turnId": null,
+          "eventKind": "run.heartbeat",
+          "state": "progress",
+          "componentId": "hermes.agent",
+          "invocationId": "hermes-run:641e0f14096b1b7af5046885:0",
+          "parentInvocationId": null,
+          "toolServer": null,
+          "toolName": null,
+          "capabilityId": null,
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:34:24.422631Z",
+          "display": {
+            "label": "Working on the answer",
+            "summary": null,
+            "attributes": {},
+            "inspectable": false
+          },
+          "provenance": {
+            "sourceSystem": "hermes.runs",
+            "sourceEventId": "hermes-event:aaba3781dc8a9843445b7add96505ce83732c856a259659873516cb24b9c5fd6",
+            "sourceEventKind": "run.heartbeat",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "d16e1a3f-9bc1-53f8-817c-b3549845dd4d",
+          "cursor": 17809,
+          "jobId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66",
+          "runId": "run_ba1e248101f44ea7a34faa122dcc2861",
+          "sessionId": "record-e0927e8a-580f-4545-9d83-74946a0a01e6",
+          "turnId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66:9caeeb0d-a672-4552-af66-75cd6ff2fa66:a8af6925",
+          "eventKind": "llm.call",
+          "state": "completed",
+          "componentId": "switchyard.router",
+          "invocationId": "hermes-llm:9caeeb0d-a672-4552-af66-75cd6ff2fa66:9caeeb0d-a672-4552-af66-75cd6ff2fa66:a8af6925:api:1",
+          "parentInvocationId": "hermes-run:641e0f14096b1b7af5046885:0",
+          "toolServer": null,
+          "toolName": null,
+          "capabilityId": null,
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:34:28.709939Z",
+          "display": {
+            "label": "Model call completed",
+            "summary": null,
+            "attributes": {
+              "served_model": "nvidia/nemotron-3-ultra-550b-a55b",
+              "tier": "efficient",
+              "input_tokens": 10488,
+              "output_tokens": 470
+            },
+            "inspectable": false
+          },
+          "provenance": {
+            "sourceSystem": "hermes.plugin",
+            "sourceEventId": "hermes-llm:9caeeb0d-a672-4552-af66-75cd6ff2fa66:9caeeb0d-a672-4552-af66-75cd6ff2fa66:a8af6925:api:1",
+            "sourceEventKind": "post_api_request",
+            "normalizationVersion": "hermes-plugin.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "95faac33-d7b2-5b58-94ed-dfca8aec8812",
+          "cursor": 17810,
+          "jobId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66",
+          "runId": "run_ba1e248101f44ea7a34faa122dcc2861",
+          "sessionId": "record-e0927e8a-580f-4545-9d83-74946a0a01e6",
+          "turnId": null,
+          "eventKind": "tool.started",
+          "state": "started",
+          "componentId": "hermes.tool",
+          "invocationId": "hermes-tool:call-e87c1e7d-50c9-4d89-a3f1-cbadc1996f0c",
+          "parentInvocationId": "hermes-run:641e0f14096b1b7af5046885:0",
+          "toolServer": null,
+          "toolName": "skill_view",
+          "capabilityId": null,
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:34:28.744268Z",
+          "display": {
+            "label": "skill_view started",
+            "summary": null,
+            "attributes": {},
+            "inspectable": false
+          },
+          "provenance": {
+            "sourceSystem": "hermes.runs",
+            "sourceEventId": "hermes-event:296be4ab174b8ff2331cd5e6e08b96ed170da78a5aab662c5ffc3489da8b9398",
+            "sourceEventKind": "tool.started",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "d4853479-b6b7-5f5b-8390-07d14ecaf9b2",
+          "cursor": 17811,
+          "jobId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66",
+          "runId": "run_ba1e248101f44ea7a34faa122dcc2861",
+          "sessionId": "record-e0927e8a-580f-4545-9d83-74946a0a01e6",
+          "turnId": null,
+          "eventKind": "tool.completed",
+          "state": "completed",
+          "componentId": "hermes.tool",
+          "invocationId": "hermes-tool:call-e87c1e7d-50c9-4d89-a3f1-cbadc1996f0c",
+          "parentInvocationId": "hermes-run:641e0f14096b1b7af5046885:0",
+          "toolServer": null,
+          "toolName": "skill_view",
+          "capabilityId": null,
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:34:28.766038Z",
+          "display": {
+            "label": "skill_view completed",
+            "summary": null,
+            "attributes": {
+              "reported_error": false,
+              "duration_seconds": 0.015
+            },
+            "inspectable": false
+          },
+          "provenance": {
+            "sourceSystem": "hermes.runs",
+            "sourceEventId": "hermes-event:7c98734ac40559c47f3d7bbda1a4d23cebeb71dff920bca0e6a1209cfe53e045",
+            "sourceEventKind": "tool.completed",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "216a5d85-bad9-5ccb-9363-328cae554d70",
+          "cursor": 17812,
+          "jobId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66",
+          "runId": "run_ba1e248101f44ea7a34faa122dcc2861",
+          "sessionId": "record-e0927e8a-580f-4545-9d83-74946a0a01e6",
+          "turnId": null,
+          "eventKind": "run.heartbeat",
+          "state": "progress",
+          "componentId": "hermes.agent",
+          "invocationId": "hermes-run:641e0f14096b1b7af5046885:0",
+          "parentInvocationId": null,
+          "toolServer": null,
+          "toolName": null,
+          "capabilityId": null,
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:34:39.431801Z",
+          "display": {
+            "label": "Working on the answer",
+            "summary": null,
+            "attributes": {},
+            "inspectable": false
+          },
+          "provenance": {
+            "sourceSystem": "hermes.runs",
+            "sourceEventId": "hermes-event:7e421fc633df2a0ac9933fff4f152eebe97bf276f5913eedc658f783b39f66f1",
+            "sourceEventKind": "run.heartbeat",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "17b1c533-2d52-5226-970d-b3d98eba388f",
+          "cursor": 17813,
+          "jobId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66",
+          "runId": "run_ba1e248101f44ea7a34faa122dcc2861",
+          "sessionId": "record-e0927e8a-580f-4545-9d83-74946a0a01e6",
+          "turnId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66:9caeeb0d-a672-4552-af66-75cd6ff2fa66:a8af6925",
+          "eventKind": "llm.call",
+          "state": "completed",
+          "componentId": "switchyard.router",
+          "invocationId": "hermes-llm:9caeeb0d-a672-4552-af66-75cd6ff2fa66:9caeeb0d-a672-4552-af66-75cd6ff2fa66:a8af6925:api:2",
+          "parentInvocationId": "hermes-run:641e0f14096b1b7af5046885:0",
+          "toolServer": null,
+          "toolName": null,
+          "capabilityId": null,
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:34:48.887948Z",
+          "display": {
+            "label": "Model call completed",
+            "summary": null,
+            "attributes": {
+              "served_model": "nvidia/nemotron-3-ultra-550b-a55b",
+              "tier": "efficient",
+              "input_tokens": 12918,
+              "output_tokens": 543
+            },
+            "inspectable": false
+          },
+          "provenance": {
+            "sourceSystem": "hermes.plugin",
+            "sourceEventId": "hermes-llm:9caeeb0d-a672-4552-af66-75cd6ff2fa66:9caeeb0d-a672-4552-af66-75cd6ff2fa66:a8af6925:api:2",
+            "sourceEventKind": "post_api_request",
+            "normalizationVersion": "hermes-plugin.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "70bdddcb-b20d-5e99-9e47-911191844d2a",
+          "cursor": 17814,
+          "jobId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66",
+          "runId": "run_ba1e248101f44ea7a34faa122dcc2861",
+          "sessionId": "record-e0927e8a-580f-4545-9d83-74946a0a01e6",
+          "turnId": null,
+          "eventKind": "tool.started",
+          "state": "started",
+          "componentId": "nvidia.market_analytics",
+          "invocationId": "hermes-tool:call-61d21310-80ba-4a99-a4bf-d38b2729d762",
+          "parentInvocationId": "hermes-run:641e0f14096b1b7af5046885:0",
+          "toolServer": "market_analytics",
+          "toolName": "analyze_news_price_relationship",
+          "capabilityId": "market_analytics",
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:34:48.923038Z",
+          "display": {
+            "label": "News and Price Relationship started",
+            "summary": null,
+            "attributes": {},
+            "inspectable": true
+          },
+          "provenance": {
+            "sourceSystem": "hermes.runs",
+            "sourceEventId": "hermes-event:ee3fb2940d1305134e8ac6898272dfd64924fd65249fb15283119fd73a004e4b",
+            "sourceEventKind": "tool.started",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "87caeb82-b767-5462-bc4b-787eedca3c05",
+          "cursor": 17815,
+          "jobId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66",
+          "runId": "run_ba1e248101f44ea7a34faa122dcc2861",
+          "sessionId": "record-e0927e8a-580f-4545-9d83-74946a0a01e6",
+          "turnId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66:9caeeb0d-a672-4552-af66-75cd6ff2fa66:a8af6925",
+          "eventKind": "artifact.available",
+          "state": "completed",
+          "componentId": "nvidia.market_analytics",
+          "invocationId": "hermes-tool:call-61d21310-80ba-4a99-a4bf-d38b2729d762",
+          "parentInvocationId": null,
+          "toolServer": "market_analytics",
+          "toolName": "analyze_news_price_relationship",
+          "capabilityId": "market_analytics",
+          "artifactRefs": [
+            "hermes-receipt:a8f9cb15ad8cfa01a102bc70065fd1016697fb16873ccadbffb5b32ab02e893d"
+          ],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:34:49.098638Z",
+          "display": {
+            "label": "Market analytics result available",
+            "summary": null,
+            "attributes": {
+              "duration_ms": 171,
+              "tool_status": "completed"
+            },
+            "inspectable": true
+          },
+          "provenance": {
+            "sourceSystem": "hermes.plugin",
+            "sourceEventId": "hermes-receipt:a8f9cb15ad8cfa01a102bc70065fd1016697fb16873ccadbffb5b32ab02e893d",
+            "sourceEventKind": "post_tool_call",
+            "normalizationVersion": "hermes-plugin-receipt.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "e27db77f-8be5-594e-b454-9775fcf3e506",
+          "cursor": 17816,
+          "jobId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66",
+          "runId": "run_ba1e248101f44ea7a34faa122dcc2861",
+          "sessionId": "record-e0927e8a-580f-4545-9d83-74946a0a01e6",
+          "turnId": null,
+          "eventKind": "tool.completed",
+          "state": "completed",
+          "componentId": "nvidia.market_analytics",
+          "invocationId": "hermes-tool:call-61d21310-80ba-4a99-a4bf-d38b2729d762",
+          "parentInvocationId": "hermes-run:641e0f14096b1b7af5046885:0",
+          "toolServer": "market_analytics",
+          "toolName": "analyze_news_price_relationship",
+          "capabilityId": "market_analytics",
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:34:49.143998Z",
+          "display": {
+            "label": "News and Price Relationship completed",
+            "summary": null,
+            "attributes": {
+              "reported_error": false,
+              "duration_seconds": 0.201
+            },
+            "inspectable": true
+          },
+          "provenance": {
+            "sourceSystem": "hermes.runs",
+            "sourceEventId": "hermes-event:cdeb84c82232f19378665e0ae005498eec64257a33fb7af566f311b4dd513333",
+            "sourceEventKind": "tool.completed",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "9636392d-3a87-5a45-b7b4-78e5941b70d3",
+          "cursor": 17817,
+          "jobId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66",
+          "runId": "run_ba1e248101f44ea7a34faa122dcc2861",
+          "sessionId": "record-e0927e8a-580f-4545-9d83-74946a0a01e6",
+          "turnId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66:9caeeb0d-a672-4552-af66-75cd6ff2fa66:a8af6925",
+          "eventKind": "llm.call",
+          "state": "completed",
+          "componentId": "switchyard.router",
+          "invocationId": "hermes-llm:9caeeb0d-a672-4552-af66-75cd6ff2fa66:9caeeb0d-a672-4552-af66-75cd6ff2fa66:a8af6925:api:3",
+          "parentInvocationId": "hermes-run:641e0f14096b1b7af5046885:0",
+          "toolServer": null,
+          "toolName": null,
+          "capabilityId": null,
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:34:52.433405Z",
+          "display": {
+            "label": "Model call completed",
+            "summary": null,
+            "attributes": {
+              "served_model": "nvidia/nemotron-3-ultra-550b-a55b",
+              "tier": "efficient",
+              "input_tokens": 24820,
+              "output_tokens": 52
+            },
+            "inspectable": false
+          },
+          "provenance": {
+            "sourceSystem": "hermes.plugin",
+            "sourceEventId": "hermes-llm:9caeeb0d-a672-4552-af66-75cd6ff2fa66:9caeeb0d-a672-4552-af66-75cd6ff2fa66:a8af6925:api:3",
+            "sourceEventKind": "post_api_request",
+            "normalizationVersion": "hermes-plugin.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "798c9a34-a269-5498-953f-30b780c0a079",
+          "cursor": 17818,
+          "jobId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66",
+          "runId": "run_ba1e248101f44ea7a34faa122dcc2861",
+          "sessionId": "record-e0927e8a-580f-4545-9d83-74946a0a01e6",
+          "turnId": null,
+          "eventKind": "tool.started",
+          "state": "started",
+          "componentId": "hermes.tool",
+          "invocationId": "hermes-tool:call-10d08898-cc44-4884-aef3-52c7e9837372",
+          "parentInvocationId": "hermes-run:641e0f14096b1b7af5046885:0",
+          "toolServer": null,
+          "toolName": "skill_view",
+          "capabilityId": null,
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:34:52.459646Z",
+          "display": {
+            "label": "skill_view started",
+            "summary": null,
+            "attributes": {},
+            "inspectable": false
+          },
+          "provenance": {
+            "sourceSystem": "hermes.runs",
+            "sourceEventId": "hermes-event:46ae17f21cffba8fb33bb44c80183a82377f37e844a83c1ff40a20b6258d7a77",
+            "sourceEventKind": "tool.started",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "9ef62b31-82de-53d4-af81-e315a8d78c36",
+          "cursor": 17819,
+          "jobId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66",
+          "runId": "run_ba1e248101f44ea7a34faa122dcc2861",
+          "sessionId": "record-e0927e8a-580f-4545-9d83-74946a0a01e6",
+          "turnId": null,
+          "eventKind": "tool.completed",
+          "state": "completed",
+          "componentId": "hermes.tool",
+          "invocationId": "hermes-tool:call-10d08898-cc44-4884-aef3-52c7e9837372",
+          "parentInvocationId": "hermes-run:641e0f14096b1b7af5046885:0",
+          "toolServer": null,
+          "toolName": "skill_view",
+          "capabilityId": null,
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:34:52.478677Z",
+          "display": {
+            "label": "skill_view completed",
+            "summary": null,
+            "attributes": {
+              "reported_error": false,
+              "duration_seconds": 0.015
+            },
+            "inspectable": false
+          },
+          "provenance": {
+            "sourceSystem": "hermes.runs",
+            "sourceEventId": "hermes-event:72e256b44f3e04a49bbd5e1b0551a5608f6c9a099415699e7ffeb4f7cf6f565f",
+            "sourceEventKind": "tool.completed",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "85295f37-8617-592a-820b-fb58222c253c",
+          "cursor": 17820,
+          "jobId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66",
+          "runId": "run_ba1e248101f44ea7a34faa122dcc2861",
+          "sessionId": "record-e0927e8a-580f-4545-9d83-74946a0a01e6",
+          "turnId": null,
+          "eventKind": "run.heartbeat",
+          "state": "progress",
+          "componentId": "hermes.agent",
+          "invocationId": "hermes-run:641e0f14096b1b7af5046885:0",
+          "parentInvocationId": null,
+          "toolServer": null,
+          "toolName": null,
+          "capabilityId": null,
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:34:54.440322Z",
+          "display": {
+            "label": "Working on the answer",
+            "summary": null,
+            "attributes": {},
+            "inspectable": false
+          },
+          "provenance": {
+            "sourceSystem": "hermes.runs",
+            "sourceEventId": "hermes-event:18e3f3b34c3bc68da63c3c4f3923f0e9c39322bb6d1668ee74e631badbba681c",
+            "sourceEventKind": "run.heartbeat",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "7894e2b5-4670-570f-964f-883c6b2d2330",
+          "cursor": 17821,
+          "jobId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66",
+          "runId": "run_ba1e248101f44ea7a34faa122dcc2861",
+          "sessionId": "record-e0927e8a-580f-4545-9d83-74946a0a01e6",
+          "turnId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66:9caeeb0d-a672-4552-af66-75cd6ff2fa66:a8af6925",
+          "eventKind": "llm.call",
+          "state": "completed",
+          "componentId": "switchyard.router",
+          "invocationId": "hermes-llm:9caeeb0d-a672-4552-af66-75cd6ff2fa66:9caeeb0d-a672-4552-af66-75cd6ff2fa66:a8af6925:api:4",
+          "parentInvocationId": "hermes-run:641e0f14096b1b7af5046885:0",
+          "toolServer": null,
+          "toolName": null,
+          "capabilityId": null,
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:34:58.746368Z",
+          "display": {
+            "label": "Model call completed",
+            "summary": null,
+            "attributes": {
+              "served_model": "nvidia/nemotron-3-ultra-550b-a55b",
+              "tier": "efficient",
+              "input_tokens": 26279,
+              "output_tokens": 110
+            },
+            "inspectable": false
+          },
+          "provenance": {
+            "sourceSystem": "hermes.plugin",
+            "sourceEventId": "hermes-llm:9caeeb0d-a672-4552-af66-75cd6ff2fa66:9caeeb0d-a672-4552-af66-75cd6ff2fa66:a8af6925:api:4",
+            "sourceEventKind": "post_api_request",
+            "normalizationVersion": "hermes-plugin.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "e9eb9c88-d45c-5e92-886a-af5b1d6e7220",
+          "cursor": 17822,
+          "jobId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66",
+          "runId": "run_ba1e248101f44ea7a34faa122dcc2861",
+          "sessionId": "record-e0927e8a-580f-4545-9d83-74946a0a01e6",
+          "turnId": null,
+          "eventKind": "tool.started",
+          "state": "started",
+          "componentId": "milvus.retrieval",
+          "invocationId": "hermes-tool:call-2cf6a8ed-7bce-4960-9077-11ad00ff897f",
+          "parentInvocationId": "hermes-run:641e0f14096b1b7af5046885:0",
+          "toolServer": "retrieval",
+          "toolName": "retrieve_evidence",
+          "capabilityId": "unstructured_retrieval",
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:34:58.772348Z",
+          "display": {
+            "label": "Unstructured Retrieval started",
+            "summary": null,
+            "attributes": {},
+            "inspectable": true
+          },
+          "provenance": {
+            "sourceSystem": "hermes.runs",
+            "sourceEventId": "hermes-event:b41e376f8ecb250cda9a08171a6c568f3636b238db75f02b32108d415a286c73",
+            "sourceEventKind": "tool.started",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "cf12c393-2ffb-5ca4-9b52-c6c2318be3ff",
+          "cursor": 17823,
+          "jobId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66",
+          "runId": "run_ba1e248101f44ea7a34faa122dcc2861",
+          "sessionId": "record-e0927e8a-580f-4545-9d83-74946a0a01e6",
+          "turnId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66:9caeeb0d-a672-4552-af66-75cd6ff2fa66:a8af6925",
+          "eventKind": "artifact.available",
+          "state": "completed",
+          "componentId": "milvus.retrieval",
+          "invocationId": "hermes-tool:call-2cf6a8ed-7bce-4960-9077-11ad00ff897f",
+          "parentInvocationId": null,
+          "toolServer": "retrieval",
+          "toolName": "retrieve_evidence",
+          "capabilityId": "unstructured_retrieval",
+          "artifactRefs": [
+            "hermes-receipt:db99f3675ef165fa986586da41dc8cfb86bfcb96784b5bc4da5f7bc55b019776"
+          ],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:34:59.915152Z",
+          "display": {
+            "label": "Unstructured retrieval evidence available",
+            "summary": null,
+            "attributes": {
+              "duration_ms": 1140,
+              "tool_status": "completed"
+            },
+            "inspectable": true
+          },
+          "provenance": {
+            "sourceSystem": "hermes.plugin",
+            "sourceEventId": "hermes-receipt:db99f3675ef165fa986586da41dc8cfb86bfcb96784b5bc4da5f7bc55b019776",
+            "sourceEventKind": "post_tool_call",
+            "normalizationVersion": "hermes-plugin-receipt.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "a2ea3303-5447-56d3-86a9-6ca8559365ae",
+          "cursor": 17824,
+          "jobId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66",
+          "runId": "run_ba1e248101f44ea7a34faa122dcc2861",
+          "sessionId": "record-e0927e8a-580f-4545-9d83-74946a0a01e6",
+          "turnId": null,
+          "eventKind": "tool.completed",
+          "state": "completed",
+          "componentId": "milvus.retrieval",
+          "invocationId": "hermes-tool:call-2cf6a8ed-7bce-4960-9077-11ad00ff897f",
+          "parentInvocationId": "hermes-run:641e0f14096b1b7af5046885:0",
+          "toolServer": "retrieval",
+          "toolName": "retrieve_evidence",
+          "capabilityId": "unstructured_retrieval",
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:34:59.970237Z",
+          "display": {
+            "label": "Unstructured Retrieval completed",
+            "summary": null,
+            "attributes": {
+              "reported_error": false,
+              "duration_seconds": 1.165
+            },
+            "inspectable": true
+          },
+          "provenance": {
+            "sourceSystem": "hermes.runs",
+            "sourceEventId": "hermes-event:e529880c5ff81638f1293b4e083139be2a1480ba5241d3af10436508e206eea1",
+            "sourceEventKind": "tool.completed",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "8e65c871-9a47-594c-b1dd-3d0801ce277c",
+          "cursor": 17825,
+          "jobId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66",
+          "runId": "run_ba1e248101f44ea7a34faa122dcc2861",
+          "sessionId": "record-e0927e8a-580f-4545-9d83-74946a0a01e6",
+          "turnId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66:9caeeb0d-a672-4552-af66-75cd6ff2fa66:a8af6925",
+          "eventKind": "llm.call",
+          "state": "completed",
+          "componentId": "switchyard.router",
+          "invocationId": "hermes-llm:9caeeb0d-a672-4552-af66-75cd6ff2fa66:9caeeb0d-a672-4552-af66-75cd6ff2fa66:a8af6925:api:5",
+          "parentInvocationId": "hermes-run:641e0f14096b1b7af5046885:0",
+          "toolServer": null,
+          "toolName": null,
+          "capabilityId": null,
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:35:05.624947Z",
+          "display": {
+            "label": "Model call completed",
+            "summary": null,
+            "attributes": {
+              "served_model": "nvidia/nemotron-3-ultra-550b-a55b",
+              "tier": "efficient",
+              "input_tokens": 34281,
+              "output_tokens": 129
+            },
+            "inspectable": false
+          },
+          "provenance": {
+            "sourceSystem": "hermes.plugin",
+            "sourceEventId": "hermes-llm:9caeeb0d-a672-4552-af66-75cd6ff2fa66:9caeeb0d-a672-4552-af66-75cd6ff2fa66:a8af6925:api:5",
+            "sourceEventKind": "post_api_request",
+            "normalizationVersion": "hermes-plugin.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "8ae48cf8-6d63-543b-aa9a-43401b18b26e",
+          "cursor": 17826,
+          "jobId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66",
+          "runId": "run_ba1e248101f44ea7a34faa122dcc2861",
+          "sessionId": "record-e0927e8a-580f-4545-9d83-74946a0a01e6",
+          "turnId": null,
+          "eventKind": "tool.started",
+          "state": "started",
+          "componentId": "milvus.retrieval",
+          "invocationId": "hermes-tool:call-d175f8a8-38c9-4186-97da-4f72d0fd983d",
+          "parentInvocationId": "hermes-run:641e0f14096b1b7af5046885:0",
+          "toolServer": "retrieval",
+          "toolName": "retrieve_evidence",
+          "capabilityId": "unstructured_retrieval",
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:35:05.650652Z",
+          "display": {
+            "label": "Unstructured Retrieval started",
+            "summary": null,
+            "attributes": {},
+            "inspectable": true
+          },
+          "provenance": {
+            "sourceSystem": "hermes.runs",
+            "sourceEventId": "hermes-event:cd7aeada15e1e72e4e8b41fd02519cf218f6073551ffb3415316d248ea9bceef",
+            "sourceEventKind": "tool.started",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "ee36c3ea-6e5e-5437-8fc7-5e1079e4bbfa",
+          "cursor": 17827,
+          "jobId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66",
+          "runId": "run_ba1e248101f44ea7a34faa122dcc2861",
+          "sessionId": "record-e0927e8a-580f-4545-9d83-74946a0a01e6",
+          "turnId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66:9caeeb0d-a672-4552-af66-75cd6ff2fa66:a8af6925",
+          "eventKind": "artifact.available",
+          "state": "completed",
+          "componentId": "milvus.retrieval",
+          "invocationId": "hermes-tool:call-d175f8a8-38c9-4186-97da-4f72d0fd983d",
+          "parentInvocationId": null,
+          "toolServer": "retrieval",
+          "toolName": "retrieve_evidence",
+          "capabilityId": "unstructured_retrieval",
+          "artifactRefs": [
+            "hermes-receipt:83bd7a5eabe50b374d1fd4afcd91dd495ccd2b8a0bde508c967b7eab43454962"
+          ],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:35:06.715206Z",
+          "display": {
+            "label": "Unstructured retrieval evidence available",
+            "summary": null,
+            "attributes": {
+              "duration_ms": 1062,
+              "tool_status": "completed"
+            },
+            "inspectable": true
+          },
+          "provenance": {
+            "sourceSystem": "hermes.plugin",
+            "sourceEventId": "hermes-receipt:83bd7a5eabe50b374d1fd4afcd91dd495ccd2b8a0bde508c967b7eab43454962",
+            "sourceEventKind": "post_tool_call",
+            "normalizationVersion": "hermes-plugin-receipt.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "0a4ab905-5295-5f9e-9aae-a6bed80b85c0",
+          "cursor": 17828,
+          "jobId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66",
+          "runId": "run_ba1e248101f44ea7a34faa122dcc2861",
+          "sessionId": "record-e0927e8a-580f-4545-9d83-74946a0a01e6",
+          "turnId": null,
+          "eventKind": "tool.completed",
+          "state": "completed",
+          "componentId": "milvus.retrieval",
+          "invocationId": "hermes-tool:call-d175f8a8-38c9-4186-97da-4f72d0fd983d",
+          "parentInvocationId": "hermes-run:641e0f14096b1b7af5046885:0",
+          "toolServer": "retrieval",
+          "toolName": "retrieve_evidence",
+          "capabilityId": "unstructured_retrieval",
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:35:06.770821Z",
+          "display": {
+            "label": "Unstructured Retrieval completed",
+            "summary": null,
+            "attributes": {
+              "reported_error": false,
+              "duration_seconds": 1.088
+            },
+            "inspectable": true
+          },
+          "provenance": {
+            "sourceSystem": "hermes.runs",
+            "sourceEventId": "hermes-event:22d9afe4e30a4965fa3594a83557841257986613af2dc06327c91e23aef3f2be",
+            "sourceEventKind": "tool.completed",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "efc055f2-65e5-5ee3-be22-fef07e2c1aae",
+          "cursor": 17829,
+          "jobId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66",
+          "runId": "run_ba1e248101f44ea7a34faa122dcc2861",
+          "sessionId": "record-e0927e8a-580f-4545-9d83-74946a0a01e6",
+          "turnId": null,
+          "eventKind": "run.heartbeat",
+          "state": "progress",
+          "componentId": "hermes.agent",
+          "invocationId": "hermes-run:641e0f14096b1b7af5046885:0",
+          "parentInvocationId": null,
+          "toolServer": null,
+          "toolName": null,
+          "capabilityId": null,
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:35:09.447597Z",
+          "display": {
+            "label": "Working on the answer",
+            "summary": null,
+            "attributes": {},
+            "inspectable": false
+          },
+          "provenance": {
+            "sourceSystem": "hermes.runs",
+            "sourceEventId": "hermes-event:7140a60b7c88728beceebfe0c090c6ce59864531ed6b25a87d3c0481f06e86af",
+            "sourceEventKind": "run.heartbeat",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "bd9b858a-dbe9-57a7-b344-1fde975d4bbf",
+          "cursor": 17830,
+          "jobId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66",
+          "runId": "run_ba1e248101f44ea7a34faa122dcc2861",
+          "sessionId": "record-e0927e8a-580f-4545-9d83-74946a0a01e6",
+          "turnId": null,
+          "eventKind": "run.heartbeat",
+          "state": "progress",
+          "componentId": "hermes.agent",
+          "invocationId": "hermes-run:641e0f14096b1b7af5046885:0",
+          "parentInvocationId": null,
+          "toolServer": null,
+          "toolName": null,
+          "capabilityId": null,
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:35:24.455070Z",
+          "display": {
+            "label": "Working on the answer",
+            "summary": null,
+            "attributes": {},
+            "inspectable": false
+          },
+          "provenance": {
+            "sourceSystem": "hermes.runs",
+            "sourceEventId": "hermes-event:ed74be25a10067a4914781cdf329b701868bcec4119a8f341958e171294402b9",
+            "sourceEventKind": "run.heartbeat",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "ecde972a-611b-5d3f-a182-b7f1e9dc504a",
+          "cursor": 17831,
+          "jobId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66",
+          "runId": "run_ba1e248101f44ea7a34faa122dcc2861",
+          "sessionId": "record-e0927e8a-580f-4545-9d83-74946a0a01e6",
+          "turnId": null,
+          "eventKind": "run.heartbeat",
+          "state": "progress",
+          "componentId": "hermes.agent",
+          "invocationId": "hermes-run:641e0f14096b1b7af5046885:0",
+          "parentInvocationId": null,
+          "toolServer": null,
+          "toolName": null,
+          "capabilityId": null,
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:35:39.461272Z",
+          "display": {
+            "label": "Working on the answer",
+            "summary": null,
+            "attributes": {},
+            "inspectable": false
+          },
+          "provenance": {
+            "sourceSystem": "hermes.runs",
+            "sourceEventId": "hermes-event:d78b4fd02b726a06df8d04d2d08f1e3df5702e0385282a899aef0913ba7547a0",
+            "sourceEventKind": "run.heartbeat",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "74a3de4d-418a-519e-b7c6-fbda80f493be",
+          "cursor": 17832,
+          "jobId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66",
+          "runId": "run_ba1e248101f44ea7a34faa122dcc2861",
+          "sessionId": "record-e0927e8a-580f-4545-9d83-74946a0a01e6",
+          "turnId": null,
+          "eventKind": "run.heartbeat",
+          "state": "progress",
+          "componentId": "hermes.agent",
+          "invocationId": "hermes-run:641e0f14096b1b7af5046885:0",
+          "parentInvocationId": null,
+          "toolServer": null,
+          "toolName": null,
+          "capabilityId": null,
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:35:54.468553Z",
+          "display": {
+            "label": "Working on the answer",
+            "summary": null,
+            "attributes": {},
+            "inspectable": false
+          },
+          "provenance": {
+            "sourceSystem": "hermes.runs",
+            "sourceEventId": "hermes-event:c84389d4c3c9697b4ca2ad57729af062d4ef09254739ef86f4b5ee2168adba9d",
+            "sourceEventKind": "run.heartbeat",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "a42dfe2a-8332-5aa5-b675-6b3bc583516c",
+          "cursor": 17833,
+          "jobId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66",
+          "runId": "run_ba1e248101f44ea7a34faa122dcc2861",
+          "sessionId": "record-e0927e8a-580f-4545-9d83-74946a0a01e6",
+          "turnId": null,
+          "eventKind": "run.heartbeat",
+          "state": "progress",
+          "componentId": "hermes.agent",
+          "invocationId": "hermes-run:641e0f14096b1b7af5046885:0",
+          "parentInvocationId": null,
+          "toolServer": null,
+          "toolName": null,
+          "capabilityId": null,
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:36:09.476002Z",
+          "display": {
+            "label": "Working on the answer",
+            "summary": null,
+            "attributes": {},
+            "inspectable": false
+          },
+          "provenance": {
+            "sourceSystem": "hermes.runs",
+            "sourceEventId": "hermes-event:6435de1f34610653dd42b37859dc411c1966cd652387eabc97b0c1fa252c4e1b",
+            "sourceEventKind": "run.heartbeat",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "bc8fab46-a45e-5b93-9bb7-e3a778d1620d",
+          "cursor": 17834,
+          "jobId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66",
+          "runId": "run_ba1e248101f44ea7a34faa122dcc2861",
+          "sessionId": "record-e0927e8a-580f-4545-9d83-74946a0a01e6",
+          "turnId": null,
+          "eventKind": "run.heartbeat",
+          "state": "progress",
+          "componentId": "hermes.agent",
+          "invocationId": "hermes-run:641e0f14096b1b7af5046885:0",
+          "parentInvocationId": null,
+          "toolServer": null,
+          "toolName": null,
+          "capabilityId": null,
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:36:24.482638Z",
+          "display": {
+            "label": "Working on the answer",
+            "summary": null,
+            "attributes": {},
+            "inspectable": false
+          },
+          "provenance": {
+            "sourceSystem": "hermes.runs",
+            "sourceEventId": "hermes-event:acd58d22969e63b2f82612f2658d6aff1d4a1587c4e99e52f58b7e9f8702eff8",
+            "sourceEventKind": "run.heartbeat",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "c6d63c65-f889-5171-8194-cfc1618b12fb",
+          "cursor": 17835,
+          "jobId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66",
+          "runId": "run_ba1e248101f44ea7a34faa122dcc2861",
+          "sessionId": "record-e0927e8a-580f-4545-9d83-74946a0a01e6",
+          "turnId": null,
+          "eventKind": "run.heartbeat",
+          "state": "progress",
+          "componentId": "hermes.agent",
+          "invocationId": "hermes-run:641e0f14096b1b7af5046885:0",
+          "parentInvocationId": null,
+          "toolServer": null,
+          "toolName": null,
+          "capabilityId": null,
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:36:39.491349Z",
+          "display": {
+            "label": "Working on the answer",
+            "summary": null,
+            "attributes": {},
+            "inspectable": false
+          },
+          "provenance": {
+            "sourceSystem": "hermes.runs",
+            "sourceEventId": "hermes-event:be0c5aa87dc8ffafe9fd493e776126d67b306e992fb792d4d51377d2ac3e0afb",
+            "sourceEventKind": "run.heartbeat",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "489bcac7-3ac1-56e2-aeab-356a3782ff78",
+          "cursor": 17836,
+          "jobId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66",
+          "runId": "run_ba1e248101f44ea7a34faa122dcc2861",
+          "sessionId": "record-e0927e8a-580f-4545-9d83-74946a0a01e6",
+          "turnId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66:9caeeb0d-a672-4552-af66-75cd6ff2fa66:a8af6925",
+          "eventKind": "llm.call",
+          "state": "completed",
+          "componentId": "switchyard.router",
+          "invocationId": "hermes-llm:9caeeb0d-a672-4552-af66-75cd6ff2fa66:9caeeb0d-a672-4552-af66-75cd6ff2fa66:a8af6925:api:6",
+          "parentInvocationId": "hermes-run:641e0f14096b1b7af5046885:0",
+          "toolServer": null,
+          "toolName": null,
+          "capabilityId": null,
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:36:46.909543Z",
+          "display": {
+            "label": "Model call completed",
+            "summary": null,
+            "attributes": {
+              "served_model": "nvidia/nemotron-3-ultra-550b-a55b",
+              "tier": "efficient",
+              "input_tokens": 42224,
+              "output_tokens": 2114
+            },
+            "inspectable": false
+          },
+          "provenance": {
+            "sourceSystem": "hermes.plugin",
+            "sourceEventId": "hermes-llm:9caeeb0d-a672-4552-af66-75cd6ff2fa66:9caeeb0d-a672-4552-af66-75cd6ff2fa66:a8af6925:api:6",
+            "sourceEventKind": "post_api_request",
+            "normalizationVersion": "hermes-plugin.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "75a8b6e8-c05d-5009-b67c-1e654e862a20",
+          "cursor": 17837,
+          "jobId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66",
+          "runId": "run_ba1e248101f44ea7a34faa122dcc2861",
+          "sessionId": "record-e0927e8a-580f-4545-9d83-74946a0a01e6",
+          "turnId": null,
+          "eventKind": "reasoning.available",
+          "state": "progress",
+          "componentId": "hermes.agent",
+          "invocationId": "hermes-run:641e0f14096b1b7af5046885:0",
+          "parentInvocationId": null,
+          "toolServer": null,
+          "toolName": null,
+          "capabilityId": null,
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:36:46.944901Z",
+          "display": {
+            "label": "Reasoning in progress",
+            "summary": null,
+            "attributes": {},
+            "inspectable": false
+          },
+          "provenance": {
+            "sourceSystem": "hermes.runs",
+            "sourceEventId": "hermes-event:c8fcb4a9debcd72a17ea229cc907783e00037913a930582dca259700c6ffb4dc",
+            "sourceEventKind": "reasoning.available",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "792feba2-f710-5b75-b36b-0f3467c9f9cf",
+          "cursor": 17838,
+          "jobId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66",
+          "runId": "run_ba1e248101f44ea7a34faa122dcc2861",
+          "sessionId": "record-e0927e8a-580f-4545-9d83-74946a0a01e6",
+          "turnId": null,
+          "eventKind": "run.completed",
+          "state": "completed",
+          "componentId": "hermes.agent",
+          "invocationId": "hermes-run:641e0f14096b1b7af5046885:0",
+          "parentInvocationId": null,
+          "toolServer": null,
+          "toolName": null,
+          "capabilityId": null,
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:36:46.963865Z",
+          "display": {
+            "label": "Run completed",
+            "summary": null,
+            "attributes": {
+              "input_tokens": 151010,
+              "output_tokens": 3418,
+              "total_tokens": 154428,
+              "output_characters": 4531
+            },
+            "inspectable": false
+          },
+          "provenance": {
+            "sourceSystem": "hermes.runs",
+            "sourceEventId": "hermes-event:d24ce684b85fa39eda419eba22ee3d25b189e71e834ee45ea2834e4442ac0805",
+            "sourceEventKind": "run.completed",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "8bc265c7-d7b8-54e6-958b-6e47b6e5ac4f",
+          "cursor": 17839,
+          "jobId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66",
+          "runId": "run_ba1e248101f44ea7a34faa122dcc2861",
+          "sessionId": "record-e0927e8a-580f-4545-9d83-74946a0a01e6",
+          "turnId": null,
+          "eventKind": "report.completed",
+          "state": "completed",
+          "componentId": "hermes.agent",
+          "invocationId": "hermes-run:641e0f14096b1b7af5046885:0",
+          "parentInvocationId": null,
+          "toolServer": null,
+          "toolName": null,
+          "capabilityId": null,
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:36:46.985119Z",
+          "display": {
+            "label": "Response formatted",
+            "summary": null,
+            "attributes": {},
+            "inspectable": false
+          },
+          "provenance": {
+            "sourceSystem": "demo-api",
+            "sourceEventId": "publication:9caeeb0d-a672-4552-af66-75cd6ff2fa66:report.completed",
+            "sourceEventKind": "report.completed",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "4ee7625c-7912-5146-8c9e-44199aec65ae",
+          "cursor": 17840,
+          "jobId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66",
+          "runId": "run_ba1e248101f44ea7a34faa122dcc2861",
+          "sessionId": "record-e0927e8a-580f-4545-9d83-74946a0a01e6",
+          "turnId": null,
+          "eventKind": "report.reference_resolution",
+          "state": "completed",
+          "componentId": "hermes.agent",
+          "invocationId": "hermes-run:641e0f14096b1b7af5046885:0",
+          "parentInvocationId": null,
+          "toolServer": null,
+          "toolName": null,
+          "capabilityId": null,
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:36:46.985218Z",
+          "display": {
+            "label": "Citations resolved",
+            "summary": null,
+            "attributes": {
+              "status": "reference_ids_resolved",
+              "total_citations": 3,
+              "uncited_evidence_count": 0,
+              "invalid_evidence_count": 0
+            },
+            "inspectable": false
+          },
+          "provenance": {
+            "sourceSystem": "demo-api",
+            "sourceEventId": "publication:9caeeb0d-a672-4552-af66-75cd6ff2fa66:report.reference_resolution",
+            "sourceEventKind": "report.reference_resolution",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "14a047d4-6676-519d-b6e5-0afab3a86a88",
+          "cursor": 17841,
+          "jobId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66",
+          "runId": "run_ba1e248101f44ea7a34faa122dcc2861",
+          "sessionId": "record-e0927e8a-580f-4545-9d83-74946a0a01e6",
+          "turnId": null,
+          "eventKind": "report.metrics",
+          "state": "completed",
+          "componentId": "hermes.agent",
+          "invocationId": "hermes-run:641e0f14096b1b7af5046885:0",
+          "parentInvocationId": null,
+          "toolServer": null,
+          "toolName": null,
+          "capabilityId": null,
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:36:46.985299Z",
+          "display": {
+            "label": "Run metrics available",
+            "summary": null,
+            "attributes": {
+              "runtime_profile": "enterprise-research",
+              "wall_duration_ms": 157640,
+              "tool_call_count": 5,
+              "known_tool_duration_ms": 2484,
+              "input_tokens": 151010,
+              "output_tokens": 3418,
+              "total_tokens": 154428
+            },
+            "inspectable": false
+          },
+          "provenance": {
+            "sourceSystem": "demo-api",
+            "sourceEventId": "publication:9caeeb0d-a672-4552-af66-75cd6ff2fa66:report.metrics",
+            "sourceEventKind": "report.metrics",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        }
+      ],
+      "receipts": [
+        {
+          "schemaVersion": "2",
+          "artifactKind": "analytics_result",
+          "receiptId": "hermes-receipt:a8f9cb15ad8cfa01a102bc70065fd1016697fb16873ccadbffb5b32ab02e893d",
+          "jobId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66",
+          "invocationId": "hermes-tool:call-61d21310-80ba-4a99-a4bf-d38b2729d762",
+          "turnId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66:9caeeb0d-a672-4552-af66-75cd6ff2fa66:a8af6925",
+          "toolName": "mcp__market_analytics__analyze_news_price_relationship",
+          "status": "completed",
+          "errorType": null,
+          "errorSummary": null,
+          "durationMs": 171,
+          "traceId": null,
+          "spanId": null,
+          "occurredAt": "2026-10-02T18:34:49.098638Z",
+          "content": {
+            "operationId": "analyze_news_price_relationship",
+            "status": "succeeded",
+            "sourceId": "market_data",
+            "databaseName": "synthetic_market",
+            "publicParameters": {
+              "event_limit": 50,
+              "published_from": "2026-07-01T00:00:00Z",
+              "published_to": "2026-08-31T23:59:59Z",
+              "return_horizon_sessions": 5,
+              "universe_id": "top_12"
+            },
+            "payload": {
+              "return_horizon_sessions": 5,
+              "eligible_event_count": 90,
+              "aligned_event_count": 79,
+              "coverage_ratio": 0.8777777777777778,
+              "sentiment_return_correlation": 0.18501626703651106,
+              "summaries": [
+                {
+                  "sentiment_label": "negative",
+                  "event_count": 20,
+                  "mean_forward_return": -0.0002374126123602882,
+                  "median_forward_return": -0.0034677722826258472
+                },
+                {
+                  "sentiment_label": "neutral",
+                  "event_count": 29,
+                  "mean_forward_return": 0.00825038395366741,
+                  "median_forward_return": 0.009643779334351121
+                },
+                {
+                  "sentiment_label": "positive",
+                  "event_count": 30,
+                  "mean_forward_return": 0.023729276251133014,
+                  "median_forward_return": 0.019216830255903705
+                }
+              ],
+              "asset_summaries": [
+                {
+                  "asset_id": "HARE",
+                  "article_count": 10,
+                  "positive_count": 4,
+                  "neutral_count": 3,
+                  "negative_count": 3,
+                  "aligned_event_count": 8,
+                  "mean_forward_return": -0.005757878331881169
+                },
+                {
+                  "asset_id": "SOUS",
+                  "article_count": 10,
+                  "positive_count": 4,
+                  "neutral_count": 3,
+                  "negative_count": 3,
+                  "aligned_event_count": 9,
+                  "mean_forward_return": 0.02857124460894019
+                },
+                {
+                  "asset_id": "VIAS",
+                  "article_count": 10,
+                  "positive_count": 3,
+                  "neutral_count": 4,
+                  "negative_count": 3,
+                  "aligned_event_count": 8,
+                  "mean_forward_return": -0.03172666446654032
+                },
+                {
+                  "asset_id": "GIOR",
+                  "article_count": 9,
+                  "positive_count": 3,
+                  "neutral_count": 2,
+                  "negative_count": 4,
+                  "aligned_event_count": 8,
+                  "mean_forward_return": 0.02134687065558241
+                },
+                {
+                  "asset_id": "GIST",
+                  "article_count": 8,
+                  "positive_count": 2,
+                  "neutral_count": 5,
+                  "negative_count": 1,
+                  "aligned_event_count": 8,
+                  "mean_forward_return": 0.013054026534635874
+                },
+                {
+                  "asset_id": "KASI",
+                  "article_count": 8,
+                  "positive_count": 3,
+                  "neutral_count": 1,
+                  "negative_count": 4,
+                  "aligned_event_count": 7,
+                  "mean_forward_return": 0.017988755296355192
+                },
+                {
+                  "asset_id": "STIO",
+                  "article_count": 7,
+                  "positive_count": 6,
+                  "neutral_count": 1,
+                  "negative_count": 0,
+                  "aligned_event_count": 6,
+                  "mean_forward_return": 0.07741655760551029
+                },
+                {
+                  "asset_id": "CLOS",
+                  "article_count": 6,
+                  "positive_count": 3,
+                  "neutral_count": 1,
+                  "negative_count": 2,
+                  "aligned_event_count": 5,
+                  "mean_forward_return": 0.00843798595368217
+                },
+                {
+                  "asset_id": "PEAX",
+                  "article_count": 6,
+                  "positive_count": 3,
+                  "neutral_count": 3,
+                  "negative_count": 0,
+                  "aligned_event_count": 5,
+                  "mean_forward_return": 0.018712795180365706
+                },
+                {
+                  "asset_id": "PRAL",
+                  "article_count": 6,
+                  "positive_count": 0,
+                  "neutral_count": 4,
+                  "negative_count": 2,
+                  "aligned_event_count": 5,
+                  "mean_forward_return": -0.01708328084690456
+                },
+                {
+                  "asset_id": "CLAE",
+                  "article_count": 5,
+                  "positive_count": 2,
+                  "neutral_count": 2,
+                  "negative_count": 1,
+                  "aligned_event_count": 5,
+                  "mean_forward_return": -0.046221456130846536
+                },
+                {
+                  "asset_id": "TISL",
+                  "article_count": 5,
+                  "positive_count": 1,
+                  "neutral_count": 1,
+                  "negative_count": 3,
+                  "aligned_event_count": 5,
+                  "mean_forward_return": 0.0608536559678543
+                }
+              ],
+              "events": [
+                {
+                  "news_id": "CLOS-20260701-1",
+                  "asset_id": "CLOS",
+                  "published_at": "2026-07-01T19:48:00Z",
+                  "sentiment_label": "positive",
+                  "aligned_session": "2026-07-01T21:00:00Z",
+                  "session_return": -0.0238721380339878,
+                  "outcome_session": "2026-07-09T21:00:00Z",
+                  "forward_return": 0.03450330095360887
+                },
+                {
+                  "news_id": "HARE-20260702-1",
+                  "asset_id": "HARE",
+                  "published_at": "2026-07-02T11:36:00Z",
+                  "sentiment_label": "positive",
+                  "aligned_session": "2026-07-02T21:00:00Z",
+                  "session_return": 0.008779039967577562,
+                  "outcome_session": "2026-07-10T21:00:00Z",
+                  "forward_return": 0.014782079534914061
+                },
+                {
+                  "news_id": "TISL-20260702-1",
+                  "asset_id": "TISL",
+                  "published_at": "2026-07-02T19:48:00Z",
+                  "sentiment_label": "negative",
+                  "aligned_session": "2026-07-02T21:00:00Z",
+                  "session_return": 0.048055944055944044,
+                  "outcome_session": "2026-07-10T21:00:00Z",
+                  "forward_return": -0.008718550941247516
+                },
+                {
+                  "news_id": "PRAL-20260706-1",
+                  "asset_id": "PRAL",
+                  "published_at": "2026-07-06T20:12:00Z",
+                  "sentiment_label": "neutral",
+                  "aligned_session": "2026-07-06T21:00:00Z",
+                  "session_return": -0.001929637844773513,
+                  "outcome_session": "2026-07-13T21:00:00Z",
+                  "forward_return": -0.03061499058230266
+                },
+                {
+                  "news_id": "SOUS-20260707-1",
+                  "asset_id": "SOUS",
+                  "published_at": "2026-07-07T16:40:00Z",
+                  "sentiment_label": "positive",
+                  "aligned_session": "2026-07-07T21:00:00Z",
+                  "session_return": 0.018347252321773366,
+                  "outcome_session": "2026-07-14T21:00:00Z",
+                  "forward_return": 0.02456054006784658
+                },
+                {
+                  "news_id": "VIAS-20260707-1",
+                  "asset_id": "VIAS",
+                  "published_at": "2026-07-07T18:32:00Z",
+                  "sentiment_label": "neutral",
+                  "aligned_session": "2026-07-07T21:00:00Z",
+                  "session_return": 0.0070868395443355325,
+                  "outcome_session": "2026-07-14T21:00:00Z",
+                  "forward_return": 0.006093401846209767
+                },
+                {
+                  "news_id": "CLAE-20260707-1",
+                  "asset_id": "CLAE",
+                  "published_at": "2026-07-07T18:50:00Z",
+                  "sentiment_label": "positive",
+                  "aligned_session": "2026-07-07T21:00:00Z",
+                  "session_return": 0.011586947961225835,
+                  "outcome_session": "2026-07-14T21:00:00Z",
+                  "forward_return": 0.04264940355891622
+                },
+                {
+                  "news_id": "HARE-20260708-1",
+                  "asset_id": "HARE",
+                  "published_at": "2026-07-08T11:56:00Z",
+                  "sentiment_label": "neutral",
+                  "aligned_session": "2026-07-08T21:00:00Z",
+                  "session_return": 0.007800934682437477,
+                  "outcome_session": "2026-07-15T21:00:00Z",
+                  "forward_return": 0.06281698133282898
+                },
+                {
+                  "news_id": "SOUS-20260708-1",
+                  "asset_id": "SOUS",
+                  "published_at": "2026-07-08T14:34:00Z",
+                  "sentiment_label": "neutral",
+                  "aligned_session": "2026-07-08T21:00:00Z",
+                  "session_return": 0.033374029935237415,
+                  "outcome_session": "2026-07-15T21:00:00Z",
+                  "forward_return": -0.0006929369488697379
+                },
+                {
+                  "news_id": "GIST-20260708-1",
+                  "asset_id": "GIST",
+                  "published_at": "2026-07-08T14:38:00Z",
+                  "sentiment_label": "neutral",
+                  "aligned_session": "2026-07-08T21:00:00Z",
+                  "session_return": -0.005202881090517586,
+                  "outcome_session": "2026-07-15T21:00:00Z",
+                  "forward_return": -0.008236904728223804
+                },
+                {
+                  "news_id": "GIST-20260708-2",
+                  "asset_id": "GIST",
+                  "published_at": "2026-07-08T16:22:00Z",
+                  "sentiment_label": "positive",
+                  "aligned_session": "2026-07-08T21:00:00Z",
+                  "session_return": -0.005202881090517586,
+                  "outcome_session": "2026-07-15T21:00:00Z",
+                  "forward_return": -0.008236904728223804
+                },
+                {
+                  "news_id": "VIAS-20260708-1",
+                  "asset_id": "VIAS",
+                  "published_at": "2026-07-08T16:24:00Z",
+                  "sentiment_label": "positive",
+                  "aligned_session": "2026-07-08T21:00:00Z",
+                  "session_return": 0.0024555499977263473,
+                  "outcome_session": "2026-07-15T21:00:00Z",
+                  "forward_return": 0.005035155364027988
+                },
+                {
+                  "news_id": "GIST-20260708-3",
+                  "asset_id": "GIST",
+                  "published_at": "2026-07-08T18:26:00Z",
+                  "sentiment_label": "neutral",
+                  "aligned_session": "2026-07-08T21:00:00Z",
+                  "session_return": -0.005202881090517586,
+                  "outcome_session": "2026-07-15T21:00:00Z",
+                  "forward_return": -0.008236904728223804
+                },
+                {
+                  "news_id": "TISL-20260709-1",
+                  "asset_id": "TISL",
+                  "published_at": "2026-07-09T15:09:00Z",
+                  "sentiment_label": "negative",
+                  "aligned_session": "2026-07-09T21:00:00Z",
+                  "session_return": -0.059052370817487154,
+                  "outcome_session": "2026-07-16T21:00:00Z",
+                  "forward_return": 0.1385876114726441
+                },
+                {
+                  "news_id": "KASI-20260710-1",
+                  "asset_id": "KASI",
+                  "published_at": "2026-07-10T16:22:00Z",
+                  "sentiment_label": "positive",
+                  "aligned_session": "2026-07-10T21:00:00Z",
+                  "session_return": 0.031773625237986325,
+                  "outcome_session": "2026-07-17T21:00:00Z",
+                  "forward_return": -0.018136691290543405
+                },
+                {
+                  "news_id": "SOUS-20260713-1",
+                  "asset_id": "SOUS",
+                  "published_at": "2026-07-13T15:58:00Z",
+                  "sentiment_label": "neutral",
+                  "aligned_session": "2026-07-13T21:00:00Z",
+                  "session_return": -0.004384602105989899,
+                  "outcome_session": "2026-07-20T21:00:00Z",
+                  "forward_return": 0.005209629451336628
+                },
+                {
+                  "news_id": "GIOR-20260714-1",
+                  "asset_id": "GIOR",
+                  "published_at": "2026-07-14T12:59:00Z",
+                  "sentiment_label": "negative",
+                  "aligned_session": "2026-07-14T21:00:00Z",
+                  "session_return": -0.018516288231578804,
+                  "outcome_session": "2026-07-21T21:00:00Z",
+                  "forward_return": 0.05141038733330494
+                },
+                {
+                  "news_id": "TISL-20260715-1",
+                  "asset_id": "TISL",
+                  "published_at": "2026-07-15T11:16:00Z",
+                  "sentiment_label": "neutral",
+                  "aligned_session": "2026-07-15T21:00:00Z",
+                  "session_return": 0.02398060622972542,
+                  "outcome_session": "2026-07-22T21:00:00Z",
+                  "forward_return": 0.041455895627884765
+                },
+                {
+                  "news_id": "KASI-20260715-1",
+                  "asset_id": "KASI",
+                  "published_at": "2026-07-15T19:39:00Z",
+                  "sentiment_label": "neutral",
+                  "aligned_session": "2026-07-15T21:00:00Z",
+                  "session_return": 0.006279459624155104,
+                  "outcome_session": "2026-07-22T21:00:00Z",
+                  "forward_return": -0.039049664040918364
+                },
+                {
+                  "news_id": "PRAL-20260715-1",
+                  "asset_id": "PRAL",
+                  "published_at": "2026-07-15T20:08:00Z",
+                  "sentiment_label": "negative",
+                  "aligned_session": "2026-07-15T21:00:00Z",
+                  "session_return": -0.01123045879787199,
+                  "outcome_session": "2026-07-22T21:00:00Z",
+                  "forward_return": 0.0021953331134563214
+                },
+                {
+                  "news_id": "TISL-20260715-2",
+                  "asset_id": "TISL",
+                  "published_at": "2026-07-15T20:13:00Z",
+                  "sentiment_label": "positive",
+                  "aligned_session": "2026-07-15T21:00:00Z",
+                  "session_return": 0.02398060622972542,
+                  "outcome_session": "2026-07-22T21:00:00Z",
+                  "forward_return": 0.041455895627884765
+                },
+                {
+                  "news_id": "KASI-20260716-1",
+                  "asset_id": "KASI",
+                  "published_at": "2026-07-16T17:56:00Z",
+                  "sentiment_label": "negative",
+                  "aligned_session": "2026-07-16T21:00:00Z",
+                  "session_return": -0.04197377468424668,
+                  "outcome_session": "2026-07-23T21:00:00Z",
+                  "forward_return": 0.01020807756476838
+                },
+                {
+                  "news_id": "KASI-20260716-2",
+                  "asset_id": "KASI",
+                  "published_at": "2026-07-16T19:06:00Z",
+                  "sentiment_label": "positive",
+                  "aligned_session": "2026-07-16T21:00:00Z",
+                  "session_return": -0.04197377468424668,
+                  "outcome_session": "2026-07-23T21:00:00Z",
+                  "forward_return": 0.01020807756476838
+                },
+                {
+                  "news_id": "HARE-20260717-1",
+                  "asset_id": "HARE",
+                  "published_at": "2026-07-17T11:57:00Z",
+                  "sentiment_label": "positive",
+                  "aligned_session": "2026-07-17T21:00:00Z",
+                  "session_return": 0.0027007581744946663,
+                  "outcome_session": "2026-07-24T21:00:00Z",
+                  "forward_return": -0.047207990758986185
+                },
+                {
+                  "news_id": "HARE-20260717-2",
+                  "asset_id": "HARE",
+                  "published_at": "2026-07-17T12:05:00Z",
+                  "sentiment_label": "negative",
+                  "aligned_session": "2026-07-17T21:00:00Z",
+                  "session_return": 0.0027007581744946663,
+                  "outcome_session": "2026-07-24T21:00:00Z",
+                  "forward_return": -0.047207990758986185
+                },
+                {
+                  "news_id": "PEAX-20260717-1",
+                  "asset_id": "PEAX",
+                  "published_at": "2026-07-17T14:37:00Z",
+                  "sentiment_label": "neutral",
+                  "aligned_session": "2026-07-17T21:00:00Z",
+                  "session_return": 0.005908195238556679,
+                  "outcome_session": "2026-07-24T21:00:00Z",
+                  "forward_return": -0.0044894171143774475
+                },
+                {
+                  "news_id": "VIAS-20260717-1",
+                  "asset_id": "VIAS",
+                  "published_at": "2026-07-17T19:03:00Z",
+                  "sentiment_label": "neutral",
+                  "aligned_session": "2026-07-17T21:00:00Z",
+                  "session_return": 0.008403361344537785,
+                  "outcome_session": "2026-07-24T21:00:00Z",
+                  "forward_return": -0.04078404401650626
+                },
+                {
+                  "news_id": "HARE-20260720-1",
+                  "asset_id": "HARE",
+                  "published_at": "2026-07-20T15:11:00Z",
+                  "sentiment_label": "neutral",
+                  "aligned_session": "2026-07-20T21:00:00Z",
+                  "session_return": -0.0005762043894815827,
+                  "outcome_session": "2026-07-27T21:00:00Z",
+                  "forward_return": -0.048276781076546094
+                },
+                {
+                  "news_id": "CLAE-20260722-1",
+                  "asset_id": "CLAE",
+                  "published_at": "2026-07-22T11:33:00Z",
+                  "sentiment_label": "neutral",
+                  "aligned_session": "2026-07-22T21:00:00Z",
+                  "session_return": 0.0009864613216568063,
+                  "outcome_session": "2026-07-29T21:00:00Z",
+                  "forward_return": -0.11722293172973453
+                },
+                {
+                  "news_id": "GIOR-20260722-1",
+                  "asset_id": "GIOR",
+                  "published_at": "2026-07-22T15:06:00Z",
+                  "sentiment_label": "negative",
+                  "aligned_session": "2026-07-22T21:00:00Z",
+                  "session_return": 0.018010576302132764,
+                  "outcome_session": "2026-07-29T21:00:00Z",
+                  "forward_return": -0.04593482937964222
+                },
+                {
+                  "news_id": "VIAS-20260722-1",
+                  "asset_id": "VIAS",
+                  "published_at": "2026-07-22T16:36:00Z",
+                  "sentiment_label": "positive",
+                  "aligned_session": "2026-07-22T21:00:00Z",
+                  "session_return": -0.004411954519319861,
+                  "outcome_session": "2026-07-29T21:00:00Z",
+                  "forward_return": -0.07514702935872808
+                },
+                {
+                  "news_id": "GIST-20260723-1",
+                  "asset_id": "GIST",
+                  "published_at": "2026-07-23T11:44:00Z",
+                  "sentiment_label": "negative",
+                  "aligned_session": "2026-07-23T21:00:00Z",
+                  "session_return": -0.005000917827180595,
+                  "outcome_session": "2026-07-30T21:00:00Z",
+                  "forward_return": -0.07494369790498034
+                },
+                {
+                  "news_id": "CLOS-20260723-1",
+                  "asset_id": "CLOS",
+                  "published_at": "2026-07-23T13:21:00Z",
+                  "sentiment_label": "negative",
+                  "aligned_session": "2026-07-23T21:00:00Z",
+                  "session_return": -0.009942671714440299,
+                  "outcome_session": "2026-07-30T21:00:00Z",
+                  "forward_return": 0.0017830063759958215
+                },
+                {
+                  "news_id": "GIOR-20260727-1",
+                  "asset_id": "GIOR",
+                  "published_at": "2026-07-27T15:42:00Z",
+                  "sentiment_label": "negative",
+                  "aligned_session": "2026-07-27T21:00:00Z",
+                  "session_return": 0.022794031100009216,
+                  "outcome_session": "2026-08-03T21:00:00Z",
+                  "forward_return": -0.04778156123770716
+                },
+                {
+                  "news_id": "CLOS-20260728-1",
+                  "asset_id": "CLOS",
+                  "published_at": "2026-07-28T17:44:00Z",
+                  "sentiment_label": "positive",
+                  "aligned_session": "2026-07-28T21:00:00Z",
+                  "session_return": 0.009628452408883659,
+                  "outcome_session": "2026-08-04T21:00:00Z",
+                  "forward_return": -0.009611168598838926
+                },
+                {
+                  "news_id": "SOUS-20260729-1",
+                  "asset_id": "SOUS",
+                  "published_at": "2026-07-29T14:23:00Z",
+                  "sentiment_label": "negative",
+                  "aligned_session": "2026-07-29T21:00:00Z",
+                  "session_return": -0.07350330356554413,
+                  "outcome_session": "2026-08-05T21:00:00Z",
+                  "forward_return": -0.016803472287830856
+                },
+                {
+                  "news_id": "PEAX-20260729-1",
+                  "asset_id": "PEAX",
+                  "published_at": "2026-07-29T17:44:00Z",
+                  "sentiment_label": "positive",
+                  "aligned_session": "2026-07-29T21:00:00Z",
+                  "session_return": -0.014379102505190478,
+                  "outcome_session": "2026-08-05T21:00:00Z",
+                  "forward_return": 0.013428437251151948
+                },
+                {
+                  "news_id": "GIST-20260730-1",
+                  "asset_id": "GIST",
+                  "published_at": "2026-07-30T13:36:00Z",
+                  "sentiment_label": "neutral",
+                  "aligned_session": "2026-07-30T21:00:00Z",
+                  "session_return": -0.009301361072767023,
+                  "outcome_session": "2026-08-06T21:00:00Z",
+                  "forward_return": 0.0218910692917742
+                },
+                {
+                  "news_id": "PEAX-20260730-1",
+                  "asset_id": "PEAX",
+                  "published_at": "2026-07-30T16:53:00Z",
+                  "sentiment_label": "neutral",
+                  "aligned_session": "2026-07-30T21:00:00Z",
+                  "session_return": 0.004451190046757869,
+                  "outcome_session": "2026-08-06T21:00:00Z",
+                  "forward_return": 0.015659197322148488
+                },
+                {
+                  "news_id": "HARE-20260730-1",
+                  "asset_id": "HARE",
+                  "published_at": "2026-07-30T20:30:00Z",
+                  "sentiment_label": "neutral",
+                  "aligned_session": "2026-07-30T21:00:00Z",
+                  "session_return": 0.011589747187875643,
+                  "outcome_session": "2026-08-06T21:00:00Z",
+                  "forward_return": 0.017138155094628793
+                },
+                {
+                  "news_id": "GIOR-20260731-1",
+                  "asset_id": "GIOR",
+                  "published_at": "2026-07-31T13:49:00Z",
+                  "sentiment_label": "neutral",
+                  "aligned_session": "2026-07-31T21:00:00Z",
+                  "session_return": -0.01331891731459256,
+                  "outcome_session": "2026-08-07T21:00:00Z",
+                  "forward_return": 0.06331311839970799
+                },
+                {
+                  "news_id": "KASI-20260804-1",
+                  "asset_id": "KASI",
+                  "published_at": "2026-08-04T11:08:00Z",
+                  "sentiment_label": "negative",
+                  "aligned_session": "2026-08-04T21:00:00Z",
+                  "session_return": 0.016751005286224085,
+                  "outcome_session": "2026-08-11T21:00:00Z",
+                  "forward_return": 0.0321292130323958
+                },
+                {
+                  "news_id": "SOUS-20260804-1",
+                  "asset_id": "SOUS",
+                  "published_at": "2026-08-04T14:53:00Z",
+                  "sentiment_label": "positive",
+                  "aligned_session": "2026-08-04T21:00:00Z",
+                  "session_return": 0.012309346879433525,
+                  "outcome_session": "2026-08-11T21:00:00Z",
+                  "forward_return": 0.02365158097689335
+                },
+                {
+                  "news_id": "STIO-20260804-1",
+                  "asset_id": "STIO",
+                  "published_at": "2026-08-04T15:33:00Z",
+                  "sentiment_label": "positive",
+                  "aligned_session": "2026-08-04T21:00:00Z",
+                  "session_return": 0.0016351586463336787,
+                  "outcome_session": "2026-08-11T21:00:00Z",
+                  "forward_return": 0.08139470060535037
+                },
+                {
+                  "news_id": "STIO-20260805-1",
+                  "asset_id": "STIO",
+                  "published_at": "2026-08-05T17:49:00Z",
+                  "sentiment_label": "positive",
+                  "aligned_session": "2026-08-05T21:00:00Z",
+                  "session_return": 0.01158428648392329,
+                  "outcome_session": "2026-08-12T21:00:00Z",
+                  "forward_return": 0.10357669808207648
+                },
+                {
+                  "news_id": "PRAL-20260806-1",
+                  "asset_id": "PRAL",
+                  "published_at": "2026-08-06T11:22:00Z",
+                  "sentiment_label": "neutral",
+                  "aligned_session": "2026-08-06T21:00:00Z",
+                  "session_return": -0.009954422802204044,
+                  "outcome_session": "2026-08-13T21:00:00Z",
+                  "forward_return": 0.07679446658421507
+                },
+                {
+                  "news_id": "SOUS-20260806-1",
+                  "asset_id": "SOUS",
+                  "published_at": "2026-08-06T11:39:00Z",
+                  "sentiment_label": "positive",
+                  "aligned_session": "2026-08-06T21:00:00Z",
+                  "session_return": -0.010726030633851025,
+                  "outcome_session": "2026-08-13T21:00:00Z",
+                  "forward_return": 0.09199407146016014
+                },
+                {
+                  "news_id": "HARE-20260806-1",
+                  "asset_id": "HARE",
+                  "published_at": "2026-08-06T12:00:00Z",
+                  "sentiment_label": "negative",
+                  "aligned_session": "2026-08-06T21:00:00Z",
+                  "session_return": 0.0004868730346765382,
+                  "outcome_session": "2026-08-13T21:00:00Z",
+                  "forward_return": 0.0032235767443733465
+                },
+                {
+                  "news_id": "PEAX-20260806-1",
+                  "asset_id": "PEAX",
+                  "published_at": "2026-08-06T12:44:00Z",
+                  "sentiment_label": "positive",
+                  "aligned_session": "2026-08-06T21:00:00Z",
+                  "session_return": 0.006662189388851658,
+                  "outcome_session": "2026-08-13T21:00:00Z",
+                  "forward_return": 0.037370239906065805
+                },
+                {
+                  "news_id": "VIAS-20260806-1",
+                  "asset_id": "VIAS",
+                  "published_at": "2026-08-06T13:27:00Z",
+                  "sentiment_label": "neutral",
+                  "aligned_session": "2026-08-06T21:00:00Z",
+                  "session_return": -0.009880018768014032,
+                  "outcome_session": "2026-08-13T21:00:00Z",
+                  "forward_return": -0.025237618132091244
+                }
+              ],
+              "events_truncated": true
+            },
+            "error": null,
+            "engine": {
+              "device": "gpu",
+              "library": "cudf.pandas",
+              "version": "26.06.00",
+              "engineId": "cudf-gpu.v1"
+            },
+            "timing": {
+              "computeMs": 141.7154548689723,
+              "setupMs": 0.8954321965575218,
+              "engineMs": 142.61088706552982,
+              "totalMs": 144.44393594749272
+            },
+            "rowsScanned": 90,
+            "assetCount": 12,
+            "warnings": [
+              "11 of 90 articles have no forward return (forward_return is null): the data ends before 5 sessions after them. They are listed and counted per asset, but the per-label summaries and the correlation leave them out.",
+              "Only the first 50 events are listed; asset_summaries count every article."
+            ],
+            "limitations": [
+              "The analysis is descriptive correlation and does not establish causation.",
+              "Publication timing, label quality, overlapping events and omitted variables can affect the relationship.",
+              "Results are not investment advice."
+            ]
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "artifactKind": "retrieval_evidence",
+          "receiptId": "hermes-receipt:db99f3675ef165fa986586da41dc8cfb86bfcb96784b5bc4da5f7bc55b019776",
+          "jobId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66",
+          "invocationId": "hermes-tool:call-2cf6a8ed-7bce-4960-9077-11ad00ff897f",
+          "turnId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66:9caeeb0d-a672-4552-af66-75cd6ff2fa66:a8af6925",
+          "toolName": "mcp__retrieval__retrieve_evidence",
+          "status": "completed",
+          "errorType": null,
+          "errorSummary": null,
+          "durationMs": 1140,
+          "traceId": null,
+          "spanId": null,
+          "occurredAt": "2026-10-02T18:34:59.915152Z",
+          "content": {
+            "query": "the company experienced an operational disruption that affected production or operations",
+            "sourceIds": [
+              "sec_filings"
+            ],
+            "collection": "synthetic_market_documents",
+            "collectionVersion": "synthetic_market_documents__0e83262712b7",
+            "hits": [
+              {
+                "rank": 1,
+                "score": -2.490234375,
+                "vectorScore": 0.32872894406318665,
+                "sourceId": "sec_filings",
+                "documentId": "edgar:0000866706:0001104659-26-057162:tm2613615d1_ex99-1.htm",
+                "chunkId": "edgar:0000866706:0001104659-26-057162:tm2613615d1_ex99-1.htm:0005",
+                "title": "ESCO TECHNOLOGIES INC 8-K: EXHIBIT 99.1",
+                "url": "https://www.sec.gov/Archives/edgar/data/866706/0001104659-26-057162.txt",
+                "publishedAt": "2026-05-07T00:00:00Z",
+                "snippet": "or natural disasters on the Company’s operations and those of the Company’s customers and suppliers; disruptions in manufacturing or delivery arrangements due to shortages or unavailability of materials or components; restrictions or closures of critical supply routes such as the Strait of Hormuz; other supply chain disruptions; inability to access work sites; the timing and content of future contract awards or customer orders; the timely appropriation, allocation and availability of Government funds; the termination for convenience of Government and other customer contracts or orders; weakening of economic conditions in served markets; the success of the Company’s competitors; changes in customer demands or customer insolvencies; competition; intellectual property rights; technical difficulties or data breaches; the availability of acquisitions; delivery delays or defaults by customers; performance issues with key customers, suppliers and subcontractors; material changes in the costs and availability of certain raw materials; material changes in the cost of credit; changes in laws and regulations including but not limited to changes in accounting standards and taxation; changes in interest, inflation and employment rates; costs relating to environmental matters arising from current or former facilities; uncertainty regarding the ultimate resolution of current disputes, claims, litigation or arbitration; and the integration and performance of acquired businesses. Non-GAAP Fin",
+                "metadata": {
+                  "citation": "SEC 8-K, ESCO TECHNOLOGIES INC, filed 2026-05-07, accession 0001104659-26-057162",
+                  "cik": "0000866706",
+                  "company_name": "ESCO TECHNOLOGIES INC",
+                  "form": "8-K",
+                  "filed_on": "2026-05-07",
+                  "accession": "0001104659-26-057162",
+                  "document_type": "EX-99.1",
+                  "filename": "tm2613615d1_ex99-1.htm"
+                }
+              },
+              {
+                "rank": 2,
+                "score": -2.8046875,
+                "vectorScore": 0.3225230872631073,
+                "sourceId": "sec_filings",
+                "documentId": "edgar:0001854640:0001628280-26-028450:exh992_20260331.htm",
+                "chunkId": "edgar:0001854640:0001628280-26-028450:exh992_20260331.htm:0006",
+                "title": "Centerra Gold Inc. 6-K: EX-99.2",
+                "url": "https://www.sec.gov/Archives/edgar/data/1854640/0001628280-26-028450.txt",
+                "publishedAt": "2026-04-29T00:00:00Z",
+                "snippet": "matters and geotechnical issues and the Company’s continued ability to successfully manage such matters, including: unanticipated ground and water conditions; the stability of the pit walls at the Company’s operations leading to structural cave-ins, wall failures or rock-slides; the integrity of tailings storage facilities and the management thereof, including as to stability, compliance with laws, regulations, licenses and permits, controlling seepages and storage of water, where applicable; there being no significant disruptions affecting the activities of the Company whether due to extreme weather events or other related natural disasters, labour disruptions, supply disruptions, power disruptions, damage to equipment or other force majeure events; the risk of having sufficient water to continue operations at the Mount Milligan Mine and achieve expected mill throughput; changes to, or delays in the Company’s supply chain and transportation routes, including cessation or disruption in rail and shipping networks, whether caused by decisions of third-party providers or force majeure events (including, but not limited to: labour action, flooding, landslides, seismic activity, wildfires, earthquakes, pandemics, or other global events such as wars); lower than expected ore grades or recovery rates; the success of the Company’s future exploration and development activities, including the financial and political risks inherent in carrying out exploration activities; inherent risks ",
+                "metadata": {
+                  "citation": "SEC 6-K, Centerra Gold Inc., filed 2026-04-29, accession 0001628280-26-028450",
+                  "cik": "0001854640",
+                  "company_name": "Centerra Gold Inc.",
+                  "form": "6-K",
+                  "filed_on": "2026-04-29",
+                  "accession": "0001628280-26-028450",
+                  "document_type": "EX-99.2",
+                  "filename": "exh992_20260331.htm"
+                }
+              },
+              {
+                "rank": 3,
+                "score": -2.9609375,
+                "vectorScore": 0.2621789276599884,
+                "sourceId": "sec_filings",
+                "documentId": "edgar:0000769218:0001171843-26-002455:f6k_041526.htm",
+                "chunkId": "edgar:0000769218:0001171843-26-002455:f6k_041526.htm:0008",
+                "title": "AEGON LTD. 6-K: FORM 6-K",
+                "url": "https://www.sec.gov/Archives/edgar/data/769218/0001171843-26-002455.txt",
+                "publishedAt": "2026-04-15T00:00:00Z",
+                "snippet": "system disruptions or failures, security or data privacy breaches, cyberattacks, human error, failure to safeguard personally identifiable information, changes in operational practices or inadequate controls including with respect to third parties with which Aegon does business) which may disrupt Aegon’s business, damage its reputation and adversely affect its results of operations, financial condition and cash flows.Aegon’s failure to swiftly, effectively, and securely adapt and integrate emerging technologies.The impact of acquisitions and divestitures, restructurings, product withdrawals and other unusual items, including Aegon’s ability to complete, or obtain regulatory approval for, acquisitions and divestitures, integrate acquisitions, and realize anticipated results from such transactions, and its ability to separate businesses as part of divestitures. In particular, there is no certainty or guarantee what the manner, timing, and potential impacts of the planned relocation of the company’s legal domicile and head office to the United States will be, and if such a relocation can be completed successfully.Aegon’s failure to achieve anticipated levels of earnings or operational efficiencies, as well as other management initiatives related to cost savings, Cash Capital at Holding, gross financial leverage and free cash flow.Changes in the policies of central banks and/or governments.Litigation or regulatory action that could require Aegon to pay significant damages or chan",
+                "metadata": {
+                  "citation": "SEC 6-K, AEGON LTD., filed 2026-04-15, accession 0001171843-26-002455",
+                  "cik": "0000769218",
+                  "company_name": "AEGON LTD.",
+                  "form": "6-K",
+                  "filed_on": "2026-04-15",
+                  "accession": "0001171843-26-002455",
+                  "document_type": "6-K",
+                  "filename": "f6k_041526.htm"
+                }
+              },
+              {
+                "rank": 4,
+                "score": -3.21875,
+                "vectorScore": 0.25612494349479675,
+                "sourceId": "sec_filings",
+                "documentId": "edgar:0001178819:0001178819-26-000058:ex99203312026mda.htm",
+                "chunkId": "edgar:0001178819:0001178819-26-000058:ex99203312026mda.htm:0061",
+                "title": "ALAMOS GOLD INC 6-K: EX-99.2",
+                "url": "https://www.sec.gov/Archives/edgar/data/1178819/0001178819-26-000058.txt",
+                "publishedAt": "2026-04-30T00:00:00Z",
+                "snippet": "to mining operations generally or auxiliary businesses or services required for the Company’s operations) in Canada, Mexico and other jurisdictions in which the Company does or may conduct business; political and economic conditions and developments in the jurisdictions in which the Company operates and in the world generally; fluctuations in the price of gold or certain other commodities such as, diesel fuel, natural gas, and electricity; changes in foreign exchange rates (particularly CAD, MXN and USD); the impact of inflation and any tariffs, trade barriers and/or regulatory costs; changes in the Company's credit rating; any decision to declare a quarterly dividend; employee and community relations; litigation, administrative or regulatory proceedings and any resulting court, administrative, regulatory or arbitral decision(s) or order(s); disruptions affecting operations; availability of and increased costs associated with mining inputs and labour; delays in implementing growth and improvement initiatives; delays with the Phase 3+ Shaft Expansion or the IGD Expansion; delays in or obstructions to construction of the 115kV powerline; delays with the expansion of the Magino mill, paste plant construction project, construction of the Lynn Lake Project, construction of the PDA project, and/or the development or updating of mine plans; changes with respect to the intended method of accessing, mining the deposit, and processing any ore at PDA; risks associated with the start-up ",
+                "metadata": {
+                  "citation": "SEC 6-K, ALAMOS GOLD INC, filed 2026-04-30, accession 0001178819-26-000058",
+                  "cik": "0001178819",
+                  "company_name": "ALAMOS GOLD INC",
+                  "form": "6-K",
+                  "filed_on": "2026-04-30",
+                  "accession": "0001178819-26-000058",
+                  "document_type": "EX-99.2",
+                  "filename": "ex99203312026mda.htm"
+                }
+              },
+              {
+                "rank": 5,
+                "score": -3.69140625,
+                "vectorScore": 0.270376980304718,
+                "sourceId": "sec_filings",
+                "documentId": "edgar:0000802481:0000802481-26-000028:a2026_q1ppcex991earningsre.htm",
+                "chunkId": "edgar:0000802481:0000802481-26-000028:a2026_q1ppcex991earningsre.htm:0005",
+                "title": "PILGRIMS PRIDE CORP 8-K: EX-99.1",
+                "url": "https://www.sec.gov/Archives/edgar/data/802481/0000802481-26-000028.txt",
+                "publishedAt": "2026-04-30T00:00:00Z",
+                "snippet": "the poultry industry generally; the ability to execute the Company’s business plan to achieve desired cost savings and profitability; future pricing for feed ingredients and the Company’s products; outbreaks of avian influenza or other diseases, either in Pilgrim’s Pride’s flocks or elsewhere, affecting its ability to conduct its operations and/or demand for its poultry products; contamination of Pilgrim’s Pride’s products, which has previously and can in the future lead to product liability claims and product recalls; exposure to risks related to product liability, product recalls, property damage and injuries to persons, for which insurance coverage is expensive, limited and potentially inadequate; management of cash resources; restrictions imposed by, and as a result of, Pilgrim’s Pride’s leverage; changes in laws or regulations affecting Pilgrim’s Pride’s operations or the application thereof; new immigration legislation or increased enforcement efforts in connection with existing immigration legislation that cause the costs of doing business to increase, cause Pilgrim’s Pride to change the way in which it does business, or otherwise disrupt its operations; competitive factors and pricing pressures or the loss of one or more of Pilgrim’s Pride’s largest customers; currency exchange rate fluctuations, trade barriers, exchange controls, expropriation and other risks associated with foreign operations; disruptions in international markets and distribution channels, including",
+                "metadata": {
+                  "citation": "SEC 8-K, PILGRIMS PRIDE CORP, filed 2026-04-30, accession 0000802481-26-000028",
+                  "cik": "0000802481",
+                  "company_name": "PILGRIMS PRIDE CORP",
+                  "form": "8-K",
+                  "filed_on": "2026-04-30",
+                  "accession": "0000802481-26-000028",
+                  "document_type": "EX-99.1",
+                  "filename": "a2026_q1ppcex991earningsre.htm"
+                }
+              },
+              {
+                "rank": 6,
+                "score": -3.8125,
+                "vectorScore": 0.2617775797843933,
+                "sourceId": "sec_filings",
+                "documentId": "edgar:0001178819:0001178819-26-000058:ex991alamosgoldq12026earni.htm",
+                "chunkId": "edgar:0001178819:0001178819-26-000058:ex991alamosgoldq12026earni.htm:0034",
+                "title": "ALAMOS GOLD INC 6-K: EX-99.1",
+                "url": "https://www.sec.gov/Archives/edgar/data/1178819/0001178819-26-000058.txt",
+                "publishedAt": "2026-04-30T00:00:00Z",
+                "snippet": "Company's credit rating; any decision to declare a quarterly dividend; employee and community relations; litigation, administrative or regulatory proceedings and any resulting court, administrative, regulatory or arbitral decision(s) or order(s); disruptions affecting operations; availability of and increased costs associated with mining inputs and labour; delays in implementing growth and improvement initiatives; delays with the Phase 3+ Shaft Expansion or the IGD Expansion; delays in or obstructions to construction of the 115kV 25 | Alamos Gold Incpowerline; delays with the expansion of the Magino mill, paste plant construction project, construction of the Lynn Lake Project, construction of the PDA project, and/or the development or updating of mine plans; changes with respect to the intended method of accessing, mining the deposit, and processing any ore at PDA; risks associated with the start-up of new mines; the risk that the Company’s mines may not perform as planned; uncertainty with the Company’s ability to secure additional capital to execute its business plans; the speculative nature of mineral exploration and development, including the risks of obtaining and maintaining necessary licenses and permits, including the necessary licenses, permits, authorizations and/or approvals from the appropriate regulatory authorities for the Company’s development stage and operating assets; labour and contractor availability (and being able to secure the same on favourable terms);",
+                "metadata": {
+                  "citation": "SEC 6-K, ALAMOS GOLD INC, filed 2026-04-30, accession 0001178819-26-000058",
+                  "cik": "0001178819",
+                  "company_name": "ALAMOS GOLD INC",
+                  "form": "6-K",
+                  "filed_on": "2026-04-30",
+                  "accession": "0001178819-26-000058",
+                  "document_type": "EX-99.1",
+                  "filename": "ex991alamosgoldq12026earni.htm"
+                }
+              },
+              {
+                "rank": 7,
+                "score": -3.91015625,
+                "vectorScore": 0.287986695766449,
+                "sourceId": "sec_filings",
+                "documentId": "edgar:0001350593:0001350593-26-000022:exhibit991pressreleasefy26.htm",
+                "chunkId": "edgar:0001350593:0001350593-26-000022:exhibit991pressreleasefy26.htm:0008",
+                "title": "Mueller Water Products, Inc. 8-K: EX-99.1",
+                "url": "https://www.sec.gov/Archives/edgar/data/1350593/0001350593-26-000022.txt",
+                "publishedAt": "2026-05-05T00:00:00Z",
+                "snippet": "that address activities, events or developments that the Company intends, expects, plans, projects, believes or anticipates will or may occur in the future are forward-looking statements, including, without limitation, statements regarding outlooks, projections, forecasts, expectations, commitments, trend descriptions and the ability to capitalize on trends, value creation, long-term strategies, and the execution or acceleration thereof, operational improvements, inventory positions, the benefits of capital investments, financial or operating performance, including driving increased margins, operational and commercial initiatives, capital allocation and growth strategy plans, and the demand for the Company’s products. Forward-looking statements are based on certain assumptions and assessments made by the Company in light of the Company’s experience and perception of historical trends, current conditions and expected future developments.Actual results and the timing of events may differ materially from those contemplated by the forward-looking statements due to a number of factors, including, without limitation, changing regulatory, trade and tariff conditions, including the impact of the Section 232 tariffs on the products produced by our Krausz business; logistical challenges and supply chain disruptions, geopolitical conditions, public health crises, or other events; inventory and in-stock positions of our distributors and end customers; an inability to realize the anticipa",
+                "metadata": {
+                  "citation": "SEC 8-K, Mueller Water Products, Inc., filed 2026-05-05, accession 0001350593-26-000022",
+                  "cik": "0001350593",
+                  "company_name": "Mueller Water Products, Inc.",
+                  "form": "8-K",
+                  "filed_on": "2026-05-05",
+                  "accession": "0001350593-26-000022",
+                  "document_type": "EX-99.1",
+                  "filename": "exhibit991pressreleasefy26.htm"
+                }
+              },
+              {
+                "rank": 8,
+                "score": -3.9140625,
+                "vectorScore": 0.2543429434299469,
+                "sourceId": "sec_filings",
+                "documentId": "edgar:0000764065:0000764065-26-000067:clf-202603318xkex991.htm",
+                "chunkId": "edgar:0000764065:0000764065-26-000067:clf-202603318xkex991.htm:0006",
+                "title": "CLEVELAND-CLIFFS INC. 8-K: EX-99.1",
+                "url": "https://www.sec.gov/Archives/edgar/data/764065/0000764065-26-000067.txt",
+                "publishedAt": "2026-04-20T00:00:00Z",
+                "snippet": "transporting raw materials and spare parts to us; our ability to implement strategic or sustaining capital projects on time and on budget; uncertainties associated with natural or human-caused disasters, adverse weather conditions, unanticipated geological conditions, critical equipment failures, infectious disease outbreaks, tailings dam failures and other unexpected events; cybersecurity incidents relating to, disruptions in, or failures of, information technology systems that are managed by us or third parties that host or have access to our data or systems, including the loss, theft or corruption of our or third parties' sensitive or essential business or personal information and the inability to access or control systems; emerging risks related to the adoption and regulation of artificial intelligence, including our ability to achieve the expected benefits of our adoption of information technology platforms that use artificial intelligence; liabilities and costs arising in connection with business decisions to temporarily or indefinitely idle or permanently close an operating facility or mine, which could adversely impact the carrying value of associated assets and give rise to impairment charges or closure and reclamation obligations, as well as uncertainties associated with resuming production at any previously idled operating facility or mine; our level of self-insurance and our ability to obtain sufficient third-party insurance to adequately cover potential adverse e",
+                "metadata": {
+                  "citation": "SEC 8-K, CLEVELAND-CLIFFS INC., filed 2026-04-20, accession 0000764065-26-000067",
+                  "cik": "0000764065",
+                  "company_name": "CLEVELAND-CLIFFS INC.",
+                  "form": "8-K",
+                  "filed_on": "2026-04-20",
+                  "accession": "0000764065-26-000067",
+                  "document_type": "EX-99.1",
+                  "filename": "clf-202603318xkex991.htm"
+                }
+              }
+            ],
+            "candidateCounts": {
+              "sec_filings": 32
+            },
+            "models": {
+              "embed": "nvidia/nemotron-3-embed-1b",
+              "rerank": "nvidia/llama-nemotron-rerank-vl-1b-v2"
+            },
+            "index": {
+              "type": "HNSW",
+              "metric": "COSINE",
+              "params": {
+                "M": 16,
+                "efConstruction": 200
+              },
+              "searchParams": {
+                "ef": 128
+              }
+            },
+            "timings": {
+              "embedMs": 346.4,
+              "searchMs": 16.8,
+              "rerankMs": 757.5,
+              "totalMs": 1120.7
+            }
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "artifactKind": "retrieval_evidence",
+          "receiptId": "hermes-receipt:83bd7a5eabe50b374d1fd4afcd91dd495ccd2b8a0bde508c967b7eab43454962",
+          "jobId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66",
+          "invocationId": "hermes-tool:call-d175f8a8-38c9-4186-97da-4f72d0fd983d",
+          "turnId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66:9caeeb0d-a672-4552-af66-75cd6ff2fa66:a8af6925",
+          "toolName": "mcp__retrieval__retrieve_evidence",
+          "status": "completed",
+          "errorType": null,
+          "errorSummary": null,
+          "durationMs": 1062,
+          "traceId": null,
+          "spanId": null,
+          "occurredAt": "2026-10-02T18:35:06.715206Z",
+          "content": {
+            "query": "production was halted or operations were disrupted due to equipment failure or weather or labor stoppage",
+            "sourceIds": [
+              "sec_filings"
+            ],
+            "collection": "synthetic_market_documents",
+            "collectionVersion": "synthetic_market_documents__0e83262712b7",
+            "hits": [
+              {
+                "rank": 1,
+                "score": -3.90625,
+                "vectorScore": 0.3089779019355774,
+                "sourceId": "sec_filings",
+                "documentId": "edgar:0001854640:0001628280-26-028450:exh992_20260331.htm",
+                "chunkId": "edgar:0001854640:0001628280-26-028450:exh992_20260331.htm:0006",
+                "title": "Centerra Gold Inc. 6-K: EX-99.2",
+                "url": "https://www.sec.gov/Archives/edgar/data/1854640/0001628280-26-028450.txt",
+                "publishedAt": "2026-04-29T00:00:00Z",
+                "snippet": "matters and geotechnical issues and the Company’s continued ability to successfully manage such matters, including: unanticipated ground and water conditions; the stability of the pit walls at the Company’s operations leading to structural cave-ins, wall failures or rock-slides; the integrity of tailings storage facilities and the management thereof, including as to stability, compliance with laws, regulations, licenses and permits, controlling seepages and storage of water, where applicable; there being no significant disruptions affecting the activities of the Company whether due to extreme weather events or other related natural disasters, labour disruptions, supply disruptions, power disruptions, damage to equipment or other force majeure events; the risk of having sufficient water to continue operations at the Mount Milligan Mine and achieve expected mill throughput; changes to, or delays in the Company’s supply chain and transportation routes, including cessation or disruption in rail and shipping networks, whether caused by decisions of third-party providers or force majeure events (including, but not limited to: labour action, flooding, landslides, seismic activity, wildfires, earthquakes, pandemics, or other global events such as wars); lower than expected ore grades or recovery rates; the success of the Company’s future exploration and development activities, including the financial and political risks inherent in carrying out exploration activities; inherent risks ",
+                "metadata": {
+                  "citation": "SEC 6-K, Centerra Gold Inc., filed 2026-04-29, accession 0001628280-26-028450",
+                  "cik": "0001854640",
+                  "company_name": "Centerra Gold Inc.",
+                  "form": "6-K",
+                  "filed_on": "2026-04-29",
+                  "accession": "0001628280-26-028450",
+                  "document_type": "EX-99.2",
+                  "filename": "exh992_20260331.htm"
+                }
+              },
+              {
+                "rank": 2,
+                "score": -4.3984375,
+                "vectorScore": 0.26276591420173645,
+                "sourceId": "sec_filings",
+                "documentId": "edgar:0000764065:0000764065-26-000067:clf-202603318xkex991.htm",
+                "chunkId": "edgar:0000764065:0000764065-26-000067:clf-202603318xkex991.htm:0006",
+                "title": "CLEVELAND-CLIFFS INC. 8-K: EX-99.1",
+                "url": "https://www.sec.gov/Archives/edgar/data/764065/0000764065-26-000067.txt",
+                "publishedAt": "2026-04-20T00:00:00Z",
+                "snippet": "transporting raw materials and spare parts to us; our ability to implement strategic or sustaining capital projects on time and on budget; uncertainties associated with natural or human-caused disasters, adverse weather conditions, unanticipated geological conditions, critical equipment failures, infectious disease outbreaks, tailings dam failures and other unexpected events; cybersecurity incidents relating to, disruptions in, or failures of, information technology systems that are managed by us or third parties that host or have access to our data or systems, including the loss, theft or corruption of our or third parties' sensitive or essential business or personal information and the inability to access or control systems; emerging risks related to the adoption and regulation of artificial intelligence, including our ability to achieve the expected benefits of our adoption of information technology platforms that use artificial intelligence; liabilities and costs arising in connection with business decisions to temporarily or indefinitely idle or permanently close an operating facility or mine, which could adversely impact the carrying value of associated assets and give rise to impairment charges or closure and reclamation obligations, as well as uncertainties associated with resuming production at any previously idled operating facility or mine; our level of self-insurance and our ability to obtain sufficient third-party insurance to adequately cover potential adverse e",
+                "metadata": {
+                  "citation": "SEC 8-K, CLEVELAND-CLIFFS INC., filed 2026-04-20, accession 0000764065-26-000067",
+                  "cik": "0000764065",
+                  "company_name": "CLEVELAND-CLIFFS INC.",
+                  "form": "8-K",
+                  "filed_on": "2026-04-20",
+                  "accession": "0000764065-26-000067",
+                  "document_type": "EX-99.1",
+                  "filename": "clf-202603318xkex991.htm"
+                }
+              },
+              {
+                "rank": 3,
+                "score": -4.78125,
+                "vectorScore": 0.24134311079978943,
+                "sourceId": "sec_filings",
+                "documentId": "edgar:0000101538:0001104659-26-062742:tm2614820d1_ex99-1.htm",
+                "chunkId": "edgar:0000101538:0001104659-26-062742:tm2614820d1_ex99-1.htm:0030",
+                "title": "UNITED STATES ANTIMONY CORP 8-K: EXHIBIT 99.1",
+                "url": "https://www.sec.gov/Archives/edgar/data/101538/0001104659-26-062742.txt",
+                "publishedAt": "2026-05-15T00:00:00Z",
+                "snippet": "you for your time and hope you have a good rest of your week. Operator This concludes today’s webcast, and you may disconnect your lines at this time. Thank you for your participation. Transcript Provided by 18 Cautionary Note Regarding Forward-Looking Statements: This transcript contains forward-looking statements within the meaning of the Private Securities Litigation Reform Act of 1995, including, without limitation, statements regarding the Company’s future operations, production levels, financial performance, business strategy, market conditions, demand for antimony, zeolite, other critical minerals and precious metals, expected costs, and other statements that are not historical facts. These statements are based on current expectations, estimates, forecasts, and projections about the industries in which the Company operates, as well as management’s beliefs and assumptions. Words such as “anticipates,” “expects,” “intends,” “plans,” “believes,” “seeks,” “estimates,” “may,” “will,” “should,” “could,” and variations of these words or similar expressions are intended to identify such forward-looking statements. Forward-looking statements are subject to certain risks and uncertainties that could cause actual results to differ materially from those indicated in such statements, including, but not limited to: fluctuations in the market prices and demand for antimony and zeolite; changes in domestic and global economic conditions; operational risks inherent in mining and minera",
+                "metadata": {
+                  "citation": "SEC 8-K, UNITED STATES ANTIMONY CORP, filed 2026-05-15, accession 0001104659-26-062742",
+                  "cik": "0000101538",
+                  "company_name": "UNITED STATES ANTIMONY CORP",
+                  "form": "8-K",
+                  "filed_on": "2026-05-15",
+                  "accession": "0001104659-26-062742",
+                  "document_type": "EX-99.1",
+                  "filename": "tm2614820d1_ex99-1.htm"
+                }
+              },
+              {
+                "rank": 4,
+                "score": -4.9140625,
+                "vectorScore": 0.24577414989471436,
+                "sourceId": "sec_filings",
+                "documentId": "edgar:0001340677:0001104659-26-078750:tm2619048d2_ex99-1.htm",
+                "chunkId": "edgar:0001340677:0001104659-26-078750:tm2619048d2_ex99-1.htm:0034",
+                "title": "SILVERCORP METALS INC 6-K: EXHIBIT 99.1",
+                "url": "https://www.sec.gov/Archives/edgar/data/1340677/0001104659-26-078750.txt",
+                "publishedAt": "2026-06-29T00:00:00Z",
+                "snippet": "Moderate Medium Stockpile management Inadequate space for ore stockpile. Unlikely Minor Low Equipment shortage Insufficient quantity of production equipment as a result of unstable total material movement. Possible Minor Low Processing Production capacity Significant variability in feed ore characteristics may cause processing capacity to fall below target. Possible Moderate Medium Product recovery The actual recoveries of copper, zinc, gold, and silver may be lower than the design targets. Possible Moderate Medium Infrastructure Steep terrain leads to restricted operation Limited flat areas in the open pit result in inadequate room for ore and waste stockpiles; narrow and steep haul roads constrain truck throughput, causing congestion, delays and increased safety risks during daily mining operations. Possible Minor Low Power supply Lack of power supply in heavy load season, leading to production unstable. Unlikely Minor Low TSF Dam management/ WRF 2 Dam failure leading tailings leak out. Unlikely Unlikely Unlikely Waste rock management risk due to potential under-provision of acid-forming waste rock storage. inaccurate estimation of the proportion of acid-forming waste rock during operation may lead to insufficient capacity in dedicated acid waste dumps, causing improper disposal, environmental risks and operational disruptions. Possible Moderate Medium SRK CONSULTING CHINA LTD. n MAY 31, 2026 EFFECTIVE DATE: DEC. 31, 2025 n FH/AT13 Technical Report on Curipamba-El Domo Poly",
+                "metadata": {
+                  "citation": "SEC 6-K, SILVERCORP METALS INC, filed 2026-06-29, accession 0001104659-26-078750",
+                  "cik": "0001340677",
+                  "company_name": "SILVERCORP METALS INC",
+                  "form": "6-K",
+                  "filed_on": "2026-06-29",
+                  "accession": "0001104659-26-078750",
+                  "document_type": "EX-99.1",
+                  "filename": "tm2619048d2_ex99-1.htm"
+                }
+              },
+              {
+                "rank": 5,
+                "score": -4.921875,
+                "vectorScore": 0.31407833099365234,
+                "sourceId": "sec_filings",
+                "documentId": "edgar:0001203464:0001628280-26-030747:q12026mda.htm",
+                "chunkId": "edgar:0001203464:0001628280-26-030747:q12026mda.htm:0064",
+                "title": "IAMGOLD CORP 6-K: EX-99.1",
+                "url": "https://www.sec.gov/Archives/edgar/data/1203464/0001628280-26-030747.txt",
+                "publishedAt": "2026-05-05T00:00:00Z",
+                "snippet": "costs are estimates which may require revision; the presence of unfavourable content in ore deposits, including clay and coarse gold; inaccuracies in life of mine plans; failure to meet operational targets; equipment malfunctions; information systems security threats and cybersecurity; laws and regulations governing the protection of the environment (including greenhouse gas emission reduction and other energy transition requirements; the uncertainty surrounding the interpretation of omnibus Bill C-59 and the related amendments to the Competition Act (Canada); employee relations and labour disputes; the maintenance of tailings storage facilities and the potential for a major spill or failure of the tailings facilities due to uncontrollable events, lack of reliable infrastructure, including access to roads, bridges, power sources and water supplies; physical and regulatory risks related to climate change; unpredictable weather patterns and challenging weather conditions at mine sites; disruptions from weather related events resulting in limited or no productivity such as forest fires, severe storms, flooding, drought, heavy snowfall, poor air quality, and extreme heat or cold; attraction and retention of key employees and other qualified personnel; availability and increasing costs associated with mining inputs and labour, negotiations with respect to new, reasonable collective labour agreements and/or collective bargaining agreements may not be agreed to; the ability of contr",
+                "metadata": {
+                  "citation": "SEC 6-K, IAMGOLD CORP, filed 2026-05-05, accession 0001628280-26-030747",
+                  "cik": "0001203464",
+                  "company_name": "IAMGOLD CORP",
+                  "form": "6-K",
+                  "filed_on": "2026-05-05",
+                  "accession": "0001628280-26-030747",
+                  "document_type": "EX-99.1",
+                  "filename": "q12026mda.htm"
+                }
+              },
+              {
+                "rank": 6,
+                "score": -4.9765625,
+                "vectorScore": 0.23370951414108276,
+                "sourceId": "sec_filings",
+                "documentId": "edgar:0001977102:0001193125-26-233295:birk-ex99_1.htm",
+                "chunkId": "edgar:0001977102:0001193125-26-233295:birk-ex99_1.htm:0004",
+                "title": "Birkenstock Holding plc 6-K: EX-99.1",
+                "url": "https://www.sec.gov/Archives/edgar/data/1977102/0001193125-26-233295.txt",
+                "publishedAt": "2026-05-21T00:00:00Z",
+                "snippet": "and our ability to react to any of them; the relative illiquidity of our real property investments and our ability to sell properties on reasonable terms in response to changing economic, financial and investment conditions; risks related to our non-footwear products; failure to realize expected returns from our investments in our businesses and operations; our ability to adequately manage our acquisitions, investments or other strategic initiatives; our ability to manage our operations at our current size or manage future growth effectively; currency exchange rate fluctuations; risks related to global or regional health events; our dependence on third parties for our sales and distribution channels, as well as deterioration or termination of relationships with major wholesale partners; risks related to the conversion of wholesale distribution markets to owned and operated markets and risks related to productivity or efficiency initiatives; operational challenges related to the distribution of our products; seasonality, weather conditions and climate change; adverse events influencing the sustainability of our supply chain or our relationships with major suppliers, or increases in raw materials or labor costs; our ability to effectively manage inventory; unforeseen business interruptions and other operational problems at our production facilities, as well as disruptions to our shipping and delivery arrangements; fluctuations in product costs and availability due to fuel price",
+                "metadata": {
+                  "citation": "SEC 6-K, Birkenstock Holding plc, filed 2026-05-21, accession 0001193125-26-233295",
+                  "cik": "0001977102",
+                  "company_name": "Birkenstock Holding plc",
+                  "form": "6-K",
+                  "filed_on": "2026-05-21",
+                  "accession": "0001193125-26-233295",
+                  "document_type": "EX-99.1",
+                  "filename": "birk-ex99_1.htm"
+                }
+              },
+              {
+                "rank": 7,
+                "score": -5.015625,
+                "vectorScore": 0.24173197150230408,
+                "sourceId": "sec_filings",
+                "documentId": "edgar:0001178819:0001178819-26-000058:ex99203312026mda.htm",
+                "chunkId": "edgar:0001178819:0001178819-26-000058:ex99203312026mda.htm:0060",
+                "title": "ALAMOS GOLD INC 6-K: EX-99.2",
+                "url": "https://www.sec.gov/Archives/edgar/data/1178819/0001178819-26-000058.txt",
+                "publishedAt": "2026-04-30T00:00:00Z",
+                "snippet": "that express management's expectations or estimates of future performance, operational, geological or financial results. Alamos cautions that forward-looking statements are necessarily based upon several factors and assumptions that, while considered reasonable by the Company at the time of making such statements, are inherently subject to significant business, economic, technical, legal, political and competitive uncertainties and contingencies. Known and unknown factors could cause actual results to differ materially from those projected in the forward-looking statements and undue reliance should not be placed on such statements and information.Risk factors that may affect Alamos’ ability to achieve the expectations set forth in the forward-looking statements in this document include, but are not limited to: the actual results of current exploration activities; changes to current estimates of Mineral Reserves and Resources; changes to production estimates (which assume accuracy of projected ore grade, mining rates, recovery timing and recovery rate estimates which may be impacted by unscheduled maintenance, weather issues, labour and contractor availability and other operating or technical difficulties in connection with mining or development activities, including geotechnical challenges); conclusions of economic and geological evaluations; the costs and timing of exploration, construction and development of new deposits; changes in project parameters as plans continue to b",
+                "metadata": {
+                  "citation": "SEC 6-K, ALAMOS GOLD INC, filed 2026-04-30, accession 0001178819-26-000058",
+                  "cik": "0001178819",
+                  "company_name": "ALAMOS GOLD INC",
+                  "form": "6-K",
+                  "filed_on": "2026-04-30",
+                  "accession": "0001178819-26-000058",
+                  "document_type": "EX-99.2",
+                  "filename": "ex99203312026mda.htm"
+                }
+              },
+              {
+                "rank": 8,
+                "score": -5.0390625,
+                "vectorScore": 0.28026193380355835,
+                "sourceId": "sec_filings",
+                "documentId": "edgar:0000931148:0000931148-26-000049:a2026-1qearningspressrelea.htm",
+                "chunkId": "edgar:0000931148:0000931148-26-000049:a2026-1qearningspressrelea.htm:0007",
+                "title": "GRAFTECH INTERNATIONAL LTD 8-K: EX-99.1",
+                "url": "https://www.sec.gov/Archives/edgar/data/931148/0000931148-26-000049.txt",
+                "publishedAt": "2026-05-01T00:00:00Z",
+                "snippet": "of reduced profitability and net losses or adversely impact liquidity; the sensitivity of our business and operating results to economic conditions, including any recession, and the possibility others may not be able to fulfill their obligations to us in a timely fashion or at all; the possibility that we may be unable to implement our business strategies in an effective manner, including our ability to effectively increase or maintain existing prices and shift sales to regions with higher average selling prices; continued overcapacity of the global graphite electrode industry, which may further adversely affect graphite electrode prices; the competitiveness of the graphite electrode industry; our dependence on the cost and availability of manufacturing inputs, including raw materials, such as decant oil, petroleum needle coke, energy and freight, and disruptions in availability for such inputs; our primary reliance on one facility in Monterrey, Mexico for the manufacturing of connecting pins; the cost of electric power and natural gas, particularly in Europe; our manufacturing operations are subject to hazards; the legal, compliance, economic, social and political risks associated with our substantial operations in multiple countries; the possibility that fluctuation of foreign currency exchange rates could materially harm our financial results; the possibility that our results of operations could further deteriorate if our manufacturing operations were substantially disrupt",
+                "metadata": {
+                  "citation": "SEC 8-K, GRAFTECH INTERNATIONAL LTD, filed 2026-05-01, accession 0000931148-26-000049",
+                  "cik": "0000931148",
+                  "company_name": "GRAFTECH INTERNATIONAL LTD",
+                  "form": "8-K",
+                  "filed_on": "2026-05-01",
+                  "accession": "0000931148-26-000049",
+                  "document_type": "EX-99.1",
+                  "filename": "a2026-1qearningspressrelea.htm"
+                }
+              }
+            ],
+            "candidateCounts": {
+              "sec_filings": 32
+            },
+            "models": {
+              "embed": "nvidia/nemotron-3-embed-1b",
+              "rerank": "nvidia/llama-nemotron-rerank-vl-1b-v2"
+            },
+            "index": {
+              "type": "HNSW",
+              "metric": "COSINE",
+              "params": {
+                "M": 16,
+                "efConstruction": 200
+              },
+              "searchParams": {
+                "ef": 128
+              }
+            },
+            "timings": {
+              "embedMs": 287.9,
+              "searchMs": 12.4,
+              "rerankMs": 743.4,
+              "totalMs": 1043.7
+            }
+          }
+        }
+      ],
+      "sourceIds": [
+        "market_data",
+        "sec_filings"
+      ],
+      "benchmark": {
+        "schemaVersion": "1",
+        "jobId": "9caeeb0d-a672-4552-af66-75cd6ff2fa66",
+        "status": "completed",
+        "reason": null,
+        "measuredAt": "2026-10-02T18:36:48.849268Z",
+        "pairs": 5,
+        "stages": [
+          {
+            "invocationId": "hermes-tool:call-61d21310-80ba-4a99-a4bf-d38b2729d762",
+            "receiptId": "hermes-receipt:a8f9cb15ad8cfa01a102bc70065fd1016697fb16873ccadbffb5b32ab02e893d",
+            "toolName": "analyze_news_price_relationship",
+            "outcome": "completed",
+            "parity": true,
+            "reason": null,
+            "cpu": {
+              "device": "cpu",
+              "library": "pandas",
+              "version": "2.3.3",
+              "trialsMs": [
+                60.839,
+                60.169,
+                59.166,
+                57.586,
+                60.269
+              ],
+              "medianMs": 60.169
+            },
+            "gpu": {
+              "device": "gpu",
+              "library": "cudf.pandas",
+              "version": "26.06.00",
+              "trialsMs": [
+                125.68,
+                136.956,
+                140.963,
+                141.608,
+                126.53
+              ],
+              "medianMs": 136.956
+            },
+            "speedup": null,
+            "speedupRange": null,
+            "qualified": false
+          }
+        ]
+      },
+      "retrievalBenchmark": {
+        "schemaVersion": "1",
+        "collection": "synthetic_market_documents",
+        "collectionVersion": "synthetic_market_documents__0e83262712b7",
+        "embedModel": "nvidia/nemotron-3-embed-1b",
+        "sourceIds": [
+          "market_regulations",
+          "sec_filings"
+        ],
+        "queryCount": 15,
+        "measuredAt": "2026-10-02T18:10:52.347207Z",
+        "profiles": [
+          {
+            "profileId": "vector-single",
+            "executionMode": "single",
+            "batchSize": 1,
+            "concurrency": 1,
+            "repetitions": 3,
+            "topK": 10,
+            "cpu": {
+              "role": "cpu",
+              "indexType": "HNSW",
+              "status": "completed",
+              "requestCount": 45,
+              "vectorCount": 45,
+              "p50Ms": 5.049,
+              "p95Ms": 6.937,
+              "vectorSearchMs": 234.29,
+              "vectorQps": 192.07
+            },
+            "gpu": {
+              "role": "gpu",
+              "indexType": "GPU_IVF_FLAT",
+              "status": "completed",
+              "requestCount": 45,
+              "vectorCount": 45,
+              "p50Ms": 4.446,
+              "p95Ms": 5.631,
+              "vectorSearchMs": 202.009,
+              "vectorQps": 222.76
+            },
+            "quality": {
+              "passed": true,
+              "cpuRecallAtK": 0.96,
+              "gpuRecallAtK": 0.96,
+              "cpuGpuOverlapAtK": 1.0,
+              "failureReasons": []
+            },
+            "claim": {
+              "decision": "gpu_speedup",
+              "observedCpuOverGpuRatio": 1.1598,
+              "gpuSpeedupFactor": 1.1598
+            }
+          },
+          {
+            "profileId": "vector-batch",
+            "executionMode": "batch",
+            "batchSize": 5,
+            "concurrency": 1,
+            "repetitions": 3,
+            "topK": 10,
+            "cpu": {
+              "role": "cpu",
+              "indexType": "HNSW",
+              "status": "completed",
+              "requestCount": 15,
+              "vectorCount": 45,
+              "p50Ms": 6.835,
+              "p95Ms": 8.52,
+              "vectorSearchMs": 101.259,
+              "vectorQps": 444.41
+            },
+            "gpu": {
+              "role": "gpu",
+              "indexType": "GPU_IVF_FLAT",
+              "status": "completed",
+              "requestCount": 15,
+              "vectorCount": 45,
+              "p50Ms": 5.453,
+              "p95Ms": 6.742,
+              "vectorSearchMs": 80.178,
+              "vectorQps": 561.25
+            },
+            "quality": {
+              "passed": true,
+              "cpuRecallAtK": 0.96,
+              "gpuRecallAtK": 0.96,
+              "cpuGpuOverlapAtK": 1.0,
+              "failureReasons": []
+            },
+            "claim": {
+              "decision": "gpu_speedup",
+              "observedCpuOverGpuRatio": 1.2629,
+              "gpuSpeedupFactor": 1.2629
+            }
+          },
+          {
+            "profileId": "vector-concurrency",
+            "executionMode": "concurrency",
+            "batchSize": 1,
+            "concurrency": 5,
+            "repetitions": 3,
+            "topK": 10,
+            "cpu": {
+              "role": "cpu",
+              "indexType": "HNSW",
+              "status": "completed",
+              "requestCount": 45,
+              "vectorCount": 45,
+              "p50Ms": 6.969,
+              "p95Ms": 9.334,
+              "vectorSearchMs": 87.514,
+              "vectorQps": 514.2
+            },
+            "gpu": {
+              "role": "gpu",
+              "indexType": "GPU_IVF_FLAT",
+              "status": "completed",
+              "requestCount": 45,
+              "vectorCount": 45,
+              "p50Ms": 6.218,
+              "p95Ms": 7.841,
+              "vectorSearchMs": 79.595,
+              "vectorQps": 565.36
+            },
+            "quality": {
+              "passed": true,
+              "cpuRecallAtK": 0.96,
+              "gpuRecallAtK": 0.96,
+              "cpuGpuOverlapAtK": 1.0,
+              "failureReasons": []
+            },
+            "claim": {
+              "decision": "cpu_faster_or_equal",
+              "observedCpuOverGpuRatio": 1.0995,
+              "gpuSpeedupFactor": null
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

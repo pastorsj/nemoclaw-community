@@ -1,0 +1,561 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# The whole demo in one Compose file. Profiles pick what runs:
+#   core           OpenShell gateway + Hermes forwarder, Switchyard, Phoenix, data, API, UI
+#   retrieval      Milvus, the document corpus and index, the retrieval MCP server
+#   analytics      market analytics MCP server on CPU (analytics-gpu: on RAPIDS; never both). analytics-gpu also
+#                  holds a GPU Milvus and its one-shot, for the Benchmark tab's CPU/GPU index comparison: demo.sh
+#                  starts them after the stack, with retrieval only, and nothing waits on them
+#   ontology       Auto Ontology, required (the vendor/auto-ontology submodule)
+#   replay         the UI alone, on the recorded sessions: no keys, no API, no GPU
+#   build, tools   the agent sandbox image and the OpenShell CLI, used by scripts/demo.sh
+# Kumo prediction is not a profile: market analytics calls a Kumo Relational service at KUMO_RELATIONAL_URL
+# with KUMO_API_KEY, both or neither (docs/kumo-service.md; the service's own recipe is infra/kumo-service/).
+#
+# Use scripts/demo.sh: it orders the bring-up around the OpenShell sandbox, which Compose
+# does not manage. By hand, pass the OpenShell pins along with .env:
+#   docker compose --env-file infra/openshell/versions.env --env-file .env ...
+#
+# Every host port is published on 127.0.0.1 only, except the UI's when UI_BIND_HOST says
+# otherwise (for a link that requires sign-in, such as a Brev link). The sandbox reaches services as
+# host.openshell.internal:<port>, which the host-networked OpenShell supervisor maps to
+# 127.0.0.1. No variable is required (never ${VAR:?}), so the replay profile needs no .env.
+# Keys reach services as Compose secrets (/run/secrets/<name>), not environment variables.
+# Exception: upstream Auto Ontology (ontology profile) reads its keys from env.
+#
+# An image several services share is built by one of them only: Compose labels each build with its
+# service, so two builds of one image would give it a new ID on every build.
+name: market-demo
+
+x-restart: &restart
+  restart: unless-stopped
+
+x-openshell-cli: &openshell-cli
+  image: market-demo/openshell-cli:local
+  user: "0"
+  environment:
+    # `openshell` is a default SAN of the gateway certificate, so keep this service name.
+    OPENSHELL_GATEWAY: openshell
+    OPENSHELL_GATEWAY_ENDPOINT: https://openshell:18080
+    XDG_CONFIG_HOME: /client
+  volumes:
+    - openshell-client:/client
+    - ./infra/openshell/providers:/providers:ro
+  networks: [openshell]
+
+# External datasets (docs/data-platform.md): real data that is never committed. They live on the host in
+# DATA_SOURCE_DIR, outside the repository; `demo.sh data fetch` fills it, and everything else reads it read-only.
+x-sources: &sources ${DATA_SOURCE_DIR:-${HOME}/market-demo-data}:/sources:ro
+
+x-data: &data
+  image: market-demo/demo-data:local
+  # DATA_PACK_PROFILE and DATA_CORPORA are part of the build key: data and data-corpus must agree.
+  environment: &data-env
+    DATA_PACK: ${DATA_PACK:-synthetic-market}
+    DATA_PACK_PROFILE: ${DATA_PACK_PROFILE:-}
+    DATA_CORPORA: ${DATA_CORPORA:-}
+    DATA_SOURCE_DIR: /sources
+    DATA_DUCKDB_MEMORY: ${DATA_DUCKDB_MEMORY:-} # empty: DuckDB's default; the rollup spills past it
+    SEC_USER_AGENT: ${SEC_USER_AGENT:-} # SEC company data and the SEC EDGAR corpus
+  volumes: [demo-data:/data, *sources]
+
+x-retrieval: &retrieval
+  image: market-demo/retrieval:local
+  secrets: [retriever_api_key]
+  # Empty values mean the tool's defaults (see tools/retrieval/README.md).
+  environment: &retrieval-env
+    RETRIEVER_BASE_URL: ${RETRIEVER_BASE_URL:-}
+    RETRIEVER_EMBED_MODEL: ${RETRIEVER_EMBED_MODEL:-}
+    RETRIEVER_RERANK_MODEL: ${RETRIEVER_RERANK_MODEL:-}
+    RETRIEVER_RERANK_URL: ${RETRIEVER_RERANK_URL:-}
+    MILVUS_URI: http://milvus:19530
+
+x-market-analytics: &market-analytics
+  <<: *restart
+  build: { context: tools/market-analytics, args: { ANALYTICS_EXTRAS: kumo } }
+  image: market-demo/market-analytics:local
+  ports: ["127.0.0.1:3010:3010"]
+  secrets: [kumo_api_key]
+  volumes: [demo-data:/data:ro, *sources] # the sources: the minute bars, read in place
+  depends_on:
+    # The service keeps the build /data/active pointed at when it started: restart it when the data
+    # one-shot is recreated (demo.sh data prepare restarts it itself).
+    data: { condition: service_completed_successfully, restart: true }
+
+secrets:
+  inference_api_key: { environment: INFERENCE_API_KEY }
+  capable_api_key: { environment: CAPABLE_API_KEY } # empty: the inference key, on the inference endpoint only
+  retriever_api_key: { environment: RETRIEVER_API_KEY } # demo.sh fills an empty one from INFERENCE_API_KEY
+  hermes_api_server_key: { environment: HERMES_API_SERVER_KEY }
+  hermes_receipt_api_key: { environment: HERMES_RECEIPT_API_KEY }
+  auto_ontology_password: { environment: AUTO_ONTOLOGY_ADMIN_PASSWORD }
+  speech_api_key: { environment: SPEECH_API_KEY } # voice input; demo.sh fills an empty one (env.sh)
+  kumo_api_key: { environment: KUMO_API_KEY } # empty: no Kumo prediction (with an empty KUMO_RELATIONAL_URL)
+
+networks:
+  default: {}
+  openshell: {}
+
+services:
+  # ---------------------------------------------------------------- OpenShell (core)
+  # The images come from infra/openshell/versions.env. demo.sh creates the Hermes sandbox
+  # through the gateway after everything the sandbox calls is up.
+  openshell-certs:
+    profiles: [core]
+    image: ${OPENSHELL_GATEWAY_IMAGE}
+    user: "0"
+    network_mode: none
+    environment:
+      XDG_CONFIG_HOME: /client
+    command: [generate-certs, --output-dir, /var/lib/openshell/tls]
+    volumes:
+      - openshell-state:/var/lib/openshell
+      - openshell-client:/client
+
+  openshell-preflight:
+    profiles: [core]
+    image: ${OPENSHELL_GATEWAY_IMAGE}
+    user: "0"
+    network_mode: none
+    command: [config, preflight, --path, /etc/openshell/gateway.toml]
+    volumes:
+      - ./infra/openshell/gateway.toml:/etc/openshell/gateway.toml:ro
+
+  openshell:
+    <<: *restart
+    profiles: [core]
+    image: ${OPENSHELL_GATEWAY_IMAGE}
+    user: "0" # the Docker compute driver needs the Docker socket
+    command: [--config, /etc/openshell/gateway.toml]
+    networks: [openshell]
+    ports:
+      - "127.0.0.1:18080:18080" # gRPC/mTLS; the host-networked supervisor dials it
+      - "127.0.0.1:18081:18081" # /readyz; the image is distroless, so demo.sh polls it
+    environment:
+      OPENSHELL_DB_URL: sqlite:/var/lib/openshell/gateway.db?mode=rwc
+      OPENSHELL_LOCAL_TLS_DIR: /var/lib/openshell/tls
+      OPENSHELL_TELEMETRY_ENABLED: "false"
+      XDG_STATE_HOME: /var/lib/openshell
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - openshell-state:/var/lib/openshell
+      - ./infra/openshell/gateway.toml:/etc/openshell/gateway.toml:ro
+    depends_on:
+      openshell-certs: { condition: service_completed_successfully }
+      openshell-preflight: { condition: service_completed_successfully }
+
+  # The API's way in to Hermes, which listens on 127.0.0.1:8642 inside the sandbox.
+  # Start it only once the sandbox is Ready (demo.sh does).
+  hermes-gateway:
+    <<: [*openshell-cli, *restart]
+    profiles: [core]
+    build: { context: infra/openshell, dockerfile: cli.Dockerfile } # also the openshell-cli image
+    networks: [default, openshell]
+    command: [forward, service, hermes, --target-port, "8642", --local, "0.0.0.0:8642"]
+    healthcheck:
+      test: [CMD, curl, -fs, -o, /dev/null, -m, "3", http://127.0.0.1:8642/health] # the one route without a key
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  openshell-cli:
+    <<: *openshell-cli
+    profiles: [tools]
+
+  agent:
+    profiles: [build]
+    image: market-demo/hermes-sandbox:local
+    build:
+      context: agent
+      additional_contexts: { contracts: ./contracts }
+      # demo.sh derives this from COMPOSE_PROFILES; the default matches core,retrieval,analytics.
+      args: { AGENT_FEATURES: "${AGENT_FEATURES-retrieval,analytics}" }
+
+  # ---------------------------------------------------------------- core services
+  switchyard:
+    <<: *restart
+    profiles: [core]
+    build: infra/switchyard
+    image: market-demo/switchyard:local
+    # Not read_only: Compose writes environment-sourced secrets into the container, which a
+    # read-only root filesystem refuses. It runs as uid 1000 with no capabilities instead.
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    ports: ["127.0.0.1:4000:4000"]
+    secrets: [inference_api_key, capable_api_key] # the only holder of the model keys on the agent path
+    environment:
+      SWITCHYARD_ROUTES: ${SWITCHYARD_ROUTES:-}
+      INFERENCE_BASE_URL: ${INFERENCE_BASE_URL:-}
+      CAPABLE_BASE_URL: ${CAPABLE_BASE_URL:-} # empty: INFERENCE_BASE_URL
+      AGENT_EFFICIENT_MODEL: ${AGENT_EFFICIENT_MODEL:-}
+      AGENT_CAPABLE_MODEL: ${AGENT_CAPABLE_MODEL:-}
+      AGENT_JUDGE_MODEL: ${AGENT_JUDGE_MODEL:-}
+      AGENT_AUX_MODEL: ${AGENT_AUX_MODEL:-}
+      SWITCHYARD_CONFIRMATIONS: ${SWITCHYARD_CONFIRMATIONS:-1}
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://phoenix:6006/v1/traces
+      OTEL_SERVICE_NAME: switchyard
+      # The agent's Phoenix project (agent/profile/relay-plugins.toml). These spans join each job's
+      # trace, and Phoenix files a trace under the project of its first span to arrive.
+      OTEL_RESOURCE_ATTRIBUTES: openinference.project.name=market-analysis-agent
+    # routing.jsonl is 0700 uid 1000: mount this volume nowhere else. Read routing stats
+    # from GET /v1/routing/session-stats instead.
+    volumes: [switchyard-data:/var/lib/switchyard]
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=16m,uid=1000,gid=1000"]
+
+  phoenix:
+    <<: *restart
+    profiles: [core]
+    # The non-root variant (uid 65532). Its home is owned by that uid, so a new volume there is too.
+    image: arizephoenix/phoenix:version-20.16.0-nonroot@sha256:e4a41a209b07289581a5d48167a11051c12704ac48983056fe0989b6f13b467a
+    # `phoenix serve` with a longer keep-alive, or Relay loses spans behind the OpenShell proxy.
+    command: [/serve.py]
+    ports: ["127.0.0.1:6006:6006"] # UI and OTLP/HTTP /v1/traces; traces hold full payloads
+    environment:
+      PHOENIX_WORKING_DIR: /home/nonroot
+      PHOENIX_TELEMETRY_ENABLED: "false"
+      PHOENIX_ALLOW_EXTERNAL_RESOURCES: "false"
+    volumes:
+      - phoenix-data:/home/nonroot
+      - ./infra/phoenix/serve.py:/serve.py:ro
+    healthcheck:
+      test: [CMD, python3, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:6006/healthz', timeout=5)"]
+      interval: 10s
+      timeout: 6s
+      retries: 30
+      start_period: 30s
+
+  data:
+    <<: *data
+    profiles: [core]
+    build: { context: ., dockerfile: data/Dockerfile } # also data-corpus's and data-fetch's image
+    command: [prepare, --structured]
+
+  # `demo.sh data fetch`: a pack's external datasets into DATA_SOURCE_DIR, writable here only, then verified.
+  # demo.sh passes each source and the credentials its scheme needs as -e NAME, so no service keeps them.
+  data-fetch:
+    <<: *data
+    profiles: [tools]
+    command: [fetch]
+    volumes: ["${DATA_SOURCE_DIR:-${HOME}/market-demo-data}:/sources"]
+
+  api:
+    <<: *restart
+    profiles: [core]
+    build: { context: api, additional_contexts: { contracts: ./contracts } }
+    image: market-demo/api:local
+    # Room to fail live jobs and stop their Hermes runs on shutdown (Docker's default is 10 s).
+    stop_grace_period: 30s
+    ports: ["127.0.0.1:8000:8000"] # the sandbox may call only /internal/hermes/** (receipts provider)
+    # Settings: api/src/demo_api/settings.py. Keys arrive as files in /run/secrets.
+    secrets: [hermes_api_server_key, hermes_receipt_api_key, auto_ontology_password, speech_api_key]
+    environment:
+      HERMES_URL: http://hermes-gateway:8642
+      # The Benchmark tab's matched CPU/GPU runs (POST /benchmark on the GPU service; analytics-gpu profile)
+      MARKET_ANALYTICS_URL: http://market-analytics:3010
+      # Voice input (.env section 6): Nemotron ASR on build.nvidia.com; off unless enabled and keyed
+      SPEECH_INPUT_ENABLED: ${SPEECH_INPUT_ENABLED:-false}
+      SPEECH_INPUT_MAX_SECONDS: ${SPEECH_INPUT_MAX_SECONDS:-60}
+      SPEECH_CLEANUP_MODEL: ${SPEECH_CLEANUP_MODEL:-}
+      AIQ_PHOENIX_INTERNAL_URL: http://phoenix:6006
+      AGENT_FEATURES: ${AGENT_FEATURES-retrieval,analytics}
+      # Switchyard's model ids, which name each model call's tier (`demo.sh restart switchyard` refreshes them)
+      AGENT_EFFICIENT_MODEL: ${AGENT_EFFICIENT_MODEL:-}
+      AGENT_CAPABLE_MODEL: ${AGENT_CAPABLE_MODEL:-}
+      JOB_RETENTION_SECONDS: ${JOB_RETENTION_SECONDS:-86400}
+      # demo.sh sets http://auto-ontology-frontend:3000 under the ontology profile; empty = off.
+      AUTO_ONTOLOGY_URL: ${AUTO_ONTOLOGY_URL:-}
+      AUTO_ONTOLOGY_EMAIL: admin@example.com
+    volumes: [api-data:/var/lib/demo-api, demo-data:/data:ro]
+    # No dependency on hermes-gateway: the API must be up before the sandbox is created.
+    depends_on:
+      data: { condition: service_completed_successfully }
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  ui:
+    <<: *restart
+    profiles: [core, replay]
+    build: ui
+    image: market-demo/ui:local
+    ports: ["${UI_BIND_HOST:-127.0.0.1}:${UI_PORT:-3100}:3000"] # the only non-loopback opt-in
+    environment:
+      UI_MODE: ${UI_MODE:-live} # demo.sh replay sets replay
+      API_URL: http://api:8000
+      DATA_PACK: ${DATA_PACK:-synthetic-market}
+      PHOENIX_URL: ${PHOENIX_URL-http://127.0.0.1:6006} # empty hides the Phoenix link
+      SPEECH_INPUT_ENABLED: ${SPEECH_INPUT_ENABLED:-false} # the microphone (live mode only)
+      SPEECH_INPUT_MAX_SECONDS: ${SPEECH_INPUT_MAX_SECONDS:-60}
+    volumes: [./data/packs:/packs:ro]
+    depends_on:
+      api: { condition: service_healthy, required: false } # not in the replay profile
+
+  # ---------------------------------------------------------------- retrieval
+  # CPU standalone Milvus: embedded etcd and local storage, no MinIO (official standalone_embed.sh).
+  milvus: &milvus
+    <<: *restart
+    profiles: [retrieval]
+    image: milvusdb/milvus:v2.6.25@sha256:29f7668e64df1c6d5cdadbfbee99f38c72e4001054f149a298725acae57230ad
+    command: [milvus, run, standalone]
+    security_opt: ["seccomp:unconfined"]
+    environment:
+      ETCD_USE_EMBED: "true"
+      ETCD_DATA_DIR: /var/lib/milvus/etcd
+      ETCD_CONFIG_PATH: /milvus/configs/embedEtcd.yaml
+      COMMON_STORAGETYPE: local
+      DEPLOY_MODE: STANDALONE
+    volumes:
+      - milvus-data:/var/lib/milvus
+      - ./tools/retrieval/milvus/embedEtcd.yaml:/milvus/configs/embedEtcd.yaml:ro
+      - ./tools/retrieval/milvus/user.yaml:/milvus/configs/user.yaml:ro
+    healthcheck:
+      test: [CMD, curl, -f, http://localhost:9091/healthz]
+      interval: 10s
+      timeout: 20s
+      retries: 30
+      start_period: 90s
+
+  # The analytics-gpu profile's second Milvus, on the GPU image: it holds a GPU_IVF_FLAT (NVIDIA cuVS) copy of the active
+  # build for the Benchmark tab's Milvus comparison. retrieve_evidence never searches it; answers come from `milvus`.
+  milvus-gpu:
+    <<: *milvus
+    profiles: [analytics-gpu]
+    image: milvusdb/milvus:v2.6.25-gpu@sha256:801ed126476797845ba9e3cc0043d68b57468d429858d7b8e4fb43af0a12a15f
+    gpus: all
+    volumes:
+      - milvus-gpu-data:/var/lib/milvus
+      - ./tools/retrieval/milvus/embedEtcd.yaml:/milvus/configs/embedEtcd.yaml:ro
+      - ./tools/retrieval/milvus/gpu.yaml:/milvus/configs/user.yaml:ro # the GPU memory pool
+
+  data-corpus:
+    <<: *data
+    profiles: [retrieval]
+    command: [prepare, --corpus]
+    depends_on:
+      data: { condition: service_completed_successfully }
+
+  retrieval-index:
+    <<: *retrieval
+    profiles: [retrieval]
+    command: [ingest]
+    healthcheck: { disable: true } # the image healthcheck is for `serve`
+    volumes: [demo-data:/data] # writes /data/active/collection-manifest.json
+    depends_on:
+      milvus: { condition: service_healthy }
+      data-corpus: { condition: service_completed_successfully }
+
+  # analytics-gpu with retrieval: times the build's vector searches on `milvus` and on its copy in `milvus-gpu`, once
+  # per build, into /data/active/retrieval-benchmark.json for the API (`benchmark --guard`, the GPU guard, into its own
+  # file). demo.sh runs it once the stack is up, and no service depends on it: a GPU Milvus that never turns healthy
+  # leaves the comparison out, never the answers.
+  retrieval-benchmark:
+    <<: *retrieval
+    profiles: [analytics-gpu]
+    command: [benchmark]
+    healthcheck: { disable: true } # the image healthcheck is for `serve`
+    environment:
+      <<: *retrieval-env
+      MILVUS_GPU_URI: http://milvus-gpu:19530
+    volumes: [demo-data:/data] # writes its retrieval-benchmark files into /data/active
+    depends_on:
+      milvus-gpu: { condition: service_healthy }
+      retrieval-index: { condition: service_completed_successfully, required: false } # not without retrieval
+
+  retrieval:
+    <<: [*retrieval, *restart]
+    profiles: [retrieval]
+    build: tools/retrieval # also retrieval-index's and retrieval-benchmark's image
+    command: [serve]
+    ports: ["127.0.0.1:8120:8120"]
+    environment:
+      <<: *retrieval-env
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://phoenix:6006/v1/traces
+      OTEL_RESOURCE_ATTRIBUTES: openinference.project.name=market-analysis-agent # as Switchyard's
+    volumes: [demo-data:/data:ro]
+    depends_on:
+      retrieval-index: { condition: service_completed_successfully }
+      # The server keeps the collection of the build it started on: restart it when the data one-shot is
+      # recreated for another build, as market analytics (demo.sh data prepare restarts it itself).
+      data: { condition: service_completed_successfully, restart: true }
+
+  # ---------------------------------------------------------------- analytics
+  market-analytics:
+    <<: *market-analytics
+    profiles: [analytics]
+    environment: &market-analytics-env
+      DATA_ACTIVE_DIR: /data/active
+      # The Kumo Relational service (docs/kumo-service.md): predict_asset_outcomes is registered only when both
+      # this URL and the kumo_api_key secret (KUMO_API_KEY, sent as X-API-Key) are set.
+      KUMO_RELATIONAL_URL: ${KUMO_RELATIONAL_URL:-}
+      MARKET_ANALYTICS_TIMEOUT_SECONDS: ${MARKET_ANALYTICS_TIMEOUT_SECONDS:-120}
+      # Empty = the engine's default: 256 MiB on the CPU, 1 GiB on the GPU (tools/market-analytics).
+      MARKET_ANALYTICS_BATCH_BYTES: ${MARKET_ANALYTICS_BATCH_BYTES:-}
+
+  market-analytics-gpu:
+    <<: *market-analytics
+    profiles: [analytics-gpu]
+    build: { context: tools/market-analytics, args: { ANALYTICS_EXTRAS: "gpu-cu12,kumo" } }
+    image: market-demo/market-analytics:gpu
+    environment:
+      <<: *market-analytics-env
+      MARKET_ANALYTICS_ENGINE: gpu
+      # Managed memory: a pack past the GPU's memory pages to host memory instead of failing (tools/market-analytics).
+      CUDF_PANDAS_RMM_MODE: managed_pool
+    gpus: all
+    networks:
+      default: { aliases: [market-analytics] }
+
+  # ---------------------------------------------------------------- Auto Ontology (ontology)
+  # Upstream's images, built from .build/auto-ontology, which tools/auto-ontology/prepare.sh
+  # writes (demo.sh runs it). Env contract: tools/auto-ontology/README.md.
+  auto-ontology-db:
+    <<: *restart
+    profiles: [ontology]
+    image: pgvector/pgvector:pg17@sha256:cf134a767f474095eeba57e0117be8e568e011a63f33fbf252f14c9b760f8e6f
+    environment:
+      POSTGRES_USER: auto_ontology
+      POSTGRES_PASSWORD: auto_ontology # private network only; the database is never published
+      POSTGRES_DB: auto_ontology
+    volumes: [auto-ontology-db:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U auto_ontology -d auto_ontology]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  auto-ontology-migrate:
+    profiles: [ontology]
+    image: market-demo/auto-ontology:local
+    command: [migrate]
+    environment: &auto-ontology-env
+      POSTGRES_HOST: auto-ontology-db
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: auto_ontology
+      POSTGRES_PASSWORD: auto_ontology
+      POSTGRES_DATABASE: auto_ontology
+      INGESTION_SERVICE_URL: http://auto-ontology-ingestion:3002
+    depends_on:
+      auto-ontology-db: { condition: service_healthy }
+
+  auto-ontology:
+    <<: *restart
+    profiles: [ontology]
+    build: .build/auto-ontology # also migrate's, seed's and ingestion's image
+    image: market-demo/auto-ontology:local
+    # Every model setting is explicit, or upstream falls back to built-in defaults. Reasoning
+    # runs on the inference endpoint (not through Switchyard), embed and rerank on the retriever's.
+    environment: &auto-ontology-models
+      <<: *auto-ontology-env
+      REASONING_ENDPOINT: ${INFERENCE_BASE_URL:-}
+      REASONING_API_KEY: ${INFERENCE_API_KEY:-}
+      REASONING_MODEL: ${AUTO_ONTOLOGY_REASONING_MODEL:-}
+      NON_REASONING_ENDPOINT: ${INFERENCE_BASE_URL:-}
+      NON_REASONING_API_KEY: ${INFERENCE_API_KEY:-}
+      NON_REASONING_MODEL: ${AUTO_ONTOLOGY_NON_REASONING_MODEL:-}
+      EMBED_ENDPOINT: ${RETRIEVER_BASE_URL:-https://integrate.api.nvidia.com/v1}
+      EMBED_API_KEY: ${RETRIEVER_API_KEY:-${INFERENCE_API_KEY:-}}
+      EMBED_MODEL: ${RETRIEVER_EMBED_MODEL:-nvidia/nemotron-3-embed-1b}
+      RERANK_ENDPOINT: ${RETRIEVER_RERANK_URL:-https://ai.api.nvidia.com/v1/retrieval/nvidia/llama-nemotron-rerank-vl-1b-v2/reranking}
+      RERANK_API_KEY: ${RETRIEVER_API_KEY:-${INFERENCE_API_KEY:-}}
+      RERANK_MODEL: ${RETRIEVER_RERANK_MODEL:-nvidia/llama-nemotron-rerank-vl-1b-v2}
+      # demo.sh derives DATA_DATABASE_NAME from DATA_PACK (Compose cannot replace - with _).
+      CONNECTION_STRINGS: duckdb:///data/active/structured/${DATA_DATABASE_NAME:-synthetic_market}.duckdb
+      SEMANTIC_SEARCH_EXCLUDED_SCHEMAS: ${DATA_DATABASE_NAME:-synthetic_market}.prediction
+    volumes: [demo-data:/data:ro]
+    depends_on:
+      auto-ontology-migrate: { condition: service_completed_successfully }
+      data: { condition: service_completed_successfully }
+
+  # Imports /data/active/ontology/model.yaml before ingestion first reads the database. When the model changed
+  # since the last seed, it first resets that database's catalog (tools/auto-ontology/seed.py), so it needs
+  # Postgres and the backend's own code in /app.
+  auto-ontology-seed:
+    profiles: [ontology]
+    image: market-demo/auto-ontology:local
+    entrypoint: [python, /seed.py]
+    environment:
+      <<: *auto-ontology-env
+      PYTHONPATH: /app
+    volumes:
+      - demo-data:/data:ro
+      - ./tools/auto-ontology/seed.py:/seed.py:ro
+    depends_on:
+      auto-ontology: { condition: service_healthy }
+
+  auto-ontology-ingestion:
+    <<: *restart
+    profiles: [ontology]
+    image: market-demo/auto-ontology:local
+    command: [ingestion_service]
+    environment: *auto-ontology-models
+    volumes: [demo-data:/data:ro]
+    depends_on:
+      auto-ontology-seed: { condition: service_completed_successfully }
+    # The image healthcheck probes the backend (:3001); ingestion serves :3002.
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:3002/health/live', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  auto-ontology-frontend-migrate:
+    profiles: [ontology]
+    image: market-demo/auto-ontology-frontend:local
+    working_dir: /app/migrate
+    command: [sh, prisma/migrate.sh]
+    environment: *auto-ontology-env
+    depends_on:
+      auto-ontology-db: { condition: service_healthy }
+
+  # The web UI, never published. The API signs in here for the data viewer's ontology.
+  auto-ontology-frontend:
+    <<: *restart
+    profiles: [ontology]
+    build: .build/auto-ontology/frontend # also frontend-migrate's image
+    image: market-demo/auto-ontology-frontend:local
+    environment:
+      <<: *auto-ontology-env
+      PYTHON_API_URL: http://auto-ontology:3001
+      APP_URL: http://auto-ontology-frontend:3000
+      AUTO_ONTOLOGY_ADMIN_EMAIL: admin@example.com
+      AUTO_ONTOLOGY_ADMIN_PASSWORD: ${AUTO_ONTOLOGY_ADMIN_PASSWORD:-}
+      AUTH_SECRET: ${AUTO_ONTOLOGY_AUTH_SECRET:-}
+    depends_on:
+      auto-ontology: { condition: service_healthy }
+      auto-ontology-frontend-migrate: { condition: service_completed_successfully }
+
+  auto-ontology-mcp:
+    <<: *restart
+    profiles: [ontology]
+    build: .build/auto-ontology/mcp
+    image: market-demo/auto-ontology-mcp:local
+    ports: ["127.0.0.1:3003:3003"]
+    environment:
+      AUTO_ONTOLOGY_API_URL: http://auto-ontology:3001
+      # Safe only because nothing untrusted can reach it: loopback and the Compose network.
+      AUTO_ONTOLOGY_MCP_TRUSTED_SERVICE_MODE: "true"
+      AUTO_ONTOLOGY_MCP_HOST: 0.0.0.0
+      AUTO_ONTOLOGY_MCP_PORT: "3003"
+      AUTO_ONTOLOGY_MCP_CHAT_TIMEOUT_S: "900"
+    depends_on:
+      auto-ontology: { condition: service_healthy }
+      auto-ontology-ingestion: { condition: service_healthy }
+
+volumes:
+  demo-data: {}
+  api-data: {}
+  phoenix-data: {}
+  milvus-data: {}
+  milvus-gpu-data: {}
+  switchyard-data: {}
+  openshell-state: {}
+  openshell-client: {}
+  # One per data pack: Auto Ontology keeps term names unique, and every pack names its tables alike (assets,
+  # daily_prices), so one pack's ontology cannot be imported over another's. Switching back reuses the old one.
+  auto-ontology-db:
+    name: market-demo_auto-ontology-db_${DATA_DATABASE_NAME:-synthetic_market}

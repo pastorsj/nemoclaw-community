@@ -1,0 +1,198 @@
+From: Sam Pastoriza <pastorsj@users.noreply.github.com>
+Subject: [PATCH] Report ontology resolution lineage
+
+Chat results gain resolution_lineage: each extracted phrase with the ontology
+object, table and column it resolved to, taken from the retrieved column
+attributes. Scores, embeddings, prompts and reasoning stay out.
+
+Upstream: NVIDIA/auto-ontology#251 and #256.
+---
+diff --git a/auto_ontology/retrieval/data_access/semantic_search.py b/auto_ontology/retrieval/data_access/semantic_search.py
+index 40c12ab7..d34cd330 100644
+--- a/auto_ontology/retrieval/data_access/semantic_search.py
++++ b/auto_ontology/retrieval/data_access/semantic_search.py
+@@ -305,7 +305,18 @@ def _hits_to_semantic_rows(
+             "label": lab,
+             "score": score,
+         }
+-        for _field in ("name", "schema_name", "database_name", "data_type", "source"):
++        # The term, table and column let callers show which catalog objects a
++        # question resolved to (see ``text_to_sql.main._resolution_lineage``).
++        for _field in (
++            "name",
++            "term_name",
++            "table_name",
++            "source_column",
++            "schema_name",
++            "database_name",
++            "data_type",
++            "source",
++        ):
+             val = meta.get(_field)
+             if val is not None:
+                 row[_field] = val
+diff --git a/auto_ontology/retrieval/data_access/tests/test_semantic_search.py b/auto_ontology/retrieval/data_access/tests/test_semantic_search.py
+index 19c673d1..b0f5b252 100644
+--- a/auto_ontology/retrieval/data_access/tests/test_semantic_search.py
++++ b/auto_ontology/retrieval/data_access/tests/test_semantic_search.py
+@@ -78,6 +78,47 @@ def test_schema_scoped_search_is_not_filtered() -> None:
+     }
+ 
+ 
++def test_rows_keep_the_catalog_lineage_fields() -> None:
++    retriever = _Retriever(
++        [
++            {
++                "text": "ColumnAttribute: Close of Term Daily Price.",
++                "_distance": 0.01,
++                "metadata": {
++                    "id": "attr-close",
++                    "name": "Close",
++                    "term_name": "Daily Price",
++                    "label": "ColumnAttribute",
++                    "database_name": "analytics",
++                    "schema_name": "main",
++                    "table_name": "daily_prices",
++                    "source_column": "adjusted_close",
++                    "embedding": [0.1, 0.2],
++                },
++            }
++        ]
++    )
++
++    rows = semantic_search.search_semantic_index(
++        retriever, "closing price", label_filter=["ColumnAttribute"]
++    )
++
++    assert rows == [
++        {
++            "text": "ColumnAttribute: Close of Term Daily Price.",
++            "id": "attr-close",
++            "label": "ColumnAttribute",
++            "score": 0.01,
++            "name": "Close",
++            "term_name": "Daily Price",
++            "table_name": "daily_prices",
++            "source_column": "adjusted_close",
++            "schema_name": "main",
++            "database_name": "analytics",
++        }
++    ]
++
++
+ def test_no_setting_leaves_the_filter_unchanged(
+     monkeypatch: pytest.MonkeyPatch,
+ ) -> None:
+diff --git a/auto_ontology/retrieval/text_to_sql/main.py b/auto_ontology/retrieval/text_to_sql/main.py
+index c2c43ed3..9ffffe03 100644
+--- a/auto_ontology/retrieval/text_to_sql/main.py
++++ b/auto_ontology/retrieval/text_to_sql/main.py
+@@ -157,9 +157,51 @@ def _extract_answer(final_state: dict) -> dict:
+         else:
+             final_response = ""
+ 
+-    if isinstance(final_response, dict):
+-        return final_response
+-    return {"response": str(final_response)}
++    answer = (
++        dict(final_response)
++        if isinstance(final_response, dict)
++        else {"response": str(final_response)}
++    )
++    lineage = _resolution_lineage(path_state)
++    if lineage:
++        answer["resolution_lineage"] = lineage
++    return answer
++
++
++def _resolution_lineage(path_state: dict, limit: int = 40) -> list[dict[str, str]]:
++    """Map each extracted phrase to the ontology object and column it resolved to.
++
++    Built from the retrieved column attributes, so it reports only catalog
++    names: no scores, embeddings, prompts or model reasoning.
++    """
++    records: list[dict[str, str]] = []
++    seen: set[tuple[str, ...]] = set()
++    for candidate in path_state.get("retrieved_column_attributes") or []:
++        if not isinstance(candidate, dict) or not candidate.get("name"):
++            continue
++        schema = str(candidate.get("schema_name") or "")
++        table = str(candidate.get("table_name") or "")
++        record = {
++            "ontology_object": str(candidate["name"]),
++            "table": f"{schema}.{table}" if schema and table else table,
++            "column": str(candidate.get("source_column") or ""),
++        }
++        phrases = candidate.get("query_entities")
++        if not isinstance(phrases, list):
++            phrases = [candidate.get("query_entity")]
++        for phrase in phrases:
++            if not isinstance(phrase, str) or not phrase.strip():
++                continue
++            identity = (phrase.strip(), *record.values())
++            if identity in seen:
++                continue
++            seen.add(identity)
++            records.append(
++                {"phrase": phrase.strip(), **{k: v for k, v in record.items() if v}}
++            )
++            if len(records) == limit:
++                return records
++    return records
+ 
+ 
+ def _sql_about_to_run(node_name: str, node_output: dict, node_path_state: dict) -> str:
+diff --git a/auto_ontology/retrieval/text_to_sql/tests/test_stream_sql_events.py b/auto_ontology/retrieval/text_to_sql/tests/test_stream_sql_events.py
+index 8123edee..ccd0b2a8 100644
+--- a/auto_ontology/retrieval/text_to_sql/tests/test_stream_sql_events.py
++++ b/auto_ontology/retrieval/text_to_sql/tests/test_stream_sql_events.py
+@@ -422,6 +422,49 @@ def test_stream_ends_with_a_result_event(
+     assert events[-1]["answer"]["sql_code"] == "SELECT 42"
+ 
+ 
++def test_result_reports_phrase_to_ontology_lineage(
++    main: ModuleType, monkeypatch: pytest.MonkeyPatch
++) -> None:
++    attribute = {
++        "name": "Close",
++        "query_entities": ["closing price", "closing price"],
++        "schema_name": "main",
++        "table_name": "daily_prices",
++        "source_column": "adjusted_close",
++        "score": 0.01,
++    }
++    events = _run(
++        main,
++        monkeypatch,
++        [
++            {
++                "retrieve_candidates": {
++                    "path_state": {"retrieved_column_attributes": [attribute]}
++                }
++            },
++            {
++                "format_and_respond": {
++                    "path_state": {
++                        "final_response": {
++                            "response": "NVDA closed highest.",
++                            "sql_code": "SELECT asset_id FROM daily_prices",
++                        }
++                    }
++                }
++            },
++        ],
++    )
++
++    assert events[-1]["answer"]["resolution_lineage"] == [
++        {
++            "phrase": "closing price",
++            "ontology_object": "Close",
++            "table": "main.daily_prices",
++            "column": "adjusted_close",
++        }
++    ]
++
++
+ def test_generator_iterates_lazily(
+     main: ModuleType, monkeypatch: pytest.MonkeyPatch
+ ) -> None:

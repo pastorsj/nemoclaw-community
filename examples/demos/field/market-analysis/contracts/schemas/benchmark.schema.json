@@ -1,0 +1,259 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "BenchmarkStage": {
+      "additionalProperties": false,
+      "description": "One market analytics call of the run, replayed on both engines.",
+      "properties": {
+        "invocationId": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\s\\x00-\\x1f\\x7f]+$",
+          "type": "string"
+        },
+        "receiptId": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\s\\x00-\\x1f\\x7f]+$",
+          "type": "string"
+        },
+        "toolName": {
+          "enum": [
+            "market_scan",
+            "market_anomaly_scan",
+            "price_context",
+            "sentiment_timeline",
+            "analyze_news_price_relationship",
+            "analyze_market_relationships",
+            "intraday_scan"
+          ],
+          "type": "string"
+        },
+        "outcome": {
+          "enum": [
+            "completed",
+            "mismatch",
+            "failed",
+            "unavailable"
+          ],
+          "type": "string"
+        },
+        "parity": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Both engines returned the same payload; null when not compared"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "cpu": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EngineTrials"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "gpu": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EngineTrials"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "speedup": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Median CPU time over median GPU time; only when qualified"
+        },
+        "speedupRange": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SpeedupRange"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Only when qualified"
+        },
+        "qualified": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "invocationId",
+        "receiptId",
+        "toolName",
+        "outcome",
+        "parity",
+        "reason",
+        "cpu",
+        "gpu",
+        "speedup",
+        "speedupRange",
+        "qualified"
+      ],
+      "title": "BenchmarkStage",
+      "type": "object"
+    },
+    "EngineTrials": {
+      "additionalProperties": false,
+      "description": "One engine's timed trials of one call, in milliseconds of the tool's compute timer.",
+      "properties": {
+        "device": {
+          "enum": [
+            "cpu",
+            "gpu"
+          ],
+          "type": "string"
+        },
+        "library": {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        "version": {
+          "maxLength": 64,
+          "type": "string"
+        },
+        "trialsMs": {
+          "items": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "maxItems": 20,
+          "type": "array"
+        },
+        "medianMs": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "device",
+        "library",
+        "version",
+        "trialsMs",
+        "medianMs"
+      ],
+      "title": "EngineTrials",
+      "type": "object"
+    },
+    "SpeedupRange": {
+      "additionalProperties": false,
+      "description": "The lowest and highest CPU/GPU time ratio of a matched pair.",
+      "properties": {
+        "low": {
+          "exclusiveMinimum": 0,
+          "type": "number"
+        },
+        "high": {
+          "exclusiveMinimum": 0,
+          "type": "number"
+        }
+      },
+      "required": [
+        "low",
+        "high"
+      ],
+      "title": "SpeedupRange",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "``GET``/``POST /v1/jobs/async/job/{id}/benchmark``, and a recorded turn's ``benchmark``.",
+  "properties": {
+    "schemaVersion": {
+      "const": "1",
+      "default": "1",
+      "type": "string"
+    },
+    "jobId": {
+      "maxLength": 256,
+      "minLength": 1,
+      "pattern": "^[^\\s\\x00-\\x1f\\x7f]+$",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "completed",
+        "unavailable",
+        "failed"
+      ],
+      "type": "string"
+    },
+    "reason": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "measuredAt": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "pairs": {
+      "description": "Matched pairs asked of each call",
+      "maximum": 20,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "stages": {
+      "items": {
+        "$ref": "#/$defs/BenchmarkStage"
+      },
+      "maxItems": 16,
+      "type": "array"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "jobId",
+    "status",
+    "reason",
+    "measuredAt",
+    "pairs",
+    "stages"
+  ],
+  "title": "Benchmark",
+  "type": "object"
+}

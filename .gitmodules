@@ -1,3 +1,7 @@
 [submodule "examples/tools/harness-engineering-playground/external/deepagents"]
 	path = examples/tools/harness-engineering-playground/external/deepagents
 	url = https://github.com/langchain-ai/deepagents.git
+[submodule "examples/demos/field/market-analysis/vendor/auto-ontology"]
+	path = examples/demos/field/market-analysis/vendor/auto-ontology
+	url = https://github.com/NVIDIA/auto-ontology.git
+	update = none

@@ -1,0 +1,5 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Extra config to override default milvus.yaml, mounted at /milvus/configs/user.yaml.
+# Empty, as in the official single-container recipe (scripts/standalone_embed.sh, v2.6.25).

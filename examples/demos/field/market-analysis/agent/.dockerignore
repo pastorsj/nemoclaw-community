@@ -1,0 +1,5 @@
+# Only what agent/Dockerfile copies belongs in the build context.
+.venv
+.pytest_cache
+**/__pycache__
+tests

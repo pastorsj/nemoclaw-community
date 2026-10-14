@@ -1,0 +1,82 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Descriptions for the Auto Ontology model (ontology/model.yaml in the build). Keys come from schema.sql
+# and the `prediction` section of pack.yaml; a column without a description here is described by its name.
+tables:
+  assets:
+    description: >-
+      Fictional US-listed issuers. asset_id is the ticker. Names and profiles were written by Nemotron and checked
+      against SEC's ticker lists, so none is a real company.
+    columns:
+      company_name: The fictional issuer's name.
+      cik: Always empty; the issuers are not SEC registrants.
+      sic_code: A real four-digit Standard Industrial Classification code, as SEC uses them.
+      sector: The SIC division, e.g. Manufacturing or Finance, Insurance and Real Estate.
+      industry: SEC's description of the SIC code.
+      exchange: The listing exchange, Nasdaq or NYSE.
+      profile: A one-sentence description of the fictional issuer, written by Nemotron.
+      first_session: The first trading session with a price for this issuer.
+      last_session: The last trading session with a price for this issuer.
+      sessions: Number of trading sessions with a price.
+      median_dollar_volume: Median daily dollar volume (close times volume, in USD) through the prediction anchor.
+      liquidity_rank: >-
+        1 for the highest median daily dollar volume. The 12 most liquid are the story issuers, each with one
+        planted news story, and form the prediction population.
+      is_synthetic: True; every issuer here is fictional.
+  ticker_history:
+    description: One row per issuer with its ticker, effective from its first session.
+  trading_sessions:
+    description: US exchange sessions (weekdays without NYSE holidays). Holidays are absent.
+    columns:
+      close_at: The regular-session close (16:00 US/Eastern) as a UTC timestamp.
+      symbols: How many issuers had a bar that day.
+  daily_prices:
+    description: >-
+      Synthetic daily bars from a seeded factor model (market, industry and issuer returns with fat tails), in
+      USD. There are no splits or dividends. This data is not investment advice. Every issuer has a bar on every
+      session.
+      An issuer's return over a window is one number: its last adjusted_close in the window over its adjusted_close
+      on the session before the window's first session, minus 1 (its total_return_1d values in the window
+      compounded). The N sessions ending on a date are the last session on or before that date and the N-1
+      sessions before it, so the base is the close on the session before those N and N daily returns compound.
+      It is not measured from the first close in the window, and it is not an average or median of
+      total_return_1d. A group's issuer count is every issuer of the group in assets, and its median return is the
+      median of its issuers' window returns.
+    columns:
+      adjusted_close: Equal to close; there are no corporate actions.
+      volume: Shares traded in the session.
+      dollar_volume: Close times volume (summed over minute bars in the 1-minute profiles), in USD.
+      bar_count: Bars rolled up into the day; 391 for 1-minute profiles, else 1.
+      total_return_1d: >-
+        One session's return, close over the previous session's close, minus 1; 0 on an issuer's first session.
+        Compound it over a window's sessions for the window's return.
+  asset_relationships:
+    description: >-
+      Declared peers: for each issuer, the most liquid other issuers with the same four-digit SIC code.
+    columns:
+      peer_rank: 1 for the most liquid peer.
+  company_news:
+    description: >-
+      Ticker-linked company news from a fictional newswire. Background headlines fill Nemotron-written templates;
+      the 12 story items have their own Nemotron headline and summary. A positive item nudges the next session's
+      return up and a negative one down; a story item moves its own session by 6 to 12 percent.
+    columns:
+      primary_asset_id: The issuer the item is about.
+      published_at: When the item was published (UTC). It belongs to the first session that closes after it.
+      source_name: Always "Synthetic Newswire".
+      summary: Two or three sentences for story items; empty for background headlines.
+      event_type: earnings, guidance, product, contract, partnership, regulatory, legal, management, operations or capital.
+      sentiment_label: positive, neutral or negative for the issuer.
+      is_story: True for the 12 planted story items (August 17 to 28, 2026).
+  asset_entities:
+    description: The 12 most liquid issuers listed at the prediction anchor.
+  price_events:
+    description: Daily price features observable on or before the prediction anchor.
+  news_events:
+    description: Company news published on or before the prediction anchor.
+  return_outcomes:
+    description: Historical five-session forward-return outcomes fully realized by the prediction anchor.
+    columns:
+      forward_return_5d: Historical adjusted-close return over the following five sessions.
+      realized_at: Fifth later trading session when the outcome became observable.

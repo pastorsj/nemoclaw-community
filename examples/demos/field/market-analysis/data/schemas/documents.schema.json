@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:nemoclaw-community:market-analysis:schemas:documents",
+  "title": "One line of corpus/documents.jsonl",
+  "description": "A whole source document. Chunking belongs to retrieval ingestion, which embeds `text` only; metadata is for filtering and citations.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["document_id", "source_id", "title", "text", "url", "published_at", "metadata"],
+  "properties": {
+    "document_id": { "description": "Unique within the build.", "type": "string", "minLength": 1, "maxLength": 512 },
+    "source_id": { "description": "A pack sources[] id.", "type": "string", "pattern": "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$" },
+    "title": { "type": "string", "minLength": 1 },
+    "text": { "type": "string", "minLength": 1 },
+    "url": { "description": "Canonical https URL, or null for local documents.", "type": ["string", "null"], "pattern": "^https://" },
+    "published_at": { "description": "ISO 8601 timestamp, or null.", "type": ["string", "null"], "format": "date-time" },
+    "metadata": {
+      "description": "Flat scalars. `citation` is the human-readable reference. The `image` key is reserved for a future image reference.",
+      "type": "object",
+      "required": ["citation"],
+      "maxProperties": 32,
+      "propertyNames": { "pattern": "^[a-z][a-z0-9_]*$", "not": { "const": "image" } },
+      "properties": { "citation": { "type": "string", "minLength": 1 } },
+      "additionalProperties": { "type": ["string", "number", "boolean", "null"] }
+    }
+  }
+}

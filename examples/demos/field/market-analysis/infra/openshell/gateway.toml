@@ -1,0 +1,38 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# OpenShell gateway with the Docker compute driver (gateway config schema v2).
+# Differences from the upstream deploy/docker/gateway.toml:
+# - The gateway listens on 0.0.0.0 inside its container; Compose publishes it
+#   on host loopback only. Start it with `--config` so this file wins over the
+#   image's default `--bind-address 0.0.0.0 --port 8080` CMD.
+# - TLS and mTLS stay on: `generate-certs` writes the bundle to
+#   OPENSHELL_LOCAL_TLS_DIR, and the gateway derives server TLS, client mTLS,
+#   supervisor TLS and sandbox JWT keys from it.
+# - grpc_endpoint is an IP literal. The host-networked supervisor then maps
+#   host.openshell.internal to 127.0.0.1, so sandbox policy reaches services
+#   that Compose publishes on 127.0.0.1.
+# - Runtime images are pinned by digest (see versions.env), and sandboxes carry
+#   their own namespace label so this gateway never touches other gateways'
+#   sandboxes on the same Docker host.
+# Telemetry is off through OPENSHELL_TELEMETRY_ENABLED=false in the environment.
+[openshell]
+version = 2
+
+[openshell.gateway]
+name = "market-demo"
+bind_address = "0.0.0.0:18080"
+health_bind_address = "0.0.0.0:18081"
+log_level = "info"
+compute_driver = "docker"
+policy_validation_failure_mode = "fail_closed"
+
+[openshell.drivers.docker]
+socket_path = "/var/run/docker.sock"
+grpc_endpoint = "https://127.0.0.1:18080"
+sandbox_label = "market-demo"
+default_image = "market-demo/hermes-sandbox:local"
+image_pull_policy = "never"
+supervisor_image = "ghcr.io/nvidia/openshell/supervisor:0.1.2@sha256:d7b5264bb6bc56f4796e6fa3617b8e4a8d785be0b7293542efd8cc250b0fb67a"
+sandbox_runtime_image = "ghcr.io/nvidia/openshell/sandbox:0.1.2@sha256:bf4797b6c511f2d8ba02955dbba4bf76c1f0dd6d83531420c5408d5f1fb9d72f"
+enable_bind_mounts = false

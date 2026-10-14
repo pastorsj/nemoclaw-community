@@ -1,0 +1,124 @@
+{
+  "tools": [
+    {
+      "id": "retrieve_evidence",
+      "server": "retrieval",
+      "hermes_name": "mcp__retrieval__retrieve_evidence",
+      "family": "unstructured_retrieval",
+      "label": "Unstructured Retrieval",
+      "description": "Retrieves and reranks cited passages from the selected document sources",
+      "explorer": "retrieval",
+      "receipt_kind": "retrieval_evidence",
+      "feature": "retrieval",
+      "pills": ["retrieval"]
+    },
+    {
+      "id": "market_scan",
+      "server": "market_analytics",
+      "hermes_name": "mcp__market_analytics__market_scan",
+      "family": "market_analytics",
+      "label": "Market Scan",
+      "description": "Ranks assets by observed market signals",
+      "explorer": "market",
+      "receipt_kind": "analytics_result",
+      "feature": "analytics",
+      "pills": ["cudf"]
+    },
+    {
+      "id": "market_anomaly_scan",
+      "server": "market_analytics",
+      "hermes_name": "mcp__market_analytics__market_anomaly_scan",
+      "family": "market_analytics",
+      "label": "Market Anomaly Scan",
+      "description": "Ranks unusual observed feature combinations",
+      "explorer": "market",
+      "receipt_kind": "analytics_result",
+      "feature": "analytics",
+      "pills": ["cudf", "cuml"]
+    },
+    {
+      "id": "price_context",
+      "server": "market_analytics",
+      "hermes_name": "mcp__market_analytics__price_context",
+      "family": "market_analytics",
+      "label": "Price Context",
+      "description": "Summarizes observed price history",
+      "explorer": "market",
+      "receipt_kind": "analytics_result",
+      "feature": "analytics",
+      "pills": ["cudf"]
+    },
+    {
+      "id": "sentiment_timeline",
+      "server": "market_analytics",
+      "hermes_name": "mcp__market_analytics__sentiment_timeline",
+      "family": "market_analytics",
+      "label": "Sentiment Timeline",
+      "description": "Aggregates observed news sentiment over time",
+      "explorer": "market",
+      "receipt_kind": "analytics_result",
+      "feature": "analytics",
+      "pills": ["cudf"]
+    },
+    {
+      "id": "analyze_news_price_relationship",
+      "server": "market_analytics",
+      "hermes_name": "mcp__market_analytics__analyze_news_price_relationship",
+      "family": "market_analytics",
+      "label": "News and Price Relationship",
+      "description": "Aligns news with forward returns",
+      "explorer": "market",
+      "receipt_kind": "analytics_result",
+      "feature": "analytics",
+      "pills": ["cudf"]
+    },
+    {
+      "id": "analyze_market_relationships",
+      "server": "market_analytics",
+      "hermes_name": "mcp__market_analytics__analyze_market_relationships",
+      "family": "market_analytics",
+      "label": "Market Relationships",
+      "description": "Ranks observed relationship centrality",
+      "explorer": "market",
+      "receipt_kind": "analytics_result",
+      "feature": "analytics",
+      "pills": ["cudf", "cugraph"]
+    },
+    {
+      "id": "intraday_scan",
+      "server": "market_analytics",
+      "hermes_name": "mcp__market_analytics__intraday_scan",
+      "family": "market_analytics",
+      "label": "Intraday Scan",
+      "description": "Ranks asset sessions by intraday behavior from minute bars",
+      "explorer": "market",
+      "receipt_kind": "analytics_result",
+      "feature": "analytics",
+      "pills": ["cudf"]
+    },
+    {
+      "id": "predict_asset_outcomes",
+      "server": "market_analytics",
+      "hermes_name": "mcp__market_analytics__predict_asset_outcomes",
+      "family": "structured_prediction",
+      "label": "Structured Prediction",
+      "description": "Predicts per-asset outcome probabilities with NVIDIA Kumo",
+      "explorer": "pql",
+      "receipt_kind": "structured_prediction",
+      "feature": "kumo",
+      "pills": ["kumo"]
+    },
+    {
+      "id": "ask_question",
+      "server": "auto_ontology",
+      "hermes_name": "mcp__auto_ontology__ask_question",
+      "family": "structured_retrieval",
+      "label": "Auto Ontology",
+      "description": "Answers historical database questions with ontology-grounded SQL",
+      "explorer": "ontology",
+      "receipt_kind": "structured_query",
+      "feature": "ontology",
+      "pills": ["ontology"]
+    }
+  ]
+}

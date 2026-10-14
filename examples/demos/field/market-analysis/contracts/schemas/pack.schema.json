@@ -1,0 +1,215 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "PackConversationView": {
+      "additionalProperties": false,
+      "description": "A multi-turn conversation that `demo-api record` asks; not listed in the UI.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "tag": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "sources": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "turns": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "tag",
+        "description",
+        "sources",
+        "turns"
+      ],
+      "title": "PackConversationView",
+      "type": "object"
+    },
+    "PackQuestionView": {
+      "additionalProperties": false,
+      "description": "A demo question whose sources this stack serves.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "tag": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "question": {
+          "type": "string"
+        },
+        "sources": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "tools": {
+          "description": "The tools it is expected to use, as pills (Pill in contracts/tool-registry.schema.json).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "featured": {
+          "default": false,
+          "description": "Shown on the landing page.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "tag",
+        "description",
+        "question",
+        "sources",
+        "tools",
+        "featured"
+      ],
+      "title": "PackQuestionView",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "``GET /v1/pack``: the active pack's title, disclaimer, questions, examples and conversations.",
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "version": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "as_of": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "disclaimer": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "questions": {
+      "items": {
+        "$ref": "#/$defs/PackQuestionView"
+      },
+      "type": "array"
+    },
+    "examples": {
+      "description": "The ids of the questions the composer's example picker offers, in order: the pack's `examples` (questions.yaml), or else its featured questions and then the others, at most 12, all among `questions`.",
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 12,
+      "type": "array"
+    },
+    "conversations": {
+      "items": {
+        "$ref": "#/$defs/PackConversationView"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "version",
+    "title",
+    "description",
+    "as_of",
+    "disclaimer",
+    "questions",
+    "examples",
+    "conversations"
+  ],
+  "title": "PackView",
+  "type": "object"
+}

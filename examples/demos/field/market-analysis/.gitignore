@@ -1,0 +1,38 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+
+# Scratch build contexts (tools/auto-ontology/prepare.sh)
+.build/
+
+# scripts/demo.sh lifecycle state
+.demo/
+
+# Data pack build outputs
+/data/builds/
+/data/active
+*.duckdb
+*.duckdb.wal
+
+# Real market data is never committed (docs/data-platform.md): external datasets belong in
+# DATA_SOURCE_DIR, outside the repository. Parquet is allowed only for the committed synthetic text.
+/data/external/
+.verified.json
+*.parquet
+*.arrow
+*.feather
+!/data/packs/*/text/**/*.parquet
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+
+# Node and Next.js
+node_modules/
+.next/
+*.tsbuildinfo
+
+# OS
+.DS_Store

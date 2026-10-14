@@ -1,0 +1,360 @@
+{"event_type": "earnings", "sentiment_label": "positive", "variant": 0, "template": "{company} reports quarterly results showing strong performance"}
+{"event_type": "earnings", "sentiment_label": "positive", "variant": 1, "template": "{company} announces quarterly earnings with improved outcomes"}
+{"event_type": "earnings", "sentiment_label": "positive", "variant": 2, "template": "{company} shares quarterly results reflecting growth momentum"}
+{"event_type": "earnings", "sentiment_label": "positive", "variant": 3, "template": "{company} delivers quarterly results indicating solid progress"}
+{"event_type": "earnings", "sentiment_label": "positive", "variant": 4, "template": "{company} releases quarterly earnings highlighting continued strength"}
+{"event_type": "earnings", "sentiment_label": "positive", "variant": 5, "template": "{company} posts quarterly results demonstrating operational success"}
+{"event_type": "earnings", "sentiment_label": "positive", "variant": 6, "template": "{company} records quarterly results underscoring resilience"}
+{"event_type": "earnings", "sentiment_label": "positive", "variant": 7, "template": "{company} presents quarterly results signaling forward momentum"}
+{"event_type": "earnings", "sentiment_label": "positive", "variant": 8, "template": "{company} reports quarterly earnings confirming upward trajectory"}
+{"event_type": "earnings", "sentiment_label": "positive", "variant": 9, "template": "{company} shares quarterly results emphasizing sustained improvement"}
+{"event_type": "earnings", "sentiment_label": "positive", "variant": 10, "template": "{company} announces quarterly performance with encouraging developments"}
+{"event_type": "earnings", "sentiment_label": "positive", "variant": 11, "template": "{company} delivers quarterly results affirming strategic advancement"}
+{"event_type": "earnings", "sentiment_label": "neutral", "variant": 0, "template": "{company} reports quarterly results"}
+{"event_type": "earnings", "sentiment_label": "neutral", "variant": 1, "template": "{company} shares earnings update for the period"}
+{"event_type": "earnings", "sentiment_label": "neutral", "variant": 2, "template": "{company} releases its latest quarterly financial report"}
+{"event_type": "earnings", "sentiment_label": "neutral", "variant": 3, "template": "{company} announces results from the most recent quarter"}
+{"event_type": "earnings", "sentiment_label": "neutral", "variant": 4, "template": "{company} provides update on quarterly performance"}
+{"event_type": "earnings", "sentiment_label": "neutral", "variant": 5, "template": "{company} discloses quarterly earnings figures"}
+{"event_type": "earnings", "sentiment_label": "neutral", "variant": 6, "template": "{company} publishes its quarterly financial statement"}
+{"event_type": "earnings", "sentiment_label": "neutral", "variant": 7, "template": "{company} reports on quarterly business outcomes"}
+{"event_type": "earnings", "sentiment_label": "neutral", "variant": 8, "template": "{company} issues statement on quarterly financial results"}
+{"event_type": "earnings", "sentiment_label": "neutral", "variant": 9, "template": "{company} shares details of quarterly operating performance"}
+{"event_type": "earnings", "sentiment_label": "neutral", "variant": 10, "template": "{company} releases earnings data for the reporting quarter"}
+{"event_type": "earnings", "sentiment_label": "neutral", "variant": 11, "template": "{company} communicates quarterly financial update to stakeholders"}
+{"event_type": "earnings", "sentiment_label": "negative", "variant": 0, "template": "{company} reports lower-than-expected quarterly earnings"}
+{"event_type": "earnings", "sentiment_label": "negative", "variant": 1, "template": "{company} sees quarterly results fall short of forecasts"}
+{"event_type": "earnings", "sentiment_label": "negative", "variant": 2, "template": "{company} posts weaker quarterly performance amid challenges"}
+{"event_type": "earnings", "sentiment_label": "negative", "variant": 3, "template": "{company} announces quarterly results below internal targets"}
+{"event_type": "earnings", "sentiment_label": "negative", "variant": 4, "template": "{company} records diminished quarterly earnings in latest report"}
+{"event_type": "earnings", "sentiment_label": "negative", "variant": 5, "template": "{company} reveals quarterly results impacted by ongoing headwinds"}
+{"event_type": "earnings", "sentiment_label": "negative", "variant": 6, "template": "{company} delivers quarterly earnings that missed projections"}
+{"event_type": "earnings", "sentiment_label": "negative", "variant": 7, "template": "{company} reports quarterly results reflecting operational strain"}
+{"event_type": "earnings", "sentiment_label": "negative", "variant": 8, "template": "{company} discloses quarterly earnings below prior period levels"}
+{"event_type": "earnings", "sentiment_label": "negative", "variant": 9, "template": "{company} states quarterly results were affected by market conditions"}
+{"event_type": "earnings", "sentiment_label": "negative", "variant": 10, "template": "{company} notes quarterly earnings declined due to cost pressures"}
+{"event_type": "earnings", "sentiment_label": "negative", "variant": 11, "template": "{company} reports quarterly results showing reduced profitability"}
+{"event_type": "guidance", "sentiment_label": "positive", "variant": 0, "template": "{company} updates full-year outlook following stronger-than-expected performance"}
+{"event_type": "guidance", "sentiment_label": "positive", "variant": 1, "template": "{company} revises full-year guidance upward after improved operational results"}
+{"event_type": "guidance", "sentiment_label": "positive", "variant": 2, "template": "{company} raises full-year outlook as business momentum continues to build"}
+{"event_type": "guidance", "sentiment_label": "positive", "variant": 3, "template": "{company} adjusts full-year forecast to reflect sustained growth trends"}
+{"event_type": "guidance", "sentiment_label": "positive", "variant": 4, "template": "{company} upgrades full-year guidance driven by resilient demand across key segments"}
+{"event_type": "guidance", "sentiment_label": "positive", "variant": 5, "template": "{company} revises full-year outlook higher on the back of consistent execution"}
+{"event_type": "guidance", "sentiment_label": "positive", "variant": 6, "template": "{company} updates full-year forecast as underlying fundamentals show continued strength"}
+{"event_type": "guidance", "sentiment_label": "positive", "variant": 7, "template": "{company} raises full-year guidance amid ongoing progress in strategic initiatives"}
+{"event_type": "guidance", "sentiment_label": "positive", "variant": 8, "template": "{company} adjusts full-year outlook to align with improved trading conditions"}
+{"event_type": "guidance", "sentiment_label": "positive", "variant": 9, "template": "{company} revises full-year forecast upward following robust quarterly trends"}
+{"event_type": "guidance", "sentiment_label": "positive", "variant": 10, "template": "{company} upgrades full-year outlook as operational efficiencies deliver results"}
+{"event_type": "guidance", "sentiment_label": "positive", "variant": 11, "template": "{company} updates full-year guidance to reflect strengthened market position"}
+{"event_type": "guidance", "sentiment_label": "neutral", "variant": 0, "template": "{company} updates its full-year outlook"}
+{"event_type": "guidance", "sentiment_label": "neutral", "variant": 1, "template": "{company} revises full-year guidance"}
+{"event_type": "guidance", "sentiment_label": "neutral", "variant": 2, "template": "{company} provides updated full-year forecast"}
+{"event_type": "guidance", "sentiment_label": "neutral", "variant": 3, "template": "{company} adjusts full-year expectations"}
+{"event_type": "guidance", "sentiment_label": "neutral", "variant": 4, "template": "{company} shares revised full-year outlook"}
+{"event_type": "guidance", "sentiment_label": "neutral", "variant": 5, "template": "{company} modifies full-year guidance"}
+{"event_type": "guidance", "sentiment_label": "neutral", "variant": 6, "template": "{company} updates full-year performance outlook"}
+{"event_type": "guidance", "sentiment_label": "neutral", "variant": 7, "template": "{company} refines full-year guidance"}
+{"event_type": "guidance", "sentiment_label": "neutral", "variant": 8, "template": "{company} revises its full-year forecast"}
+{"event_type": "guidance", "sentiment_label": "neutral", "variant": 9, "template": "{company} provides updated full-year expectations"}
+{"event_type": "guidance", "sentiment_label": "neutral", "variant": 10, "template": "{company} adjusts its full-year outlook"}
+{"event_type": "guidance", "sentiment_label": "neutral", "variant": 11, "template": "{company} shares revised full-year forecast"}
+{"event_type": "guidance", "sentiment_label": "negative", "variant": 0, "template": "{company} revises full-year outlook downward"}
+{"event_type": "guidance", "sentiment_label": "negative", "variant": 1, "template": "{company} updates full-year guidance to reflect weaker performance"}
+{"event_type": "guidance", "sentiment_label": "negative", "variant": 2, "template": "{company} lowers full-year forecast amid challenging conditions"}
+{"event_type": "guidance", "sentiment_label": "negative", "variant": 3, "template": "{company} adjusts full-year outlook due to ongoing headwinds"}
+{"event_type": "guidance", "sentiment_label": "negative", "variant": 4, "template": "{company} revises annual guidance as market pressures persist"}
+{"event_type": "guidance", "sentiment_label": "negative", "variant": 5, "template": "{company} updates full-year expectations following recent developments"}
+{"event_type": "guidance", "sentiment_label": "negative", "variant": 6, "template": "{company} reduces full-year outlook in light of current trends"}
+{"event_type": "guidance", "sentiment_label": "negative", "variant": 7, "template": "{company} modifies annual forecast to align with revised assumptions"}
+{"event_type": "guidance", "sentiment_label": "negative", "variant": 8, "template": "{company} revises full-year projection after internal review"}
+{"event_type": "guidance", "sentiment_label": "negative", "variant": 9, "template": "{company} adjusts yearly guidance amid shifting demand"}
+{"event_type": "guidance", "sentiment_label": "negative", "variant": 10, "template": "{company} updates full-year outlook to reflect operational challenges"}
+{"event_type": "guidance", "sentiment_label": "negative", "variant": 11, "template": "{company} revises annual forecast as external factors intensify"}
+{"event_type": "product", "sentiment_label": "positive", "variant": 0, "template": "{company} Announces Launch of New Product Line"}
+{"event_type": "product", "sentiment_label": "positive", "variant": 1, "template": "{company} Unveils Latest Product Innovation"}
+{"event_type": "product", "sentiment_label": "positive", "variant": 2, "template": "{company} Introduces New Product to Market"}
+{"event_type": "product", "sentiment_label": "positive", "variant": 3, "template": "{company} Releases Updated Product Version"}
+{"event_type": "product", "sentiment_label": "positive", "variant": 4, "template": "{company} Shares Details of Upcoming Product"}
+{"event_type": "product", "sentiment_label": "positive", "variant": 5, "template": "{company} Begins Rollout of New Product"}
+{"event_type": "product", "sentiment_label": "positive", "variant": 6, "template": "{company} Confirms Launch Date for New Product"}
+{"event_type": "product", "sentiment_label": "positive", "variant": 7, "template": "{company} Presents New Product at Industry Event"}
+{"event_type": "product", "sentiment_label": "positive", "variant": 8, "template": "{company} Makes Product Available to Customers"}
+{"event_type": "product", "sentiment_label": "positive", "variant": 9, "template": "{company} Completes Development of New Product"}
+{"event_type": "product", "sentiment_label": "positive", "variant": 10, "template": "{company} Starts Shipping New Product to Retailers"}
+{"event_type": "product", "sentiment_label": "positive", "variant": 11, "template": "{company} Delivers First Units of New Product"}
+{"event_type": "product", "sentiment_label": "neutral", "variant": 0, "template": "{company} Announces Upcoming Launch of New Product Line"}
+{"event_type": "product", "sentiment_label": "neutral", "variant": 1, "template": "{company} Delays Release of Latest Product Until Next Quarter"}
+{"event_type": "product", "sentiment_label": "neutral", "variant": 2, "template": "{company} Unveils New Product with Limited Initial Availability"}
+{"event_type": "product", "sentiment_label": "neutral", "variant": 3, "template": "{company} Confirms Product Launch Date After Internal Review"}
+{"event_type": "product", "sentiment_label": "neutral", "variant": 4, "template": "{company} Adjusts Timeline for Product Rollout Due to Testing"}
+{"event_type": "product", "sentiment_label": "neutral", "variant": 5, "template": "{company} Prepares to Introduce New Product to Select Markets"}
+{"event_type": "product", "sentiment_label": "neutral", "variant": 6, "template": "{company} Faces Minor Delay in Product Release Amid Final Checks"}
+{"event_type": "product", "sentiment_label": "neutral", "variant": 7, "template": "{company} Shares Update on Product Development and Launch Plans"}
+{"event_type": "product", "sentiment_label": "neutral", "variant": 8, "template": "{company} Moves Forward with Product Launch Following Completion of Prototypes"}
+{"event_type": "product", "sentiment_label": "neutral", "variant": 9, "template": "{company} Announces Revised Schedule for Product Introduction"}
+{"event_type": "product", "sentiment_label": "neutral", "variant": 10, "template": "{company} Begins Limited Release of New Product in Pilot Regions"}
+{"event_type": "product", "sentiment_label": "neutral", "variant": 11, "template": "{company} Confirms Product Will Launch as Planned After Review Period"}
+{"event_type": "product", "sentiment_label": "negative", "variant": 0, "template": "{company} confirms delay in upcoming product release"}
+{"event_type": "product", "sentiment_label": "negative", "variant": 1, "template": "{company} postpones launch of new product due to development issues"}
+{"event_type": "product", "sentiment_label": "negative", "variant": 2, "template": "{company} faces setback as product launch is pushed back"}
+{"event_type": "product", "sentiment_label": "negative", "variant": 3, "template": "{company} announces delay in bringing new product to market"}
+{"event_type": "product", "sentiment_label": "negative", "variant": 4, "template": "{company} experiences unexpected delay in product rollout"}
+{"event_type": "product", "sentiment_label": "negative", "variant": 5, "template": "{company} delays product introduction citing technical challenges"}
+{"event_type": "product", "sentiment_label": "negative", "variant": 6, "template": "{company} pushes back scheduled launch of its latest product"}
+{"event_type": "product", "sentiment_label": "negative", "variant": 7, "template": "{company} reports delay in product availability for customers"}
+{"event_type": "product", "sentiment_label": "negative", "variant": 8, "template": "{company} halts planned product launch to address internal concerns"}
+{"event_type": "product", "sentiment_label": "negative", "variant": 9, "template": "{company} confirms product will not launch as previously expected"}
+{"event_type": "product", "sentiment_label": "negative", "variant": 10, "template": "{company} encounters delay in finalizing new product for release"}
+{"event_type": "product", "sentiment_label": "negative", "variant": 11, "template": "{company} adjusts timeline for product launch amid unforeseen hurdles"}
+{"event_type": "contract", "sentiment_label": "positive", "variant": 0, "template": "{company} secures major new customer contract"}
+{"event_type": "contract", "sentiment_label": "positive", "variant": 1, "template": "{company} wins key agreement with important client"}
+{"event_type": "contract", "sentiment_label": "positive", "variant": 2, "template": "{company} confirms successful contract award"}
+{"event_type": "contract", "sentiment_label": "positive", "variant": 3, "template": "{company} announces new customer partnership deal"}
+{"event_type": "contract", "sentiment_label": "positive", "variant": 4, "template": "{company} gains important contract from valued customer"}
+{"event_type": "contract", "sentiment_label": "positive", "variant": 5, "template": "{company} achieves contract win with strategic client"}
+{"event_type": "contract", "sentiment_label": "positive", "variant": 6, "template": "{company} finalizes agreement with new business partner"}
+{"event_type": "contract", "sentiment_label": "positive", "variant": 7, "template": "{company} reports successful outcome in customer bidding"}
+{"event_type": "contract", "sentiment_label": "positive", "variant": 8, "template": "{company} obtains significant contract from existing client"}
+{"event_type": "contract", "sentiment_label": "positive", "variant": 9, "template": "{company} celebrates contract success with long-term customer"}
+{"event_type": "contract", "sentiment_label": "positive", "variant": 10, "template": "{company} secures follow-on work from trusted account"}
+{"event_type": "contract", "sentiment_label": "positive", "variant": 11, "template": "{company} wins renewed commitment from key customer"}
+{"event_type": "contract", "sentiment_label": "neutral", "variant": 0, "template": "{company} announced it has secured a new customer contract"}
+{"event_type": "contract", "sentiment_label": "neutral", "variant": 1, "template": "{company} confirmed it will not be renewing an existing customer agreement"}
+{"event_type": "contract", "sentiment_label": "neutral", "variant": 2, "template": "{company} reported it has entered into a revised terms agreement with a customer"}
+{"event_type": "contract", "sentiment_label": "neutral", "variant": 3, "template": "{company} stated it has completed negotiations on a customer contract extension"}
+{"event_type": "contract", "sentiment_label": "neutral", "variant": 4, "template": "{company} disclosed it has paused discussions on a potential customer deal"}
+{"event_type": "contract", "sentiment_label": "neutral", "variant": 5, "template": "{company} noted it has finalized a customer contract with updated deliverables"}
+{"event_type": "contract", "sentiment_label": "neutral", "variant": 6, "template": "{company} revealed it has withdrawn from a pending customer procurement process"}
+{"event_type": "contract", "sentiment_label": "neutral", "variant": 7, "template": "{company} indicated it has signed a customer agreement following internal review"}
+{"event_type": "contract", "sentiment_label": "neutral", "variant": 8, "template": "{company} shared it has adjusted the scope of an ongoing customer engagement"}
+{"event_type": "contract", "sentiment_label": "neutral", "variant": 9, "template": "{company} mentioned it has deferred implementation of a customer service arrangement"}
+{"event_type": "contract", "sentiment_label": "neutral", "variant": 10, "template": "{company} explained it has restructured a customer relationship under existing terms"}
+{"event_type": "contract", "sentiment_label": "neutral", "variant": 11, "template": "{company} confirmed it has concluded a customer contract without further action"}
+{"event_type": "contract", "sentiment_label": "negative", "variant": 0, "template": "{company} confirms termination of key customer agreement"}
+{"event_type": "contract", "sentiment_label": "negative", "variant": 1, "template": "{company} loses major contract with long-term client"}
+{"event_type": "contract", "sentiment_label": "negative", "variant": 2, "template": "{company} fails to renew critical service deal"}
+{"event_type": "contract", "sentiment_label": "negative", "variant": 3, "template": "{company} notified of customer decision to end partnership"}
+{"event_type": "contract", "sentiment_label": "negative", "variant": 4, "template": "{company} contract not extended following review period"}
+{"event_type": "contract", "sentiment_label": "negative", "variant": 5, "template": "{company} informed client will not proceed with planned work"}
+{"event_type": "contract", "sentiment_label": "negative", "variant": 6, "template": "{company} agreement concluded earlier than anticipated"}
+{"event_type": "contract", "sentiment_label": "negative", "variant": 7, "template": "{company} customer opts not to continue existing arrangement"}
+{"event_type": "contract", "sentiment_label": "negative", "variant": 8, "template": "{company} contract lapses without renewal in place"}
+{"event_type": "contract", "sentiment_label": "negative", "variant": 9, "template": "{company} notified of withdrawal from ongoing engagement by client"}
+{"event_type": "contract", "sentiment_label": "negative", "variant": 10, "template": "{company} service arrangement concluded per client request"}
+{"event_type": "contract", "sentiment_label": "negative", "variant": 11, "template": "{company} partnership ends as client pursues alternative path"}
+{"event_type": "partnership", "sentiment_label": "positive", "variant": 0, "template": "{company} Announces Strategic Partnership to Expand Market Reach"}
+{"event_type": "partnership", "sentiment_label": "positive", "variant": 1, "template": "{company} Enters New Collaboration to Enhance Product Offerings"}
+{"event_type": "partnership", "sentiment_label": "positive", "variant": 2, "template": "{company} Forms Alliance to Accelerate Innovation and Growth"}
+{"event_type": "partnership", "sentiment_label": "positive", "variant": 3, "template": "{company} Partners With Industry Leader to Strengthen Capabilities"}
+{"event_type": "partnership", "sentiment_label": "positive", "variant": 4, "template": "{company} Secures Partnership to Drive Future Development"}
+{"event_type": "partnership", "sentiment_label": "positive", "variant": 5, "template": "{company} Joins Forces With Key Player to Broaden Service Scope"}
+{"event_type": "partnership", "sentiment_label": "positive", "variant": 6, "template": "{company} Establishes Partnership to Support Long-Term Objectives"}
+{"event_type": "partnership", "sentiment_label": "positive", "variant": 7, "template": "{company} Initiates Collaboration to Improve Operational Efficiency"}
+{"event_type": "partnership", "sentiment_label": "positive", "variant": 8, "template": "{company} Signs Agreement to Foster Mutual Advancement"}
+{"event_type": "partnership", "sentiment_label": "positive", "variant": 9, "template": "{company} Launches Partnership to Unlock New Opportunities"}
+{"event_type": "partnership", "sentiment_label": "positive", "variant": 10, "template": "{company} Builds Strategic Tie-Up to Reinforce Competitive Position"}
+{"event_type": "partnership", "sentiment_label": "positive", "variant": 11, "template": "{company} Engages in Partnership to Advance Shared Goals"}
+{"event_type": "partnership", "sentiment_label": "neutral", "variant": 0, "template": "{company} announced a new partnership to expand its operational capabilities"}
+{"event_type": "partnership", "sentiment_label": "neutral", "variant": 1, "template": "{company} entered into a partnership agreement with a technology provider"}
+{"event_type": "partnership", "sentiment_label": "neutral", "variant": 2, "template": "{company} confirmed a collaboration to enhance its service offerings"}
+{"event_type": "partnership", "sentiment_label": "neutral", "variant": 3, "template": "{company} revealed a strategic partnership focused on process improvement"}
+{"event_type": "partnership", "sentiment_label": "neutral", "variant": 4, "template": "{company} stated it has formed a partnership to support ongoing initiatives"}
+{"event_type": "partnership", "sentiment_label": "neutral", "variant": 5, "template": "{company} disclosed a partnership aimed at strengthening its market position"}
+{"event_type": "partnership", "sentiment_label": "neutral", "variant": 6, "template": "{company} said it will work with a partner to develop new solutions"}
+{"event_type": "partnership", "sentiment_label": "neutral", "variant": 7, "template": "{company} outlined a partnership intended to broaden its industry reach"}
+{"event_type": "partnership", "sentiment_label": "neutral", "variant": 8, "template": "{company} noted a partnership has been established to improve efficiency"}
+{"event_type": "partnership", "sentiment_label": "neutral", "variant": 9, "template": "{company} communicated a partnership designed to support long-term goals"}
+{"event_type": "partnership", "sentiment_label": "neutral", "variant": 10, "template": "{company} indicated a partnership has been launched to explore shared opportunities"}
+{"event_type": "partnership", "sentiment_label": "neutral", "variant": 11, "template": "{company} reported a partnership was formalized to advance mutual objectives"}
+{"event_type": "partnership", "sentiment_label": "negative", "variant": 0, "template": "{company} announces partnership that raises concerns among analysts"}
+{"event_type": "partnership", "sentiment_label": "negative", "variant": 1, "template": "{company} enters partnership amid growing scrutiny over strategic fit"}
+{"event_type": "partnership", "sentiment_label": "negative", "variant": 2, "template": "{company} confirms partnership deal faces unexpected integration challenges"}
+{"event_type": "partnership", "sentiment_label": "negative", "variant": 3, "template": "{company} reveals partnership terms questioned by industry observers"}
+{"event_type": "partnership", "sentiment_label": "negative", "variant": 4, "template": "{company} moves forward with partnership despite internal reservations"}
+{"event_type": "partnership", "sentiment_label": "negative", "variant": 5, "template": "{company} secures partnership agreement met with skepticism from stakeholders"}
+{"event_type": "partnership", "sentiment_label": "negative", "variant": 6, "template": "{company} pursues partnership that complicates existing operational priorities"}
+{"event_type": "partnership", "sentiment_label": "negative", "variant": 7, "template": "{company} finalizes partnership arrangement triggering calls for reassessment"}
+{"event_type": "partnership", "sentiment_label": "negative", "variant": 8, "template": "{company} undertakes partnership effort seen as diverting focus from core goals"}
+{"event_type": "partnership", "sentiment_label": "negative", "variant": 9, "template": "{company} establishes partnership link drawing criticism over potential downsides"}
+{"event_type": "partnership", "sentiment_label": "negative", "variant": 10, "template": "{company} advances partnership initiative viewed as increasing exposure to risk"}
+{"event_type": "partnership", "sentiment_label": "negative", "variant": 11, "template": "{company} completes partnership transaction prompting renewed doubt about direction"}
+{"event_type": "regulatory", "sentiment_label": "positive", "variant": 0, "template": "{company} receives regulatory approval for its latest product"}
+{"event_type": "regulatory", "sentiment_label": "positive", "variant": 1, "template": "Regulatory body grants approval to {company} for new treatment"}
+{"event_type": "regulatory", "sentiment_label": "positive", "variant": 2, "template": "{company} secures regulatory clearance for innovative solution"}
+{"event_type": "regulatory", "sentiment_label": "positive", "variant": 3, "template": "Approval confirmed by regulators for {company}’s new technology"}
+{"event_type": "regulatory", "sentiment_label": "positive", "variant": 4, "template": "{company} obtains regulatory nod for expanded use of its device"}
+{"event_type": "regulatory", "sentiment_label": "positive", "variant": 5, "template": "Regulators approve {company} application for market access"}
+{"event_type": "regulatory", "sentiment_label": "positive", "variant": 6, "template": "{company} granted regulatory authorization for its service"}
+{"event_type": "regulatory", "sentiment_label": "positive", "variant": 7, "template": "Regulatory approval achieved by {company} for core offering"}
+{"event_type": "regulatory", "sentiment_label": "positive", "variant": 8, "template": "{company} receives formal approval from regulatory authority"}
+{"event_type": "regulatory", "sentiment_label": "positive", "variant": 9, "template": "Regulatory clearance given to {company} for its platform"}
+{"event_type": "regulatory", "sentiment_label": "positive", "variant": 10, "template": "{company} approved by regulators for continued development"}
+{"event_type": "regulatory", "sentiment_label": "positive", "variant": 11, "template": "Regulatory body endorses {company} submission for public use"}
+{"event_type": "regulatory", "sentiment_label": "neutral", "variant": 0, "template": "Regulatory approval granted for {company} product"}
+{"event_type": "regulatory", "sentiment_label": "neutral", "variant": 1, "template": "{company} receives regulatory clearance for new initiative"}
+{"event_type": "regulatory", "sentiment_label": "neutral", "variant": 2, "template": "Approval confirmed by regulators for {company} project"}
+{"event_type": "regulatory", "sentiment_label": "neutral", "variant": 3, "template": "{company} secures regulatory authorization for update"}
+{"event_type": "regulatory", "sentiment_label": "neutral", "variant": 4, "template": "Regulatory body approves submission from {company}"}
+{"event_type": "regulatory", "sentiment_label": "neutral", "variant": 5, "template": "{company} obtains regulatory nod for operational change"}
+{"event_type": "regulatory", "sentiment_label": "neutral", "variant": 6, "template": "Regulators sign off on {company} proposal"}
+{"event_type": "regulatory", "sentiment_label": "neutral", "variant": 7, "template": "{company} achieves regulatory approval for process"}
+{"event_type": "regulatory", "sentiment_label": "neutral", "variant": 8, "template": "Approval issued to {company} by regulatory authority"}
+{"event_type": "regulatory", "sentiment_label": "neutral", "variant": 9, "template": "{company} granted regulatory permission for activity"}
+{"event_type": "regulatory", "sentiment_label": "neutral", "variant": 10, "template": "Regulatory approval received by {company} for service"}
+{"event_type": "regulatory", "sentiment_label": "neutral", "variant": 11, "template": "{company} cleared by regulators for implementation"}
+{"event_type": "regulatory", "sentiment_label": "negative", "variant": 0, "template": "{company} faces regulatory setback after approval denial"}
+{"event_type": "regulatory", "sentiment_label": "negative", "variant": 1, "template": "{company} sees regulatory approval rejected by authorities"}
+{"event_type": "regulatory", "sentiment_label": "negative", "variant": 2, "template": "{company} encounters delay in regulatory clearance process"}
+{"event_type": "regulatory", "sentiment_label": "negative", "variant": 3, "template": "{company} fails to obtain required regulatory authorization"}
+{"event_type": "regulatory", "sentiment_label": "negative", "variant": 4, "template": "{company} hit by unexpected regulatory rejection decision"}
+{"event_type": "regulatory", "sentiment_label": "negative", "variant": 5, "template": "{company} loses regulatory approval following review outcome"}
+{"event_type": "regulatory", "sentiment_label": "negative", "variant": 6, "template": "{company} blocked from proceeding due to regulatory refusal"}
+{"event_type": "regulatory", "sentiment_label": "negative", "variant": 7, "template": "{company} unable to secure necessary regulatory endorsement"}
+{"event_type": "regulatory", "sentiment_label": "negative", "variant": 8, "template": "{company} suffers regulatory approval reversal post-submission"}
+{"event_type": "regulatory", "sentiment_label": "negative", "variant": 9, "template": "{company} denied regulatory clearance amid compliance concerns"}
+{"event_type": "regulatory", "sentiment_label": "negative", "variant": 10, "template": "{company} faces hurdle as regulatory body withholds approval"}
+{"event_type": "regulatory", "sentiment_label": "negative", "variant": 11, "template": "{company} confronts regulatory obstacle after application denied"}
+{"event_type": "legal", "sentiment_label": "positive", "variant": 0, "template": "Court rules in favor of {company} in ongoing legal dispute"}
+{"event_type": "legal", "sentiment_label": "positive", "variant": 1, "template": "{company} wins key legal case against opposing party"}
+{"event_type": "legal", "sentiment_label": "positive", "variant": 2, "template": "Judge dismisses lawsuit filed against {company}"}
+{"event_type": "legal", "sentiment_label": "positive", "variant": 3, "template": "{company} receives favorable verdict in civil litigation"}
+{"event_type": "legal", "sentiment_label": "positive", "variant": 4, "template": "Legal challenge against {company} is withdrawn by plaintiff"}
+{"event_type": "legal", "sentiment_label": "positive", "variant": 5, "template": "{company} settles lawsuit on terms beneficial to the company"}
+{"event_type": "legal", "sentiment_label": "positive", "variant": 6, "template": "Court finds no merit in claims brought against {company}"}
+{"event_type": "legal", "sentiment_label": "positive", "variant": 7, "template": "{company} prevails in arbitration proceeding"}
+{"event_type": "legal", "sentiment_label": "positive", "variant": 8, "template": "Regulatory body clears {company} of all allegations in legal matter"}
+{"event_type": "legal", "sentiment_label": "positive", "variant": 9, "template": "{company} successfully defends against patent infringement claim"}
+{"event_type": "legal", "sentiment_label": "positive", "variant": 10, "template": "Lawsuit targeting {company} is dropped without prejudice"}
+{"event_type": "legal", "sentiment_label": "positive", "variant": 11, "template": "{company} awarded damages in counterclaim against filer"}
+{"event_type": "legal", "sentiment_label": "neutral", "variant": 0, "template": "{company} faces lawsuit over product safety claims"}
+{"event_type": "legal", "sentiment_label": "neutral", "variant": 1, "template": "{company} named in lawsuit regarding employment practices"}
+{"event_type": "legal", "sentiment_label": "neutral", "variant": 2, "template": "{company} responds to lawsuit filed by former contractor"}
+{"event_type": "legal", "sentiment_label": "neutral", "variant": 3, "template": "{company} involved in legal dispute over contract terms"}
+{"event_type": "legal", "sentiment_label": "neutral", "variant": 4, "template": "{company} subject to lawsuit alleging data handling issues"}
+{"event_type": "legal", "sentiment_label": "neutral", "variant": 5, "template": "{company} addresses lawsuit concerning marketing disclosures"}
+{"event_type": "legal", "sentiment_label": "neutral", "variant": 6, "template": "{company} named as defendant in intellectual property case"}
+{"event_type": "legal", "sentiment_label": "neutral", "variant": 7, "template": "{company} dealing with lawsuit related to supply chain obligations"}
+{"event_type": "legal", "sentiment_label": "neutral", "variant": 8, "template": "{company} involved in lawsuit over environmental compliance"}
+{"event_type": "legal", "sentiment_label": "neutral", "variant": 9, "template": "{company} responds to lawsuit filed by consumer advocacy group"}
+{"event_type": "legal", "sentiment_label": "neutral", "variant": 10, "template": "{company} named in lawsuit regarding workplace accessibility"}
+{"event_type": "legal", "sentiment_label": "neutral", "variant": 11, "template": "{company} facing legal action over service level agreements"}
+{"event_type": "legal", "sentiment_label": "negative", "variant": 0, "template": "{company} faces lawsuit over alleged regulatory violations"}
+{"event_type": "legal", "sentiment_label": "negative", "variant": 1, "template": "{company} sued by former employee for workplace misconduct"}
+{"event_type": "legal", "sentiment_label": "negative", "variant": 2, "template": "{company} named in class action lawsuit regarding product safety"}
+{"event_type": "legal", "sentiment_label": "negative", "variant": 3, "template": "{company} under legal scrutiny following contract dispute filing"}
+{"event_type": "legal", "sentiment_label": "negative", "variant": 4, "template": "{company} confronts lawsuit claiming breach of fiduciary duty"}
+{"event_type": "legal", "sentiment_label": "negative", "variant": 5, "template": "{company} targeted in litigation alleging environmental noncompliance"}
+{"event_type": "legal", "sentiment_label": "negative", "variant": 6, "template": "{company} sued by investor group over disclosure shortcomings"}
+{"event_type": "legal", "sentiment_label": "negative", "variant": 7, "template": "{company} defending against lawsuit related to intellectual property"}
+{"event_type": "legal", "sentiment_label": "negative", "variant": 8, "template": "{company} involved in legal proceedings over employment practices"}
+{"event_type": "legal", "sentiment_label": "negative", "variant": 9, "template": "{company} faces legal challenge concerning data privacy practices"}
+{"event_type": "legal", "sentiment_label": "negative", "variant": 10, "template": "{company} named defendant in lawsuit regarding supply chain ethics"}
+{"event_type": "legal", "sentiment_label": "negative", "variant": 11, "template": "{company} subjected to legal action over alleged financial misrepresentation"}
+{"event_type": "management", "sentiment_label": "positive", "variant": 0, "template": "{company} appoints new chief executive officer"}
+{"event_type": "management", "sentiment_label": "positive", "variant": 1, "template": "{company} names new chief financial officer"}
+{"event_type": "management", "sentiment_label": "positive", "variant": 2, "template": "{company} welcomes incoming chief operating officer"}
+{"event_type": "management", "sentiment_label": "positive", "variant": 3, "template": "{company} confirms appointment of new board chair"}
+{"event_type": "management", "sentiment_label": "positive", "variant": 4, "template": "{company} announces leadership addition in senior management"}
+{"event_type": "management", "sentiment_label": "positive", "variant": 5, "template": "{company} welcomes new president to executive team"}
+{"event_type": "management", "sentiment_label": "positive", "variant": 6, "template": "{company} appoints new head of global strategy"}
+{"event_type": "management", "sentiment_label": "positive", "variant": 7, "template": "{company} names new chief technology officer"}
+{"event_type": "management", "sentiment_label": "positive", "variant": 8, "template": "{company} welcomes incoming chief marketing officer"}
+{"event_type": "management", "sentiment_label": "positive", "variant": 9, "template": "{company} confirms appointment of new general counsel"}
+{"event_type": "management", "sentiment_label": "positive", "variant": 10, "template": "{company} announces addition of new independent director"}
+{"event_type": "management", "sentiment_label": "positive", "variant": 11, "template": "{company} welcomes new executive vice president to leadership"}
+{"event_type": "management", "sentiment_label": "neutral", "variant": 0, "template": "{company} appoints new chief financial officer effective immediately"}
+{"event_type": "management", "sentiment_label": "neutral", "variant": 1, "template": "{company} names incoming chief technology officer following internal review"}
+{"event_type": "management", "sentiment_label": "neutral", "variant": 2, "template": "{company} announces departure of chief operating officer after tenure concludes"}
+{"event_type": "management", "sentiment_label": "neutral", "variant": 3, "template": "{company} appoints new head of global sales to lead regional expansion"}
+{"event_type": "management", "sentiment_label": "neutral", "variant": 4, "template": "{company} confirms appointment of new general counsel from within leadership"}
+{"event_type": "management", "sentiment_label": "neutral", "variant": 5, "template": "{company} names successor to retiring chief human resources officer"}
+{"event_type": "management", "sentiment_label": "neutral", "variant": 6, "template": "{company} appoints interim chief executive officer pending board search"}
+{"event_type": "management", "sentiment_label": "neutral", "variant": 7, "template": "{company} announces resignation of chief marketing officer for personal reasons"}
+{"event_type": "management", "sentiment_label": "neutral", "variant": 8, "template": "{company} names new president of international operations effective next quarter"}
+{"event_type": "management", "sentiment_label": "neutral", "variant": 9, "template": "{company} appoints chief sustainability officer to newly created role"}
+{"event_type": "management", "sentiment_label": "neutral", "variant": 10, "template": "{company} confirms departure of chief strategy officer after mutual agreement"}
+{"event_type": "management", "sentiment_label": "neutral", "variant": 11, "template": "{company} names new chief information officer to oversee digital transformation"}
+{"event_type": "management", "sentiment_label": "negative", "variant": 0, "template": "{company} Announces Departure of Chief Executive Officer"}
+{"event_type": "management", "sentiment_label": "negative", "variant": 1, "template": "{company} Confirms Exit of Chief Financial Officer"}
+{"event_type": "management", "sentiment_label": "negative", "variant": 2, "template": "{company} Announces Resignation of Chief Operating Officer"}
+{"event_type": "management", "sentiment_label": "negative", "variant": 3, "template": "{company} Confirms Departure of Chief Technology Officer"}
+{"event_type": "management", "sentiment_label": "negative", "variant": 4, "template": "{company} Announces Exit of Chief Marketing Officer"}
+{"event_type": "management", "sentiment_label": "negative", "variant": 5, "template": "{company} Confirms Resignation of Chief Strategy Officer"}
+{"event_type": "management", "sentiment_label": "negative", "variant": 6, "template": "{company} Announces Departure of Chief Human Resources Officer"}
+{"event_type": "management", "sentiment_label": "negative", "variant": 7, "template": "{company} Confirms Exit of Chief Legal Officer"}
+{"event_type": "management", "sentiment_label": "negative", "variant": 8, "template": "{company} Announces Resignation of Chief Risk Officer"}
+{"event_type": "management", "sentiment_label": "negative", "variant": 9, "template": "{company} Confirms Departure of Chief Information Officer"}
+{"event_type": "management", "sentiment_label": "negative", "variant": 10, "template": "{company} Announces Exit of Chief Sustainability Officer"}
+{"event_type": "management", "sentiment_label": "negative", "variant": 11, "template": "{company} Confirms Resignation of Chief Investment Officer"}
+{"event_type": "operations", "sentiment_label": "positive", "variant": 0, "template": "{company} reports smooth resolution of recent operational disruption"}
+{"event_type": "operations", "sentiment_label": "positive", "variant": 1, "template": "{company} confirms operations restored after temporary disruption"}
+{"event_type": "operations", "sentiment_label": "positive", "variant": 2, "template": "{company} updates on successful handling of operational disruption"}
+{"event_type": "operations", "sentiment_label": "positive", "variant": 3, "template": "{company} states disruption resolved with minimal impact"}
+{"event_type": "operations", "sentiment_label": "positive", "variant": 4, "template": "{company} shares update on operational disruption recovery"}
+{"event_type": "operations", "sentiment_label": "positive", "variant": 5, "template": "{company} confirms return to normal operations following disruption"}
+{"event_type": "operations", "sentiment_label": "positive", "variant": 6, "template": "{company} reports effective management of operational disruption"}
+{"event_type": "operations", "sentiment_label": "positive", "variant": 7, "template": "{company} updates stakeholders on disruption resolution progress"}
+{"event_type": "operations", "sentiment_label": "positive", "variant": 8, "template": "{company} confirms operational continuity maintained after disruption"}
+{"event_type": "operations", "sentiment_label": "positive", "variant": 9, "template": "{company} reports timely response to operational disruption"}
+{"event_type": "operations", "sentiment_label": "positive", "variant": 10, "template": "{company} confirms disruption addressed without lasting effects"}
+{"event_type": "operations", "sentiment_label": "positive", "variant": 11, "template": "{company} updates on operational stability following disruption event"}
+{"event_type": "operations", "sentiment_label": "neutral", "variant": 0, "template": "Company {company} reports operational disruption in routine manufacturing process"}
+{"event_type": "operations", "sentiment_label": "neutral", "variant": 1, "template": "Company {company} experiences operational disruption during standard maintenance period"}
+{"event_type": "operations", "sentiment_label": "neutral", "variant": 2, "template": "Company {company} acknowledges operational disruption affecting routine logistics flow"}
+{"event_type": "operations", "sentiment_label": "neutral", "variant": 3, "template": "Company {company} confirms operational disruption in routine supply chain segment"}
+{"event_type": "operations", "sentiment_label": "neutral", "variant": 4, "template": "Company {company} reports operational disruption during routine equipment calibration"}
+{"event_type": "operations", "sentiment_label": "neutral", "variant": 5, "template": "Company {company} notes operational disruption in routine quality assurance workflow"}
+{"event_type": "operations", "sentiment_label": "neutral", "variant": 6, "template": "Company {company} encounters operational disruption during routine staff scheduling update"}
+{"event_type": "operations", "sentiment_label": "neutral", "variant": 7, "template": "Company {company} identifies operational disruption in routine inventory reconciliation"}
+{"event_type": "operations", "sentiment_label": "neutral", "variant": 8, "template": "Company {company} reports operational disruption during routine system integration test"}
+{"event_type": "operations", "sentiment_label": "neutral", "variant": 9, "template": "Company {company} confirms operational disruption in routine customer service protocol"}
+{"event_type": "operations", "sentiment_label": "neutral", "variant": 10, "template": "Company {company} experiences operational disruption during routine facility inspection"}
+{"event_type": "operations", "sentiment_label": "neutral", "variant": 11, "template": "Company {company} acknowledges operational disruption in routine vendor coordination process"}
+{"event_type": "operations", "sentiment_label": "negative", "variant": 0, "template": "{company} reports disruption in core operations"}
+{"event_type": "operations", "sentiment_label": "negative", "variant": 1, "template": "{company} confirms operational halt at key facility"}
+{"event_type": "operations", "sentiment_label": "negative", "variant": 2, "template": "{company} faces unexpected interruption in production"}
+{"event_type": "operations", "sentiment_label": "negative", "variant": 3, "template": "{company} experiences breakdown in supply chain processes"}
+{"event_type": "operations", "sentiment_label": "negative", "variant": 4, "template": "{company} announces temporary suspension of manufacturing"}
+{"event_type": "operations", "sentiment_label": "negative", "variant": 5, "template": "{company} reports failure in critical operational system"}
+{"event_type": "operations", "sentiment_label": "negative", "variant": 6, "template": "{company} discloses disruption affecting service delivery"}
+{"event_type": "operations", "sentiment_label": "negative", "variant": 7, "template": "{company} confirms loss of functionality in primary workflow"}
+{"event_type": "operations", "sentiment_label": "negative", "variant": 8, "template": "{company} reports operational instability across regional sites"}
+{"event_type": "operations", "sentiment_label": "negative", "variant": 9, "template": "{company} acknowledges failure to maintain normal operations"}
+{"event_type": "operations", "sentiment_label": "negative", "variant": 10, "template": "{company} experiences breakdown in internal logistics network"}
+{"event_type": "operations", "sentiment_label": "negative", "variant": 11, "template": "{company} reports inability to sustain routine operational capacity"}
+{"event_type": "capital", "sentiment_label": "positive", "variant": 0, "template": "{company} announces dividend payment to shareholders"}
+{"event_type": "capital", "sentiment_label": "positive", "variant": 1, "template": "{company} declares dividend distribution for current period"}
+{"event_type": "capital", "sentiment_label": "positive", "variant": 2, "template": "{company} confirms dividend payout to eligible investors"}
+{"event_type": "capital", "sentiment_label": "positive", "variant": 3, "template": "{company} initiates dividend disbursement to its shareholders"}
+{"event_type": "capital", "sentiment_label": "positive", "variant": 4, "template": "{company} reports dividend allocation to its investor base"}
+{"event_type": "capital", "sentiment_label": "positive", "variant": 5, "template": "{company} executes dividend payment as part of capital return"}
+{"event_type": "capital", "sentiment_label": "positive", "variant": 6, "template": "{company} confirms dividend issuance to its shareholder community"}
+{"event_type": "capital", "sentiment_label": "positive", "variant": 7, "template": "{company} announces dividend release to registered holders"}
+{"event_type": "capital", "sentiment_label": "positive", "variant": 8, "template": "{company} confirms dividend transfer to its investor accounts"}
+{"event_type": "capital", "sentiment_label": "positive", "variant": 9, "template": "{company} declares dividend distribution from retained earnings"}
+{"event_type": "capital", "sentiment_label": "positive", "variant": 10, "template": "{company} confirms dividend disbursement following board approval"}
+{"event_type": "capital", "sentiment_label": "positive", "variant": 11, "template": "{company} announces dividend payment reflecting strong capital position"}
+{"event_type": "capital", "sentiment_label": "neutral", "variant": 0, "template": "{company} declares dividend payment"}
+{"event_type": "capital", "sentiment_label": "neutral", "variant": 1, "template": "{company} announces dividend distribution"}
+{"event_type": "capital", "sentiment_label": "neutral", "variant": 2, "template": "{company} confirms dividend declaration"}
+{"event_type": "capital", "sentiment_label": "neutral", "variant": 3, "template": "{company} reports dividend issuance"}
+{"event_type": "capital", "sentiment_label": "neutral", "variant": 4, "template": "{company} states dividend allocation"}
+{"event_type": "capital", "sentiment_label": "neutral", "variant": 5, "template": "{company} discloses dividend release"}
+{"event_type": "capital", "sentiment_label": "neutral", "variant": 6, "template": "{company} outlines dividend schedule"}
+{"event_type": "capital", "sentiment_label": "neutral", "variant": 7, "template": "{company} confirms dividend intent"}
+{"event_type": "capital", "sentiment_label": "neutral", "variant": 8, "template": "{company} notes dividend approval"}
+{"event_type": "capital", "sentiment_label": "neutral", "variant": 9, "template": "{company} details dividend payout"}
+{"event_type": "capital", "sentiment_label": "neutral", "variant": 10, "template": "{company} confirms dividend decision"}
+{"event_type": "capital", "sentiment_label": "neutral", "variant": 11, "template": "{company} communicates dividend plan"}
+{"event_type": "capital", "sentiment_label": "negative", "variant": 0, "template": "{company} announces dividend cut amid ongoing financial strain"}
+{"event_type": "capital", "sentiment_label": "negative", "variant": 1, "template": "{company} reduces dividend payout as earnings continue to lag"}
+{"event_type": "capital", "sentiment_label": "negative", "variant": 2, "template": "{company} declares lower dividend reflecting persistent challenges"}
+{"event_type": "capital", "sentiment_label": "negative", "variant": 3, "template": "{company} slashes dividend in response to weakening cash flow"}
+{"event_type": "capital", "sentiment_label": "negative", "variant": 4, "template": "{company} adjusts dividend downward due to sustained pressure"}
+{"event_type": "capital", "sentiment_label": "negative", "variant": 5, "template": "{company} revises dividend policy following disappointing results"}
+{"event_type": "capital", "sentiment_label": "negative", "variant": 6, "template": "{company} cuts dividend as operational headwinds intensify"}
+{"event_type": "capital", "sentiment_label": "negative", "variant": 7, "template": "{company} lowers dividend amid declining profitability trends"}
+{"event_type": "capital", "sentiment_label": "negative", "variant": 8, "template": "{company} announces reduced dividend to preserve liquidity"}
+{"event_type": "capital", "sentiment_label": "negative", "variant": 9, "template": "{company} implements dividend reduction under mounting stress"}
+{"event_type": "capital", "sentiment_label": "negative", "variant": 10, "template": "{company} modifies dividend outlook after weak performance"}
+{"event_type": "capital", "sentiment_label": "negative", "variant": 11, "template": "{company} declares diminished dividend facing prolonged difficulties"}

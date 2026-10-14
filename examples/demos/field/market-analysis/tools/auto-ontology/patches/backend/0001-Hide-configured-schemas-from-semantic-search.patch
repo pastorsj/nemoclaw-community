@@ -1,0 +1,220 @@
+From: Sam Pastoriza <pastorsj@users.noreply.github.com>
+Subject: [PATCH] Hide configured schemas from semantic search
+
+SEMANTIC_SEARCH_EXCLUDED_SCHEMAS lists database.schema pairs that ordinary
+catalog search leaves out, such as prediction views built for another
+consumer. The filter runs in the vector store, before the result limit, and
+keeps records that have no database or schema identity. A search scoped to
+one schema is never filtered.
+
+Related upstream: NVIDIA/auto-ontology#254.
+---
+diff --git a/auto_ontology/retrieval/data_access/semantic_search.py b/auto_ontology/retrieval/data_access/semantic_search.py
+index 669de7d5..40c12ab7 100644
+--- a/auto_ontology/retrieval/data_access/semantic_search.py
++++ b/auto_ontology/retrieval/data_access/semantic_search.py
+@@ -27,6 +27,7 @@ from __future__ import annotations
+ import ast
+ import json
+ import logging
++import os
+ import random
+ import time
+ from typing import TYPE_CHECKING, Literal
+@@ -180,6 +181,7 @@ def _build_metadata_where_clause(
+     schema_name: str | None = None,
+     *,
+     fmt: MetadataFilterFormat = "sql",
++    excluded_schemas: set[tuple[str, str]] | None = None,
+ ) -> str | dict | None:
+     """Build a per-query metadata filter for ``label`` / ``database_name`` / ``schema_name``.
+ 
+@@ -196,9 +198,12 @@ def _build_metadata_where_clause(
+       ``{"label": "Column"}``; multiple labels become ``{"label": [...]}``
+       (which langchain-pgvector interprets as an ``IN``-list).
+ 
++    *excluded_schemas* holds ``(database_name, schema_name)`` pairs to leave
++    out. Records without a database or schema identity are always kept.
++
+     Returns ``None`` when no filter criteria are supplied.
+     """
+-    if not labels and not database_name and not schema_name:
++    if not labels and not database_name and not schema_name and not excluded_schemas:
+         return None
+ 
+     if fmt == "dict":
+@@ -209,7 +214,20 @@ def _build_metadata_where_clause(
+             out["database_name"] = database_name
+         if schema_name:
+             out["schema_name"] = schema_name
+-        return out
++        exclusions = [
++            {
++                "$or": [
++                    {"database_name": {"$exists": False}},
++                    {"database_name": {"$ne": database}},
++                    {"schema_name": {"$exists": False}},
++                    {"schema_name": {"$ne": schema}},
++                ]
++            }
++            for database, schema in sorted(excluded_schemas or ())
++        ]
++        if not exclusions:
++            return out
++        return {"$and": [out, *exclusions] if out else exclusions}
+ 
+     parts: list[str] = []
+     if labels:
+@@ -230,6 +248,11 @@ def _build_metadata_where_clause(
+         parts.append(
+             f"""metadata LIKE '%"schema_name":"{_escape_like(schema_name)}"%' ESCAPE '\\'"""
+         )
++    for database, schema in sorted(excluded_schemas or ()):
++        parts.append(
++            f"""NOT (metadata LIKE '%"database_name":"{_escape_like(database)}"%' ESCAPE '\\'"""
++            f""" AND metadata LIKE '%"schema_name":"{_escape_like(schema)}"%' ESCAPE '\\')"""
++        )
+     return " AND ".join(parts) if parts else None
+ 
+ 
+@@ -290,6 +313,22 @@ def _hits_to_semantic_rows(
+     return rows
+ 
+ 
++def _excluded_schemas(database_name: str | None) -> set[tuple[str, str]]:
++    """Schemas hidden from ordinary search, from ``SEMANTIC_SEARCH_EXCLUDED_SCHEMAS``.
++
++    The variable is a comma-separated list of ``database.schema`` pairs, such as
++    prediction views that exist for another consumer and must not answer
++    ordinary questions. Only pairs for *database_name* apply when it is set.
++    """
++    selected = (database_name or "").casefold()
++    excluded = set()
++    for item in os.environ.get("SEMANTIC_SEARCH_EXCLUDED_SCHEMAS", "").split(","):
++        database, _, schema = item.strip().partition(".")
++        if database and schema and selected in ("", database.casefold()):
++            excluded.add((database, schema))
++    return excluded
++
++
+ def search_semantic_index(
+     retriever: "Retriever",
+     entity: str,
+@@ -309,8 +348,12 @@ def search_semantic_index(
+ 
+     The filter format (SQL string vs. dict) is read off the VDB the caller
+     plugged into the retriever — see :func:`_metadata_filter_format`.
++    A search scoped to one schema ignores :func:`_excluded_schemas`.
+     """
+     fmt = _metadata_filter_format(retriever)
++    excluded_schemas = (
++        _excluded_schemas(database_name) if schema_name is None else set()
++    )
+ 
+     allowed_labels = {str(x) for x in (label_filter or []) if x is not None} or None
+     labels_to_query = list(allowed_labels) if allowed_labels else [None]
+@@ -322,6 +365,7 @@ def search_semantic_index(
+             database_name=database_name,
+             schema_name=schema_name,
+             fmt=fmt,
++            excluded_schemas=excluded_schemas,
+         )
+         vdb_kwargs = {"where": where_clause} if where_clause else None
+         top_k = (
+diff --git a/auto_ontology/retrieval/data_access/tests/test_semantic_search.py b/auto_ontology/retrieval/data_access/tests/test_semantic_search.py
+new file mode 100644
+index 00000000..19c673d1
+--- /dev/null
++++ b/auto_ontology/retrieval/data_access/tests/test_semantic_search.py
+@@ -0,0 +1,91 @@
++# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES.
++# All rights reserved.
++# SPDX-License-Identifier: Apache-2.0
++
++from typing import Any
++
++import pytest
++
++from auto_ontology.catalog.constants import Labels
++from auto_ontology.retrieval.data_access import semantic_search
++
++
++class _Retriever:
++    def __init__(self, hits: list[dict[str, Any]], *, fmt: str = "sql") -> None:
++        self.hits = hits
++        self.calls: list[dict[str, Any]] = []
++        self.vdb_kwargs = {"vdb": type("_Vdb", (), {"metadata_filter_format": fmt})()}
++
++    def query(self, entity: str, **kwargs: Any) -> list[dict[str, Any]]:
++        self.calls.append({"entity": entity, **kwargs})
++        return list(self.hits[: kwargs.get("top_k")])
++
++
++@pytest.fixture(autouse=True)
++def _exclude_prediction(monkeypatch: pytest.MonkeyPatch) -> None:
++    monkeypatch.setenv(
++        "SEMANTIC_SEARCH_EXCLUDED_SCHEMAS", "analytics.prediction, other.prediction"
++    )
++
++
++def _where(retriever: _Retriever) -> Any:
++    return retriever.calls[0]["vdb_kwargs"]["where"]
++
++
++def test_dict_filter_keeps_records_without_a_schema_identity() -> None:
++    retriever = _Retriever([], fmt="dict")
++
++    semantic_search.search_semantic_index(
++        retriever, "events", label_filter=[Labels.TABLE], database_name="analytics"
++    )
++
++    assert _where(retriever) == {
++        "$and": [
++            {"label": Labels.TABLE, "database_name": "analytics"},
++            {
++                "$or": [
++                    {"database_name": {"$exists": False}},
++                    {"database_name": {"$ne": "analytics"}},
++                    {"schema_name": {"$exists": False}},
++                    {"schema_name": {"$ne": "prediction"}},
++                ]
++            },
++        ]
++    }
++
++
++def test_sql_filter_excludes_every_configured_schema() -> None:
++    retriever = _Retriever([])
++
++    semantic_search.search_semantic_index(retriever, "events")
++
++    where = _where(retriever)
++    assert where.count("NOT (") == 2
++    assert '"database_name":"analytics"' in where
++    assert '"database_name":"other"' in where
++
++
++def test_schema_scoped_search_is_not_filtered() -> None:
++    retriever = _Retriever([], fmt="dict")
++
++    semantic_search.search_semantic_index(
++        retriever, "events", database_name="analytics", schema_name="prediction"
++    )
++
++    assert _where(retriever) == {
++        "database_name": "analytics",
++        "schema_name": "prediction",
++    }
++
++
++def test_no_setting_leaves_the_filter_unchanged(
++    monkeypatch: pytest.MonkeyPatch,
++) -> None:
++    monkeypatch.delenv("SEMANTIC_SEARCH_EXCLUDED_SCHEMAS")
++    retriever = _Retriever([], fmt="dict")
++
++    semantic_search.search_semantic_index(
++        retriever, "events", label_filter=[Labels.TABLE]
++    )
++
++    assert _where(retriever) == {"label": Labels.TABLE}

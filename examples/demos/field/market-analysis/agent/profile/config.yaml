@@ -1,0 +1,143 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# Hermes config for the market research agent. It declares every optional
+# tool; agent/render_config.py keeps only the features selected by the
+# AGENT_FEATURES build argument and writes the result to /opt/data/config.yaml.
+# Every host.openshell.internal:<port> below must be allowed by
+# agent/sandbox-policy.yaml or an attached provider profile.
+_config_version: 46
+
+# Switchyard runs outside the sandbox and is the only holder of the model key.
+# Hermes always speaks chat completions to it; Switchyard picks the served model.
+model:
+  provider: custom:switchyard
+  default: market-research
+  streaming: true
+
+providers:
+  switchyard:
+    api: http://host.openshell.internal:4000/v1
+    key_env: SWITCHYARD_CLIENT_API_KEY  # "not-a-secret"; Switchyard has no inbound auth
+    transport: openai_chat
+    default_model: market-research
+    session_affinity_header: x-switchyard-session-id  # escalation latches per session
+    discover_models: false
+    models:
+      market-research: { context_length: 262144 }  # escalation route
+      market-research-efficient: { context_length: 262144 }  # bake-off baselines
+      market-research-capable: { context_length: 262144 }
+      market-research-aux: { context_length: 262144 }  # passthrough for side tasks
+      market-research-fallback: { context_length: 262144 }  # the auxiliary model, for overloads
+
+# build.nvidia.com can answer "Service temporarily overloaded" inside a 200
+# stream, which Switchyard passes through. After two failed retries Hermes
+# moves the rest of the run to this route instead of waiting out its recovery
+# cycles (about 5 minutes) and failing the job.
+fallback_providers:
+  - { provider: "custom:switchyard", model: market-research-fallback }
+
+# Side tasks that default to the main route would share the job's session and
+# be judged by the escalation router. Turn off the ones a stateless job never
+# needs and pin the rest to the passthrough route.
+auxiliary:
+  title_generation: { enabled: false }
+  background_review: { enabled: false }
+  compression: { provider: custom:switchyard, model: market-research-aux }
+memory:
+  memory_enabled: false
+  user_profile_enabled: false
+curator:
+  enabled: false
+
+# No runtime downloads: the sandbox cannot reach package indexes or GitHub, and
+# without a terminal tool there are no commands for tirith to scan.
+security:
+  allow_lazy_installs: false
+  tirith_enabled: false
+
+# All MCP tool schemas are sent up front instead of behind tool_search.
+# Quote "off": bare off is a YAML boolean.
+tools:
+  tool_search:
+    enabled: "off"
+
+# Skills are baked read-only at /opt/agent/skills. The always-on answer policy
+# lives in SOUL.md, not in a skill.
+skills:
+  external_dirs: [/opt/agent/skills]
+  project_discovery: false
+  inline_shell: false
+  creation_nudge_interval: 0
+  # The skills toolset includes skill_manage. Its writes are staged under
+  # /opt/data/pending, never applied without /skills approve, which nothing
+  # here runs. A prompt-injected document cannot plant a skill for later jobs.
+  write_approval: true
+
+plugins:
+  enabled: [execution-receipts]
+
+# The Runs API exposes only the skills toolset and the MCP data tools: no
+# terminal, file, browser or web tools. Each job may narrow this list further
+# (patch 0002) but never widen it.
+platform_toolsets:
+  api_server: [skills, retrieval, market_analytics, auto_ontology]
+
+mcp_servers:
+  retrieval:
+    url: http://host.openshell.internal:8120/mcp
+    enabled: true
+    connect_timeout: 15
+    timeout: 300
+    supports_parallel_tool_calls: true
+    tools:
+      include: [retrieve_evidence]
+      resources: false
+      prompts: false
+  market_analytics:
+    url: http://host.openshell.internal:3010/mcp
+    enabled: true
+    connect_timeout: 15
+    timeout: 180
+    supports_parallel_tool_calls: true
+    tools:
+      include:
+        - market_scan
+        - market_anomaly_scan
+        - price_context
+        - sentiment_timeline
+        - analyze_news_price_relationship
+        - analyze_market_relationships
+        - intraday_scan
+        - predict_asset_outcomes  # kumo feature
+      resources: false
+      prompts: false
+  auto_ontology:
+    url: http://host.openshell.internal:3003/mcp
+    enabled: true
+    connect_timeout: 15
+    timeout: 900
+    supports_parallel_tool_calls: true
+    tools:
+      include: [ask_question]
+      resources: false
+      prompts: false
+
+# Hermes' default API-server hint asks for plain text; the UI renders Markdown.
+platform_hints:
+  api_server:
+    replace: You are answering through the job API. The UI renders your answer as GitHub-flavored Markdown.
+
+# The forwarder container reaches this listener through `openshell forward
+# service`, which targets sandbox loopback. API_SERVER_KEY comes from
+# `openshell sandbox create --env`.
+platforms:
+  api_server:
+    enabled: true
+    extra:
+      host: 127.0.0.1
+      port: 8642
+      model_name: enterprise-research
+
+updates:
+  check: false

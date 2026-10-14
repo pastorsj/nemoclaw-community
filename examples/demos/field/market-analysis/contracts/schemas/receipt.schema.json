@@ -1,0 +1,1325 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "AnalyticsEngine": {
+      "additionalProperties": false,
+      "description": "The device and library that computed a market analytics result.\n\n`engine_id` names the engine by method and device (`cudf-gpu.v1`, its CPU twin `pandas-cpu.v1`); results\nrecorded before it was added have none.",
+      "properties": {
+        "device": {
+          "enum": [
+            "cpu",
+            "gpu"
+          ],
+          "type": "string"
+        },
+        "library": {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        "version": {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        "engineId": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "device",
+        "library",
+        "version",
+        "engineId"
+      ],
+      "title": "AnalyticsEngine",
+      "type": "object"
+    },
+    "AnalyticsError": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+          "type": "string"
+        },
+        "message": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "AnalyticsError",
+      "type": "object"
+    },
+    "AnalyticsResult": {
+      "additionalProperties": false,
+      "description": "One market analytics result; `payload` is operation-specific JSON.\n\nThe tool does not echo its arguments, so the plugin adds them, without the\nsource ids, as the public parameters. `engine` is null when the operation\nfailed before it ran. `asset_count` is the number of distinct assets in the\nrows scanned; results recorded before it was added have none.",
+      "properties": {
+        "operationId": {
+          "enum": [
+            "market_scan",
+            "market_anomaly_scan",
+            "price_context",
+            "sentiment_timeline",
+            "analyze_news_price_relationship",
+            "analyze_market_relationships",
+            "intraday_scan"
+          ],
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "succeeded",
+            "empty",
+            "failed"
+          ],
+          "type": "string"
+        },
+        "sourceId": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+          "type": "string"
+        },
+        "databaseName": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+          "type": "string"
+        },
+        "publicParameters": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "object"
+        },
+        "payload": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "$ref": "#/$defs/JsonValue"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AnalyticsError"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "engine": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AnalyticsEngine"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "timing": {
+          "$ref": "#/$defs/AnalyticsTiming"
+        },
+        "rowsScanned": {
+          "default": 0,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "assetCount": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "warnings": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 20,
+          "type": "array"
+        },
+        "limitations": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 20,
+          "type": "array"
+        }
+      },
+      "required": [
+        "operationId",
+        "status",
+        "sourceId",
+        "databaseName",
+        "publicParameters",
+        "payload",
+        "error",
+        "engine",
+        "timing",
+        "rowsScanned",
+        "assetCount",
+        "warnings",
+        "limitations"
+      ],
+      "title": "AnalyticsResult",
+      "type": "object"
+    },
+    "AnalyticsResultReceipt": {
+      "additionalProperties": false,
+      "properties": {
+        "schemaVersion": {
+          "const": "2",
+          "default": "2",
+          "type": "string"
+        },
+        "artifactKind": {
+          "const": "analytics_result",
+          "type": "string"
+        },
+        "receiptId": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\s\\x00-\\x1f\\x7f]+$",
+          "type": "string"
+        },
+        "jobId": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\s\\x00-\\x1f\\x7f]+$",
+          "type": "string"
+        },
+        "invocationId": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\s\\x00-\\x1f\\x7f]+$",
+          "type": "string"
+        },
+        "turnId": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "pattern": "^[^\\s\\x00-\\x1f\\x7f]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "toolName": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "completed",
+            "failed"
+          ],
+          "type": "string"
+        },
+        "errorType": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "errorSummary": {
+          "anyOf": [
+            {
+              "maxLength": 600,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "durationMs": {
+          "maximum": 86400000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "traceId": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{32}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "spanId": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{16}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "occurredAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "content": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AnalyticsResult"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "artifactKind",
+        "receiptId",
+        "jobId",
+        "invocationId",
+        "turnId",
+        "toolName",
+        "status",
+        "errorType",
+        "errorSummary",
+        "durationMs",
+        "traceId",
+        "spanId",
+        "occurredAt",
+        "content"
+      ],
+      "title": "AnalyticsResultReceipt",
+      "type": "object"
+    },
+    "AnalyticsTiming": {
+      "additionalProperties": false,
+      "description": "Milliseconds, to the microsecond: the worker's calculation (`compute_ms`), its other work on the call\n(`setup_ms`: the arguments before, the result after), the two together (`engine_ms`), and the call end to end\nin the tool service, including the wait for the worker (`total_ms`). Results recorded before setup and engine\ntimes were added have neither.",
+      "properties": {
+        "computeMs": {
+          "minimum": 0,
+          "type": "number"
+        },
+        "setupMs": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "engineMs": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "totalMs": {
+          "minimum": 0,
+          "type": "number"
+        }
+      },
+      "required": [
+        "computeMs",
+        "setupMs",
+        "engineMs",
+        "totalMs"
+      ],
+      "title": "AnalyticsTiming",
+      "type": "object"
+    },
+    "AssetProbability": {
+      "additionalProperties": false,
+      "properties": {
+        "assetId": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+          "type": "string"
+        },
+        "probability": {
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
+        }
+      },
+      "required": [
+        "assetId",
+        "probability"
+      ],
+      "title": "AssetProbability",
+      "type": "object"
+    },
+    "JsonValue": {},
+    "LineageBinding": {
+      "additionalProperties": false,
+      "description": "How Auto Ontology bound one phrase of the question to a column.",
+      "properties": {
+        "phrase": {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        "ontologyObject": {
+          "maxLength": 256,
+          "minLength": 1,
+          "type": "string"
+        },
+        "table": {
+          "maxLength": 256,
+          "minLength": 1,
+          "type": "string"
+        },
+        "column": {
+          "maxLength": 256,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "phrase",
+        "ontologyObject",
+        "table",
+        "column"
+      ],
+      "title": "LineageBinding",
+      "type": "object"
+    },
+    "PredictionHorizon": {
+      "additionalProperties": false,
+      "description": "How far past the anchor the outcome is counted, read from the PQL window.",
+      "properties": {
+        "value": {
+          "type": "integer"
+        },
+        "unit": {
+          "maxLength": 32,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "value",
+        "unit"
+      ],
+      "title": "PredictionHorizon",
+      "type": "object"
+    },
+    "RetrievalEvidence": {
+      "additionalProperties": false,
+      "description": "A `retrieve_evidence` result: per-source vector search, one merged rerank, the best hits.\n\n`collection` is the alias the tool searched; the collection version is the index build behind it.",
+      "properties": {
+        "query": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "sourceIds": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+            "type": "string"
+          },
+          "maxItems": 32,
+          "minItems": 1,
+          "type": "array"
+        },
+        "collection": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,254}$",
+          "type": "string"
+        },
+        "collectionVersion": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,254}$",
+          "type": "string"
+        },
+        "hits": {
+          "items": {
+            "$ref": "#/$defs/RetrievalHit"
+          },
+          "maxItems": 25,
+          "type": "array"
+        },
+        "candidateCounts": {
+          "additionalProperties": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "object"
+        },
+        "models": {
+          "$ref": "#/$defs/RetrievalModels"
+        },
+        "index": {
+          "$ref": "#/$defs/RetrievalIndex"
+        },
+        "timings": {
+          "$ref": "#/$defs/RetrievalTimings"
+        }
+      },
+      "required": [
+        "query",
+        "sourceIds",
+        "collection",
+        "collectionVersion",
+        "hits",
+        "candidateCounts",
+        "models",
+        "index",
+        "timings"
+      ],
+      "title": "RetrievalEvidence",
+      "type": "object"
+    },
+    "RetrievalEvidenceReceipt": {
+      "additionalProperties": false,
+      "properties": {
+        "schemaVersion": {
+          "const": "2",
+          "default": "2",
+          "type": "string"
+        },
+        "artifactKind": {
+          "const": "retrieval_evidence",
+          "type": "string"
+        },
+        "receiptId": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\s\\x00-\\x1f\\x7f]+$",
+          "type": "string"
+        },
+        "jobId": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\s\\x00-\\x1f\\x7f]+$",
+          "type": "string"
+        },
+        "invocationId": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\s\\x00-\\x1f\\x7f]+$",
+          "type": "string"
+        },
+        "turnId": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "pattern": "^[^\\s\\x00-\\x1f\\x7f]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "toolName": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "completed",
+            "failed"
+          ],
+          "type": "string"
+        },
+        "errorType": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "errorSummary": {
+          "anyOf": [
+            {
+              "maxLength": 600,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "durationMs": {
+          "maximum": 86400000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "traceId": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{32}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "spanId": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{16}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "occurredAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "content": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RetrievalEvidence"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "artifactKind",
+        "receiptId",
+        "jobId",
+        "invocationId",
+        "turnId",
+        "toolName",
+        "status",
+        "errorType",
+        "errorSummary",
+        "durationMs",
+        "traceId",
+        "spanId",
+        "occurredAt",
+        "content"
+      ],
+      "title": "RetrievalEvidenceReceipt",
+      "type": "object"
+    },
+    "RetrievalHit": {
+      "additionalProperties": false,
+      "description": "One passage from `retrieve_evidence`, ordered by its rerank logit (`score`); the vector score is cosine.",
+      "properties": {
+        "rank": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "score": {
+          "type": "number"
+        },
+        "vectorScore": {
+          "type": "number"
+        },
+        "sourceId": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+          "type": "string"
+        },
+        "documentId": {
+          "maxLength": 512,
+          "minLength": 1,
+          "type": "string"
+        },
+        "chunkId": {
+          "maxLength": 512,
+          "minLength": 1,
+          "type": "string"
+        },
+        "title": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "maxLength": 2048,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "publishedAt": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "snippet": {
+          "maxLength": 1500,
+          "type": "string"
+        },
+        "metadata": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "rank",
+        "score",
+        "vectorScore",
+        "sourceId",
+        "documentId",
+        "chunkId",
+        "title",
+        "url",
+        "publishedAt",
+        "snippet",
+        "metadata"
+      ],
+      "title": "RetrievalHit",
+      "type": "object"
+    },
+    "RetrievalIndex": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        "metric": {
+          "maxLength": 64,
+          "minLength": 1,
+          "type": "string"
+        },
+        "params": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "type": "object"
+        },
+        "searchParams": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "type",
+        "metric",
+        "params",
+        "searchParams"
+      ],
+      "title": "RetrievalIndex",
+      "type": "object"
+    },
+    "RetrievalModels": {
+      "additionalProperties": false,
+      "properties": {
+        "embed": {
+          "maxLength": 256,
+          "minLength": 1,
+          "type": "string"
+        },
+        "rerank": {
+          "maxLength": 256,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "embed",
+        "rerank"
+      ],
+      "title": "RetrievalModels",
+      "type": "object"
+    },
+    "RetrievalTimings": {
+      "additionalProperties": false,
+      "description": "Wall-clock stages of one retrieval, in milliseconds.",
+      "properties": {
+        "embedMs": {
+          "minimum": 0,
+          "type": "number"
+        },
+        "searchMs": {
+          "minimum": 0,
+          "type": "number"
+        },
+        "rerankMs": {
+          "minimum": 0,
+          "type": "number"
+        },
+        "totalMs": {
+          "minimum": 0,
+          "type": "number"
+        }
+      },
+      "required": [
+        "embedMs",
+        "searchMs",
+        "rerankMs",
+        "totalMs"
+      ],
+      "title": "RetrievalTimings",
+      "type": "object"
+    },
+    "StructuredPrediction": {
+      "additionalProperties": false,
+      "description": "A curated PQL template scored per asset by NVIDIA Kumo (`predict_asset_outcomes`).\n\n`available` is false, with a `reason`, when the prediction could not run.",
+      "properties": {
+        "available": {
+          "type": "boolean"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "templateId": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+          "type": "string"
+        },
+        "pql": {
+          "maxLength": 8000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "anchor": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "horizon": {
+          "$ref": "#/$defs/PredictionHorizon"
+        },
+        "rows": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/AssetProbability"
+          },
+          "maxItems": 100,
+          "type": "array"
+        },
+        "model": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "available",
+        "reason",
+        "templateId",
+        "pql",
+        "anchor",
+        "horizon",
+        "rows",
+        "model"
+      ],
+      "title": "StructuredPrediction",
+      "type": "object"
+    },
+    "StructuredPredictionReceipt": {
+      "additionalProperties": false,
+      "properties": {
+        "schemaVersion": {
+          "const": "2",
+          "default": "2",
+          "type": "string"
+        },
+        "artifactKind": {
+          "const": "structured_prediction",
+          "type": "string"
+        },
+        "receiptId": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\s\\x00-\\x1f\\x7f]+$",
+          "type": "string"
+        },
+        "jobId": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\s\\x00-\\x1f\\x7f]+$",
+          "type": "string"
+        },
+        "invocationId": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\s\\x00-\\x1f\\x7f]+$",
+          "type": "string"
+        },
+        "turnId": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "pattern": "^[^\\s\\x00-\\x1f\\x7f]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "toolName": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "completed",
+            "failed"
+          ],
+          "type": "string"
+        },
+        "errorType": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "errorSummary": {
+          "anyOf": [
+            {
+              "maxLength": 600,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "durationMs": {
+          "maximum": 86400000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "traceId": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{32}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "spanId": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{16}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "occurredAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "content": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StructuredPrediction"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "artifactKind",
+        "receiptId",
+        "jobId",
+        "invocationId",
+        "turnId",
+        "toolName",
+        "status",
+        "errorType",
+        "errorSummary",
+        "durationMs",
+        "traceId",
+        "spanId",
+        "occurredAt",
+        "content"
+      ],
+      "title": "StructuredPredictionReceipt",
+      "type": "object"
+    },
+    "StructuredQuery": {
+      "additionalProperties": false,
+      "description": "An ontology-grounded SQL answer from Auto Ontology `ask_question`.\n\n`sql` is null when Auto Ontology resolved the question's terms but could not\nconstruct a query.",
+      "properties": {
+        "query": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "databaseName": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+          "type": "string"
+        },
+        "answer": {
+          "anyOf": [
+            {
+              "maxLength": 4000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "sql": {
+          "anyOf": [
+            {
+              "maxLength": 12000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "rows": {
+          "default": [],
+          "items": {
+            "additionalProperties": {
+              "$ref": "#/$defs/JsonValue"
+            },
+            "type": "object"
+          },
+          "maxItems": 25,
+          "type": "array"
+        },
+        "sourceRowCount": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "resolutionLineage": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/LineageBinding"
+          },
+          "maxItems": 40,
+          "type": "array"
+        }
+      },
+      "required": [
+        "query",
+        "databaseName",
+        "answer",
+        "sql",
+        "rows",
+        "sourceRowCount",
+        "truncated",
+        "resolutionLineage"
+      ],
+      "title": "StructuredQuery",
+      "type": "object"
+    },
+    "StructuredQueryReceipt": {
+      "additionalProperties": false,
+      "properties": {
+        "schemaVersion": {
+          "const": "2",
+          "default": "2",
+          "type": "string"
+        },
+        "artifactKind": {
+          "const": "structured_query",
+          "type": "string"
+        },
+        "receiptId": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\s\\x00-\\x1f\\x7f]+$",
+          "type": "string"
+        },
+        "jobId": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\s\\x00-\\x1f\\x7f]+$",
+          "type": "string"
+        },
+        "invocationId": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\s\\x00-\\x1f\\x7f]+$",
+          "type": "string"
+        },
+        "turnId": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "minLength": 1,
+              "pattern": "^[^\\s\\x00-\\x1f\\x7f]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "toolName": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "completed",
+            "failed"
+          ],
+          "type": "string"
+        },
+        "errorType": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "errorSummary": {
+          "anyOf": [
+            {
+              "maxLength": 600,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "durationMs": {
+          "maximum": 86400000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "traceId": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{32}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "spanId": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{16}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "occurredAt": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "content": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StructuredQuery"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "artifactKind",
+        "receiptId",
+        "jobId",
+        "invocationId",
+        "turnId",
+        "toolName",
+        "status",
+        "errorType",
+        "errorSummary",
+        "durationMs",
+        "traceId",
+        "spanId",
+        "occurredAt",
+        "content"
+      ],
+      "title": "StructuredQueryReceipt",
+      "type": "object"
+    }
+  },
+  "discriminator": {
+    "mapping": {
+      "analytics_result": "#/$defs/AnalyticsResultReceipt",
+      "retrieval_evidence": "#/$defs/RetrievalEvidenceReceipt",
+      "structured_prediction": "#/$defs/StructuredPredictionReceipt",
+      "structured_query": "#/$defs/StructuredQueryReceipt"
+    },
+    "propertyName": "artifactKind"
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/RetrievalEvidenceReceipt"
+    },
+    {
+      "$ref": "#/$defs/AnalyticsResultReceipt"
+    },
+    {
+      "$ref": "#/$defs/StructuredQueryReceipt"
+    },
+    {
+      "$ref": "#/$defs/StructuredPredictionReceipt"
+    }
+  ],
+  "title": "ReceiptV2"
+}

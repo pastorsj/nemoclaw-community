@@ -1,0 +1,24 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+[project]
+name = "demo-data-generate"
+version = "0.1.0"
+description = "Writes the Nemotron text of the synthetic-market pack with NeMo Data Designer."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "data-designer==0.9.3",
+  "numpy>=2.3,<3",
+  "pyyaml>=6.0.3",
+]
+
+[project.scripts]
+demo-data-generate = "data_generate.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.11.28,<0.13"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "data_generate"

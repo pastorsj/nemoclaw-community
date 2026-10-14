@@ -1,0 +1,4162 @@
+{
+  "schemaVersion": 1,
+  "sources": [
+    {
+      "id": "market_data",
+      "name": "Market Prices & Company News",
+      "databaseName": "synthetic_market",
+      "schema": {
+        "source_id": "market_data",
+        "database_name": "synthetic_market",
+        "tables": [
+          {
+            "name": "asset_relationships",
+            "schema": "main",
+            "kind": "table",
+            "primary_key": [
+              "relationship_id"
+            ],
+            "columns": [
+              {
+                "name": "relationship_id",
+                "type": "VARCHAR",
+                "nullable": false,
+                "primary_key": true
+              },
+              {
+                "name": "source_asset_id",
+                "type": "VARCHAR",
+                "nullable": false,
+                "primary_key": false
+              },
+              {
+                "name": "target_asset_id",
+                "type": "VARCHAR",
+                "nullable": false,
+                "primary_key": false
+              },
+              {
+                "name": "relationship_type",
+                "type": "VARCHAR",
+                "nullable": false,
+                "primary_key": false
+              },
+              {
+                "name": "peer_rank",
+                "type": "INTEGER",
+                "nullable": false,
+                "primary_key": false
+              }
+            ]
+          },
+          {
+            "name": "assets",
+            "schema": "main",
+            "kind": "table",
+            "primary_key": [
+              "asset_id"
+            ],
+            "columns": [
+              {
+                "name": "asset_id",
+                "type": "VARCHAR",
+                "nullable": false,
+                "primary_key": true
+              },
+              {
+                "name": "company_name",
+                "type": "VARCHAR",
+                "nullable": false,
+                "primary_key": false
+              },
+              {
+                "name": "cik",
+                "type": "VARCHAR",
+                "nullable": true,
+                "primary_key": false
+              },
+              {
+                "name": "sic_code",
+                "type": "VARCHAR",
+                "nullable": false,
+                "primary_key": false
+              },
+              {
+                "name": "sector",
+                "type": "VARCHAR",
+                "nullable": false,
+                "primary_key": false
+              },
+              {
+                "name": "industry",
+                "type": "VARCHAR",
+                "nullable": false,
+                "primary_key": false
+              },
+              {
+                "name": "exchange",
+                "type": "VARCHAR",
+                "nullable": false,
+                "primary_key": false
+              },
+              {
+                "name": "profile",
+                "type": "VARCHAR",
+                "nullable": true,
+                "primary_key": false
+              },
+              {
+                "name": "first_session",
+                "type": "DATE",
+                "nullable": false,
+                "primary_key": false
+              },
+              {
+                "name": "last_session",
+                "type": "DATE",
+                "nullable": false,
+                "primary_key": false
+              },
+              {
+                "name": "sessions",
+                "type": "INTEGER",
+                "nullable": false,
+                "primary_key": false
+              },
+              {
+                "name": "median_dollar_volume",
+                "type": "DOUBLE",
+                "nullable": true,
+                "primary_key": false
+              },
+              {
+                "name": "liquidity_rank",
+                "type": "INTEGER",
+                "nullable": false,
+                "primary_key": false
+              },
+              {
+                "name": "is_synthetic",
+                "type": "BOOLEAN",
+                "nullable": false,
+                "primary_key": false
+              }
+            ]
+          },
+          {
+            "name": "company_news",
+            "schema": "main",
+            "kind": "table",
+            "primary_key": [
+              "news_id"
+            ],
+            "columns": [
+              {
+                "name": "news_id",
+                "type": "VARCHAR",
+                "nullable": false,
+                "primary_key": true
+              },
+              {
+                "name": "primary_asset_id",
+                "type": "VARCHAR",
+                "nullable": false,
+                "primary_key": false
+              },
+              {
+                "name": "published_at",
+                "type": "TIMESTAMP WITH TIME ZONE",
+                "nullable": false,
+                "primary_key": false
+              },
+              {
+                "name": "source_name",
+                "type": "VARCHAR",
+                "nullable": false,
+                "primary_key": false
+              },
+              {
+                "name": "headline",
+                "type": "VARCHAR",
+                "nullable": false,
+                "primary_key": false
+              },
+              {
+                "name": "summary",
+                "type": "VARCHAR",
+                "nullable": true,
+                "primary_key": false
+              },
+              {
+                "name": "event_type",
+                "type": "VARCHAR",
+                "nullable": false,
+                "primary_key": false
+              },
+              {
+                "name": "sentiment_label",
+                "type": "VARCHAR",
+                "nullable": false,
+                "primary_key": false
+              },
+              {
+                "name": "is_story",
+                "type": "BOOLEAN",
+                "nullable": false,
+                "primary_key": false
+              }
+            ]
+          },
+          {
+            "name": "daily_prices",
+            "schema": "main",
+            "kind": "table",
+            "primary_key": [
+              "price_id"
+            ],
+            "columns": [
+              {
+                "name": "price_id",
+                "type": "VARCHAR",
+                "nullable": false,
+                "primary_key": true
+              },
+              {
+                "name": "asset_id",
+                "type": "VARCHAR",
+                "nullable": false,
+                "primary_key": false
+              },
+              {
+                "name": "trading_date",
+                "type": "DATE",
+                "nullable": false,
+                "primary_key": false
+              },
+              {
+                "name": "open",
+                "type": "DOUBLE",
+                "nullable": false,
+                "primary_key": false
+              },
+              {
+                "name": "high",
+                "type": "DOUBLE",
+                "nullable": false,
+                "primary_key": false
+              },
+              {
+                "name": "low",
+                "type": "DOUBLE",
+                "nullable": false,
+                "primary_key": false
+              },
+              {
+                "name": "close",
+                "type": "DOUBLE",
+                "nullable": false,
+                "primary_key": false
+              },
+              {
+                "name": "adjusted_close",
+                "type": "DOUBLE",
+                "nullable": false,
+                "primary_key": false
+              },
+              {
+                "name": "volume",
+                "type": "BIGINT",
+                "nullable": false,
+                "primary_key": false
+              },
+              {
+                "name": "dollar_volume",
+                "type": "DOUBLE",
+                "nullable": false,
+                "primary_key": false
+              },
+              {
+                "name": "bar_count",
+                "type": "INTEGER",
+                "nullable": false,
+                "primary_key": false
+              },
+              {
+                "name": "total_return_1d",
+                "type": "DOUBLE",
+                "nullable": false,
+                "primary_key": false
+              }
+            ]
+          },
+          {
+            "name": "ticker_history",
+            "schema": "main",
+            "kind": "table",
+            "primary_key": [
+              "ticker_history_id"
+            ],
+            "columns": [
+              {
+                "name": "ticker_history_id",
+                "type": "VARCHAR",
+                "nullable": false,
+                "primary_key": true
+              },
+              {
+                "name": "asset_id",
+                "type": "VARCHAR",
+                "nullable": false,
+                "primary_key": false
+              },
+              {
+                "name": "ticker",
+                "type": "VARCHAR",
+                "nullable": false,
+                "primary_key": false
+              },
+              {
+                "name": "effective_from",
+                "type": "DATE",
+                "nullable": false,
+                "primary_key": false
+              },
+              {
+                "name": "effective_to",
+                "type": "DATE",
+                "nullable": true,
+                "primary_key": false
+              }
+            ]
+          },
+          {
+            "name": "trading_sessions",
+            "schema": "main",
+            "kind": "table",
+            "primary_key": [
+              "session_id"
+            ],
+            "columns": [
+              {
+                "name": "session_id",
+                "type": "VARCHAR",
+                "nullable": false,
+                "primary_key": true
+              },
+              {
+                "name": "trading_date",
+                "type": "DATE",
+                "nullable": false,
+                "primary_key": false
+              },
+              {
+                "name": "close_at",
+                "type": "TIMESTAMP WITH TIME ZONE",
+                "nullable": false,
+                "primary_key": false
+              },
+              {
+                "name": "symbols",
+                "type": "INTEGER",
+                "nullable": false,
+                "primary_key": false
+              }
+            ]
+          },
+          {
+            "name": "prediction.asset_entities",
+            "schema": "prediction",
+            "kind": "view",
+            "primary_key": [],
+            "columns": [
+              {
+                "name": "asset_id",
+                "type": "VARCHAR",
+                "nullable": true,
+                "primary_key": false
+              },
+              {
+                "name": "company_name",
+                "type": "VARCHAR",
+                "nullable": true,
+                "primary_key": false
+              },
+              {
+                "name": "sector",
+                "type": "VARCHAR",
+                "nullable": true,
+                "primary_key": false
+              },
+              {
+                "name": "industry",
+                "type": "VARCHAR",
+                "nullable": true,
+                "primary_key": false
+              },
+              {
+                "name": "exchange",
+                "type": "VARCHAR",
+                "nullable": true,
+                "primary_key": false
+              }
+            ]
+          },
+          {
+            "name": "prediction.news_events",
+            "schema": "prediction",
+            "kind": "view",
+            "primary_key": [],
+            "columns": [
+              {
+                "name": "news_id",
+                "type": "VARCHAR",
+                "nullable": true,
+                "primary_key": false
+              },
+              {
+                "name": "asset_id",
+                "type": "VARCHAR",
+                "nullable": true,
+                "primary_key": false
+              },
+              {
+                "name": "published_at",
+                "type": "TIMESTAMP WITH TIME ZONE",
+                "nullable": true,
+                "primary_key": false
+              },
+              {
+                "name": "event_type",
+                "type": "VARCHAR",
+                "nullable": true,
+                "primary_key": false
+              },
+              {
+                "name": "sentiment_label",
+                "type": "VARCHAR",
+                "nullable": true,
+                "primary_key": false
+              }
+            ]
+          },
+          {
+            "name": "prediction.price_events",
+            "schema": "prediction",
+            "kind": "view",
+            "primary_key": [],
+            "columns": [
+              {
+                "name": "price_id",
+                "type": "VARCHAR",
+                "nullable": true,
+                "primary_key": false
+              },
+              {
+                "name": "asset_id",
+                "type": "VARCHAR",
+                "nullable": true,
+                "primary_key": false
+              },
+              {
+                "name": "observed_at",
+                "type": "TIMESTAMP WITH TIME ZONE",
+                "nullable": true,
+                "primary_key": false
+              },
+              {
+                "name": "adjusted_close",
+                "type": "DOUBLE",
+                "nullable": true,
+                "primary_key": false
+              },
+              {
+                "name": "volume",
+                "type": "BIGINT",
+                "nullable": true,
+                "primary_key": false
+              },
+              {
+                "name": "total_return_1d",
+                "type": "DOUBLE",
+                "nullable": true,
+                "primary_key": false
+              }
+            ]
+          },
+          {
+            "name": "prediction.return_outcomes",
+            "schema": "prediction",
+            "kind": "view",
+            "primary_key": [],
+            "columns": [
+              {
+                "name": "outcome_id",
+                "type": "VARCHAR",
+                "nullable": true,
+                "primary_key": false
+              },
+              {
+                "name": "asset_id",
+                "type": "VARCHAR",
+                "nullable": true,
+                "primary_key": false
+              },
+              {
+                "name": "observed_at",
+                "type": "TIMESTAMP WITH TIME ZONE",
+                "nullable": true,
+                "primary_key": false
+              },
+              {
+                "name": "realized_at",
+                "type": "TIMESTAMP WITH TIME ZONE",
+                "nullable": true,
+                "primary_key": false
+              },
+              {
+                "name": "forward_return_5d",
+                "type": "DOUBLE",
+                "nullable": true,
+                "primary_key": false
+              },
+              {
+                "name": "positive_return",
+                "type": "BOOLEAN",
+                "nullable": true,
+                "primary_key": false
+              }
+            ]
+          },
+          {
+            "name": "prediction.top_12_population",
+            "schema": "prediction",
+            "kind": "view",
+            "primary_key": [],
+            "columns": [
+              {
+                "name": "asset_id",
+                "type": "VARCHAR",
+                "nullable": true,
+                "primary_key": false
+              }
+            ]
+          }
+        ],
+        "relationships": [
+          {
+            "from_table": "asset_relationships",
+            "from_column": "source_asset_id",
+            "to_table": "assets",
+            "to_column": "asset_id"
+          },
+          {
+            "from_table": "asset_relationships",
+            "from_column": "target_asset_id",
+            "to_table": "assets",
+            "to_column": "asset_id"
+          },
+          {
+            "from_table": "company_news",
+            "from_column": "primary_asset_id",
+            "to_table": "assets",
+            "to_column": "asset_id"
+          },
+          {
+            "from_table": "daily_prices",
+            "from_column": "asset_id",
+            "to_table": "assets",
+            "to_column": "asset_id"
+          },
+          {
+            "from_table": "ticker_history",
+            "from_column": "asset_id",
+            "to_table": "assets",
+            "to_column": "asset_id"
+          }
+        ]
+      },
+      "previews": {
+        "asset_relationships": {
+          "table": "asset_relationships",
+          "columns": [
+            "relationship_id",
+            "source_asset_id",
+            "target_asset_id",
+            "relationship_type",
+            "peer_rank"
+          ],
+          "types": [
+            "VARCHAR",
+            "VARCHAR",
+            "VARCHAR",
+            "VARCHAR",
+            "INTEGER"
+          ],
+          "rows": [
+            [
+              "BAEA>HARE",
+              "BAEA",
+              "HARE",
+              "same_sic_code",
+              1
+            ],
+            [
+              "BAEA>CHEA",
+              "BAEA",
+              "CHEA",
+              "same_sic_code",
+              2
+            ],
+            [
+              "BAEA>DROO",
+              "BAEA",
+              "DROO",
+              "same_sic_code",
+              3
+            ],
+            [
+              "BAEA>SIOL",
+              "BAEA",
+              "SIOL",
+              "same_sic_code",
+              4
+            ],
+            [
+              "BAEA>THEN",
+              "BAEA",
+              "THEN",
+              "same_sic_code",
+              5
+            ],
+            [
+              "BAEA>QUAN",
+              "BAEA",
+              "QUAN",
+              "same_sic_code",
+              6
+            ],
+            [
+              "BAEA>HELC",
+              "BAEA",
+              "HELC",
+              "same_sic_code",
+              7
+            ],
+            [
+              "BAEA>PEHI",
+              "BAEA",
+              "PEHI",
+              "same_sic_code",
+              8
+            ]
+          ],
+          "truncated": true,
+          "duration_ms": 702
+        },
+        "assets": {
+          "table": "assets",
+          "columns": [
+            "asset_id",
+            "company_name",
+            "cik",
+            "sic_code",
+            "sector",
+            "industry",
+            "exchange",
+            "profile",
+            "first_session",
+            "last_session",
+            "sessions",
+            "median_dollar_volume",
+            "liquidity_rank",
+            "is_synthetic"
+          ],
+          "types": [
+            "VARCHAR",
+            "VARCHAR",
+            "VARCHAR",
+            "VARCHAR",
+            "VARCHAR",
+            "VARCHAR",
+            "VARCHAR",
+            "VARCHAR",
+            "DATE",
+            "DATE",
+            "INTEGER",
+            "DOUBLE",
+            "INTEGER",
+            "BOOLEAN"
+          ],
+          "rows": [
+            [
+              "BAEA",
+              "Baela Power Grid",
+              null,
+              "4911",
+              "Transportation, Communications, Electric, Gas and Sanitary Services",
+              "Electric Services",
+              "NYSE",
+              "Baela Power Grid provides reliable electricity transmission and distribution services to residential and commercial communities across the United States.",
+              "2024-01-02",
+              "2026-08-31",
+              668,
+              54056560.0491,
+              865,
+              true
+            ],
+            [
+              "BAED",
+              "Baendia Network Solutions",
+              null,
+              "3576",
+              "Manufacturing",
+              "Computer Communications Equipment",
+              "Nasdaq",
+              "Baendia Network Solutions designs secure communication hardware for enterprise and government networks seeking reliable data transmission.",
+              "2024-01-02",
+              "2026-08-31",
+              668,
+              11939564.1519,
+              1432,
+              true
+            ],
+            [
+              "BAEK",
+              "Baerkon Capital Markets",
+              null,
+              "6211",
+              "Finance, Insurance and Real Estate",
+              "Security Brokers, Dealers & Flotation Companies",
+              "Nasdaq",
+              "Baerkon Capital Markets provides tailored securities brokerage, dealer services, and capital raising solutions for institutional investors and emerging growth firms.",
+              "2024-01-02",
+              "2026-08-31",
+              668,
+              13166576.2962,
+              1399,
+              true
+            ],
+            [
+              "BAEL",
+              "Baelfandia Industrial Solutions",
+              null,
+              "3560",
+              "Manufacturing",
+              "General Industrial Machinery & Equipment",
+              "NYSE",
+              "Baelfandia Industrial Solutions designs and manufactures precision machinery for manufacturing and processing facilities across North America.",
+              "2024-01-02",
+              "2026-08-31",
+              668,
+              5987302.6863,
+              1686,
+              true
+            ],
+            [
+              "BAEN",
+              "Baennoen Semiconductors",
+              null,
+              "3674",
+              "Manufacturing",
+              "Semiconductors & Related Devices",
+              "Nasdaq",
+              "Baennoen Semiconductors designs and manufactures advanced microchips for industrial automation and smart infrastructure systems.",
+              "2024-01-02",
+              "2026-08-31",
+              668,
+              144421320.546,
+              495,
+              true
+            ],
+            [
+              "BAEO",
+              "Baero Solutions",
+              null,
+              "7372",
+              "Services",
+              "Services-Prepackaged Software",
+              "NYSE",
+              "Baero Solutions provides customizable software platforms that help mid-sized businesses streamline workflow automation and improve operational efficiency.",
+              "2024-01-02",
+              "2026-08-31",
+              668,
+              55837448.7222,
+              849,
+              true
+            ],
+            [
+              "BAET",
+              "Baeant Solutions",
+              null,
+              "7372",
+              "Services",
+              "Services-Prepackaged Software",
+              "NYSE",
+              "Baeant Solutions delivers cloud-based workflow automation tools designed to streamline operations for mid-sized professional services firms.",
+              "2024-01-02",
+              "2026-08-31",
+              668,
+              182949622.71739998,
+              419,
+              true
+            ],
+            [
+              "BAEU",
+              "Baeum Horizon",
+              null,
+              "6798",
+              "Finance, Insurance and Real Estate",
+              "Real Estate Investment Trusts",
+              "NYSE",
+              "Baeum Horizon acquires and manages commercial properties to provide stable income streams for investors seeking long-term real estate exposure.",
+              "2024-01-02",
+              "2026-08-31",
+              668,
+              113225356.7862,
+              597,
+              true
+            ]
+          ],
+          "truncated": true,
+          "duration_ms": 722
+        },
+        "company_news": {
+          "table": "company_news",
+          "columns": [
+            "news_id",
+            "primary_asset_id",
+            "published_at",
+            "source_name",
+            "headline",
+            "summary",
+            "event_type",
+            "sentiment_label",
+            "is_story"
+          ],
+          "types": [
+            "VARCHAR",
+            "VARCHAR",
+            "TIMESTAMP WITH TIME ZONE",
+            "VARCHAR",
+            "VARCHAR",
+            "VARCHAR",
+            "VARCHAR",
+            "VARCHAR",
+            "BOOLEAN"
+          ],
+          "rows": [
+            [
+              "CLIL-20240102-1",
+              "CLIL",
+              "2024-01-02 11:07:00+00:00",
+              "Synthetic Newswire",
+              "Clilora Energy Partners declares dividend distribution for current period",
+              null,
+              "capital",
+              "positive",
+              false
+            ],
+            [
+              "GRXA-20240102-1",
+              "GRXA",
+              "2024-01-02 11:12:00+00:00",
+              "Synthetic Newswire",
+              "Court finds no merit in claims brought against Groxa AutoSystems",
+              null,
+              "legal",
+              "positive",
+              false
+            ],
+            [
+              "QUOI-20240102-1",
+              "QUOI",
+              "2024-01-02 11:19:00+00:00",
+              "Synthetic Newswire",
+              "Quouix Ridge approved by regulators for continued development",
+              null,
+              "regulatory",
+              "positive",
+              false
+            ],
+            [
+              "PREL-20240102-1",
+              "PREL",
+              "2024-01-02 11:20:00+00:00",
+              "Synthetic Newswire",
+              "Prelmoara Shield moves forward with partnership despite internal reservations",
+              null,
+              "partnership",
+              "negative",
+              false
+            ],
+            [
+              "KASI-20240102-1",
+              "KASI",
+              "2024-01-02 11:22:00+00:00",
+              "Synthetic Newswire",
+              "Kasix Mobility Solutions pursues partnership that complicates existing operational priorities",
+              null,
+              "partnership",
+              "negative",
+              false
+            ],
+            [
+              "KIRO-20240102-1",
+              "KIRO",
+              "2024-01-02 11:22:00+00:00",
+              "Synthetic Newswire",
+              "Kirora Teleconnect delivers quarterly results indicating solid progress",
+              null,
+              "earnings",
+              "positive",
+              false
+            ],
+            [
+              "KESP-20240102-1",
+              "KESP",
+              "2024-01-02 11:27:00+00:00",
+              "Synthetic Newswire",
+              "Kespianet Microtech Announces Upcoming Launch of New Product Line",
+              null,
+              "product",
+              "neutral",
+              false
+            ],
+            [
+              "CHOU-20240102-1",
+              "CHOU",
+              "2024-01-02 11:31:00+00:00",
+              "Synthetic Newswire",
+              "Choulhiora CloudSync wins key agreement with important client",
+              null,
+              "contract",
+              "positive",
+              false
+            ]
+          ],
+          "truncated": true,
+          "duration_ms": 747
+        },
+        "daily_prices": {
+          "table": "daily_prices",
+          "columns": [
+            "price_id",
+            "asset_id",
+            "trading_date",
+            "open",
+            "high",
+            "low",
+            "close",
+            "adjusted_close",
+            "volume",
+            "dollar_volume",
+            "bar_count",
+            "total_return_1d"
+          ],
+          "types": [
+            "VARCHAR",
+            "VARCHAR",
+            "DATE",
+            "DOUBLE",
+            "DOUBLE",
+            "DOUBLE",
+            "DOUBLE",
+            "DOUBLE",
+            "BIGINT",
+            "DOUBLE",
+            "INTEGER",
+            "DOUBLE"
+          ],
+          "rows": [
+            [
+              "BAEA:2024-01-02",
+              "BAEA",
+              "2024-01-02",
+              239.4817,
+              251.7315,
+              237.8539,
+              246.1863,
+              246.1863,
+              348708,
+              85847132.30039999,
+              1,
+              0.0
+            ],
+            [
+              "BAEA:2024-01-03",
+              "BAEA",
+              "2024-01-03",
+              246.7302,
+              250.2652,
+              245.9739,
+              249.9991,
+              249.9991,
+              237088,
+              59271786.620799996,
+              1,
+              0.015487458075449378
+            ],
+            [
+              "BAEA:2024-01-04",
+              "BAEA",
+              "2024-01-04",
+              249.8421,
+              250.6758,
+              238.1973,
+              241.2263,
+              241.2263,
+              394342,
+              95125661.5946,
+              1,
+              -0.03509132632877476
+            ],
+            [
+              "BAEA:2024-01-05",
+              "BAEA",
+              "2024-01-05",
+              240.1059,
+              241.7505,
+              235.0142,
+              235.1885,
+              235.1885,
+              245533,
+              57746537.9705,
+              1,
+              -0.02502960912636809
+            ],
+            [
+              "BAEA:2024-01-08",
+              "BAEA",
+              "2024-01-08",
+              235.6966,
+              237.4158,
+              233.3994,
+              234.055,
+              234.055,
+              150951,
+              35330836.305,
+              1,
+              -0.004819538370285925
+            ],
+            [
+              "BAEA:2024-01-09",
+              "BAEA",
+              "2024-01-09",
+              234.9712,
+              235.8439,
+              228.8154,
+              229.3676,
+              229.3676,
+              308940,
+              70860826.344,
+              1,
+              -0.02002691675033641
+            ],
+            [
+              "BAEA:2024-01-10",
+              "BAEA",
+              "2024-01-10",
+              229.6819,
+              232.0341,
+              227.93,
+              230.4466,
+              230.4466,
+              381644,
+              87948562.2104,
+              1,
+              0.0047042389596436696
+            ],
+            [
+              "BAEA:2024-01-11",
+              "BAEA",
+              "2024-01-11",
+              230.2362,
+              230.3667,
+              227.4802,
+              229.6566,
+              229.6566,
+              153357,
+              35219447.206199996,
+              1,
+              -0.003428126082137828
+            ]
+          ],
+          "truncated": true,
+          "duration_ms": 724
+        },
+        "ticker_history": {
+          "table": "ticker_history",
+          "columns": [
+            "ticker_history_id",
+            "asset_id",
+            "ticker",
+            "effective_from",
+            "effective_to"
+          ],
+          "types": [
+            "VARCHAR",
+            "VARCHAR",
+            "VARCHAR",
+            "DATE",
+            "DATE"
+          ],
+          "rows": [
+            [
+              "BAEA",
+              "BAEA",
+              "BAEA",
+              "2024-01-02",
+              null
+            ],
+            [
+              "BAED",
+              "BAED",
+              "BAED",
+              "2024-01-02",
+              null
+            ],
+            [
+              "BAEK",
+              "BAEK",
+              "BAEK",
+              "2024-01-02",
+              null
+            ],
+            [
+              "BAEL",
+              "BAEL",
+              "BAEL",
+              "2024-01-02",
+              null
+            ],
+            [
+              "BAEN",
+              "BAEN",
+              "BAEN",
+              "2024-01-02",
+              null
+            ],
+            [
+              "BAEO",
+              "BAEO",
+              "BAEO",
+              "2024-01-02",
+              null
+            ],
+            [
+              "BAET",
+              "BAET",
+              "BAET",
+              "2024-01-02",
+              null
+            ],
+            [
+              "BAEU",
+              "BAEU",
+              "BAEU",
+              "2024-01-02",
+              null
+            ]
+          ],
+          "truncated": true,
+          "duration_ms": 697
+        },
+        "trading_sessions": {
+          "table": "trading_sessions",
+          "columns": [
+            "session_id",
+            "trading_date",
+            "close_at",
+            "symbols"
+          ],
+          "types": [
+            "VARCHAR",
+            "DATE",
+            "TIMESTAMP WITH TIME ZONE",
+            "INTEGER"
+          ],
+          "rows": [
+            [
+              "2024-01-02",
+              "2024-01-02",
+              "2024-01-02 21:00:00+00:00",
+              2000
+            ],
+            [
+              "2024-01-03",
+              "2024-01-03",
+              "2024-01-03 21:00:00+00:00",
+              2000
+            ],
+            [
+              "2024-01-04",
+              "2024-01-04",
+              "2024-01-04 21:00:00+00:00",
+              2000
+            ],
+            [
+              "2024-01-05",
+              "2024-01-05",
+              "2024-01-05 21:00:00+00:00",
+              2000
+            ],
+            [
+              "2024-01-08",
+              "2024-01-08",
+              "2024-01-08 21:00:00+00:00",
+              2000
+            ],
+            [
+              "2024-01-09",
+              "2024-01-09",
+              "2024-01-09 21:00:00+00:00",
+              2000
+            ],
+            [
+              "2024-01-10",
+              "2024-01-10",
+              "2024-01-10 21:00:00+00:00",
+              2000
+            ],
+            [
+              "2024-01-11",
+              "2024-01-11",
+              "2024-01-11 21:00:00+00:00",
+              2000
+            ]
+          ],
+          "truncated": true,
+          "duration_ms": 738
+        },
+        "prediction.asset_entities": {
+          "table": "prediction.asset_entities",
+          "columns": [
+            "asset_id",
+            "company_name",
+            "sector",
+            "industry",
+            "exchange"
+          ],
+          "types": [
+            "VARCHAR",
+            "VARCHAR",
+            "VARCHAR",
+            "VARCHAR",
+            "VARCHAR"
+          ],
+          "rows": [
+            [
+              "CLAE",
+              "Claeet Airways",
+              "Transportation, Communications, Electric, Gas and Sanitary Services",
+              "Air Transportation, Scheduled",
+              "Nasdaq"
+            ],
+            [
+              "CLOS",
+              "Clostia Energy",
+              "Mining",
+              "Crude Petroleum & Natural Gas",
+              "NYSE"
+            ],
+            [
+              "GIOR",
+              "Giorara Surgical Systems",
+              "Manufacturing",
+              "Surgical & Medical Instruments & Apparatus",
+              "Nasdaq"
+            ],
+            [
+              "GIST",
+              "Gistar Biologics",
+              "Manufacturing",
+              "Biological Products, (No Diagnostic Substances)",
+              "Nasdaq"
+            ],
+            [
+              "HARE",
+              "Harex PowerGrid",
+              "Transportation, Communications, Electric, Gas and Sanitary Services",
+              "Electric Services",
+              "NYSE"
+            ],
+            [
+              "KASI",
+              "Kasix Mobility Solutions",
+              "Manufacturing",
+              "Motor Vehicles & Passenger Car Bodies",
+              "NYSE"
+            ],
+            [
+              "PEAX",
+              "Peaxis Urban",
+              "Finance, Insurance and Real Estate",
+              "Real Estate Investment Trusts",
+              "NYSE"
+            ],
+            [
+              "PRAL",
+              "Pralet State Banc",
+              "Finance, Insurance and Real Estate",
+              "State Commercial Banks",
+              "Nasdaq"
+            ]
+          ],
+          "truncated": true,
+          "duration_ms": 701
+        },
+        "prediction.news_events": {
+          "table": "prediction.news_events",
+          "columns": [
+            "news_id",
+            "asset_id",
+            "published_at",
+            "event_type",
+            "sentiment_label"
+          ],
+          "types": [
+            "VARCHAR",
+            "VARCHAR",
+            "TIMESTAMP WITH TIME ZONE",
+            "VARCHAR",
+            "VARCHAR"
+          ],
+          "rows": [
+            [
+              "KASI-20240102-1",
+              "KASI",
+              "2024-01-02 11:22:00+00:00",
+              "partnership",
+              "negative"
+            ],
+            [
+              "PEAX-20240102-1",
+              "PEAX",
+              "2024-01-02 11:31:00+00:00",
+              "capital",
+              "negative"
+            ],
+            [
+              "VIAS-20240102-1",
+              "VIAS",
+              "2024-01-02 11:57:00+00:00",
+              "partnership",
+              "positive"
+            ],
+            [
+              "SOUS-20240102-1",
+              "SOUS",
+              "2024-01-02 12:06:00+00:00",
+              "guidance",
+              "positive"
+            ],
+            [
+              "GIST-20240103-1",
+              "GIST",
+              "2024-01-03 13:10:00+00:00",
+              "guidance",
+              "positive"
+            ],
+            [
+              "HARE-20240103-1",
+              "HARE",
+              "2024-01-03 14:50:00+00:00",
+              "contract",
+              "positive"
+            ],
+            [
+              "CLAE-20240103-1",
+              "CLAE",
+              "2024-01-03 19:15:00+00:00",
+              "management",
+              "positive"
+            ],
+            [
+              "TISL-20240104-1",
+              "TISL",
+              "2024-01-04 20:11:00+00:00",
+              "legal",
+              "positive"
+            ]
+          ],
+          "truncated": true,
+          "duration_ms": 699
+        },
+        "prediction.price_events": {
+          "table": "prediction.price_events",
+          "columns": [
+            "price_id",
+            "asset_id",
+            "observed_at",
+            "adjusted_close",
+            "volume",
+            "total_return_1d"
+          ],
+          "types": [
+            "VARCHAR",
+            "VARCHAR",
+            "TIMESTAMP WITH TIME ZONE",
+            "DOUBLE",
+            "BIGINT",
+            "DOUBLE"
+          ],
+          "rows": [
+            [
+              "CLAE:2024-01-02",
+              "CLAE",
+              "2024-01-02 21:00:00+00:00",
+              33.1169,
+              206489060,
+              0.0
+            ],
+            [
+              "CLAE:2024-01-03",
+              "CLAE",
+              "2024-01-03 21:00:00+00:00",
+              33.619,
+              811512783,
+              0.015161443251028972
+            ],
+            [
+              "CLAE:2024-01-04",
+              "CLAE",
+              "2024-01-04 21:00:00+00:00",
+              31.3079,
+              427575896,
+              -0.06874386507629615
+            ],
+            [
+              "CLAE:2024-01-05",
+              "CLAE",
+              "2024-01-05 21:00:00+00:00",
+              30.9621,
+              122389702,
+              -0.011045135572810727
+            ],
+            [
+              "CLAE:2024-01-08",
+              "CLAE",
+              "2024-01-08 21:00:00+00:00",
+              30.8269,
+              164606212,
+              -0.0043666288785322305
+            ],
+            [
+              "CLAE:2024-01-09",
+              "CLAE",
+              "2024-01-09 21:00:00+00:00",
+              30.6432,
+              161568188,
+              -0.005959081192075666
+            ],
+            [
+              "CLAE:2024-01-10",
+              "CLAE",
+              "2024-01-10 21:00:00+00:00",
+              30.797,
+              199412175,
+              0.0050190580618212355
+            ],
+            [
+              "CLAE:2024-01-11",
+              "CLAE",
+              "2024-01-11 21:00:00+00:00",
+              29.9892,
+              224981126,
+              -0.026229827580608545
+            ]
+          ],
+          "truncated": true,
+          "duration_ms": 706
+        },
+        "prediction.return_outcomes": {
+          "table": "prediction.return_outcomes",
+          "columns": [
+            "outcome_id",
+            "asset_id",
+            "observed_at",
+            "realized_at",
+            "forward_return_5d",
+            "positive_return"
+          ],
+          "types": [
+            "VARCHAR",
+            "VARCHAR",
+            "TIMESTAMP WITH TIME ZONE",
+            "TIMESTAMP WITH TIME ZONE",
+            "DOUBLE",
+            "BOOLEAN"
+          ],
+          "rows": [
+            [
+              "outcome-KASI:2024-01-02",
+              "KASI",
+              "2024-01-02 21:00:00+00:00",
+              "2024-01-09 21:00:00+00:00",
+              -0.012477460338467194,
+              false
+            ],
+            [
+              "outcome-KASI:2024-01-03",
+              "KASI",
+              "2024-01-03 21:00:00+00:00",
+              "2024-01-10 21:00:00+00:00",
+              -0.009226570520043054,
+              false
+            ],
+            [
+              "outcome-KASI:2024-01-04",
+              "KASI",
+              "2024-01-04 21:00:00+00:00",
+              "2024-01-11 21:00:00+00:00",
+              -0.018421144269944567,
+              false
+            ],
+            [
+              "outcome-KASI:2024-01-05",
+              "KASI",
+              "2024-01-05 21:00:00+00:00",
+              "2024-01-12 21:00:00+00:00",
+              -0.03943891864320326,
+              false
+            ],
+            [
+              "outcome-KASI:2024-01-08",
+              "KASI",
+              "2024-01-08 21:00:00+00:00",
+              "2024-01-16 21:00:00+00:00",
+              -0.04234860303503041,
+              false
+            ],
+            [
+              "outcome-KASI:2024-01-09",
+              "KASI",
+              "2024-01-09 21:00:00+00:00",
+              "2024-01-17 21:00:00+00:00",
+              0.02882372402933253,
+              true
+            ],
+            [
+              "outcome-KASI:2024-01-10",
+              "KASI",
+              "2024-01-10 21:00:00+00:00",
+              "2024-01-18 21:00:00+00:00",
+              0.04962872173294075,
+              true
+            ],
+            [
+              "outcome-KASI:2024-01-11",
+              "KASI",
+              "2024-01-11 21:00:00+00:00",
+              "2024-01-19 21:00:00+00:00",
+              0.05436606315578585,
+              true
+            ]
+          ],
+          "truncated": true,
+          "duration_ms": 754
+        },
+        "prediction.top_12_population": {
+          "table": "prediction.top_12_population",
+          "columns": [
+            "asset_id"
+          ],
+          "types": [
+            "VARCHAR"
+          ],
+          "rows": [
+            [
+              "CLAE"
+            ],
+            [
+              "CLOS"
+            ],
+            [
+              "GIOR"
+            ],
+            [
+              "GIST"
+            ],
+            [
+              "HARE"
+            ],
+            [
+              "KASI"
+            ],
+            [
+              "PEAX"
+            ],
+            [
+              "PRAL"
+            ]
+          ],
+          "truncated": true,
+          "duration_ms": 680
+        }
+      },
+      "queries": [
+        {
+          "sql": "WITH priced AS (SELECT a.asset_id, a.sector, dp.trading_date, dp.adjusted_close AS close_end, LAG(dp.adjusted_close, 20) OVER (PARTITION BY a.asset_id ORDER BY dp.trading_date) AS close_lag20 FROM synthetic_market.main.assets a JOIN synthetic_market.main.daily_prices dp ON a.asset_id = dp.asset_id) SELECT sector, COUNT(DISTINCT asset_id) AS issuer_count, median((close_end / close_lag20) - 1) AS median_return FROM priced WHERE trading_date = DATE '2026-08-31' AND close_lag20 IS NOT NULL GROUP BY sector ORDER BY sector;",
+          "result": {
+            "columns": [
+              "sector",
+              "issuer_count",
+              "median_return"
+            ],
+            "types": [
+              "VARCHAR",
+              "BIGINT",
+              "DOUBLE"
+            ],
+            "rows": [
+              [
+                "Construction",
+                41,
+                0.03964011753027452
+              ],
+              [
+                "Finance, Insurance and Real Estate",
+                425,
+                0.04215648267241545
+              ],
+              [
+                "Manufacturing",
+                792,
+                0.03266764689580015
+              ],
+              [
+                "Mining",
+                119,
+                -0.020889233188962075
+              ],
+              [
+                "Retail Trade",
+                138,
+                0.002265681773688688
+              ],
+              [
+                "Services",
+                304,
+                -0.007396695305398326
+              ],
+              [
+                "Transportation, Communications, Electric, Gas and Sanitary Services",
+                181,
+                -0.005028104422879043
+              ]
+            ],
+            "truncated": false,
+            "duration_ms": 1100
+          }
+        },
+        {
+          "sql": "SELECT * FROM \"main\".\"asset_relationships\" LIMIT 25",
+          "result": {
+            "columns": [
+              "relationship_id",
+              "source_asset_id",
+              "target_asset_id",
+              "relationship_type",
+              "peer_rank"
+            ],
+            "types": [
+              "VARCHAR",
+              "VARCHAR",
+              "VARCHAR",
+              "VARCHAR",
+              "INTEGER"
+            ],
+            "rows": [
+              [
+                "BAEA>HARE",
+                "BAEA",
+                "HARE",
+                "same_sic_code",
+                1
+              ],
+              [
+                "BAEA>CHEA",
+                "BAEA",
+                "CHEA",
+                "same_sic_code",
+                2
+              ],
+              [
+                "BAEA>DROO",
+                "BAEA",
+                "DROO",
+                "same_sic_code",
+                3
+              ],
+              [
+                "BAEA>SIOL",
+                "BAEA",
+                "SIOL",
+                "same_sic_code",
+                4
+              ],
+              [
+                "BAEA>THEN",
+                "BAEA",
+                "THEN",
+                "same_sic_code",
+                5
+              ],
+              [
+                "BAEA>QUAN",
+                "BAEA",
+                "QUAN",
+                "same_sic_code",
+                6
+              ],
+              [
+                "BAEA>HELC",
+                "BAEA",
+                "HELC",
+                "same_sic_code",
+                7
+              ],
+              [
+                "BAEA>PEHI",
+                "BAEA",
+                "PEHI",
+                "same_sic_code",
+                8
+              ],
+              [
+                "BAED>PRIR",
+                "BAED",
+                "PRIR",
+                "same_sic_code",
+                1
+              ],
+              [
+                "BAED>DOEN",
+                "BAED",
+                "DOEN",
+                "same_sic_code",
+                2
+              ],
+              [
+                "BAED>MALO",
+                "BAED",
+                "MALO",
+                "same_sic_code",
+                3
+              ],
+              [
+                "BAED>BOUD",
+                "BAED",
+                "BOUD",
+                "same_sic_code",
+                4
+              ],
+              [
+                "BAED>CEET",
+                "BAED",
+                "CEET",
+                "same_sic_code",
+                5
+              ],
+              [
+                "BAED>CHOI",
+                "BAED",
+                "CHOI",
+                "same_sic_code",
+                6
+              ],
+              [
+                "BAED>BOMI",
+                "BAED",
+                "BOMI",
+                "same_sic_code",
+                7
+              ],
+              [
+                "BAED>BEAL",
+                "BAED",
+                "BEAL",
+                "same_sic_code",
+                8
+              ],
+              [
+                "BAEK>VELD",
+                "BAEK",
+                "VELD",
+                "same_sic_code",
+                1
+              ],
+              [
+                "BAEK>MAST",
+                "BAEK",
+                "MAST",
+                "same_sic_code",
+                2
+              ],
+              [
+                "BAEK>CERI",
+                "BAEK",
+                "CERI",
+                "same_sic_code",
+                3
+              ],
+              [
+                "BAEK>CHOT",
+                "BAEK",
+                "CHOT",
+                "same_sic_code",
+                4
+              ],
+              [
+                "BAEK>BRAA",
+                "BAEK",
+                "BRAA",
+                "same_sic_code",
+                5
+              ],
+              [
+                "BAEK>ROUO",
+                "BAEK",
+                "ROUO",
+                "same_sic_code",
+                6
+              ],
+              [
+                "BAEK>NONC",
+                "BAEK",
+                "NONC",
+                "same_sic_code",
+                7
+              ],
+              [
+                "BAEK>PIAN",
+                "BAEK",
+                "PIAN",
+                "same_sic_code",
+                8
+              ],
+              [
+                "BAEL>KOUD",
+                "BAEL",
+                "KOUD",
+                "same_sic_code",
+                1
+              ]
+            ],
+            "truncated": false,
+            "duration_ms": 702
+          }
+        },
+        {
+          "sql": "SELECT * FROM \"main\".\"assets\" LIMIT 25",
+          "result": {
+            "columns": [
+              "asset_id",
+              "company_name",
+              "cik",
+              "sic_code",
+              "sector",
+              "industry",
+              "exchange",
+              "profile",
+              "first_session",
+              "last_session",
+              "sessions",
+              "median_dollar_volume",
+              "liquidity_rank",
+              "is_synthetic"
+            ],
+            "types": [
+              "VARCHAR",
+              "VARCHAR",
+              "VARCHAR",
+              "VARCHAR",
+              "VARCHAR",
+              "VARCHAR",
+              "VARCHAR",
+              "VARCHAR",
+              "DATE",
+              "DATE",
+              "INTEGER",
+              "DOUBLE",
+              "INTEGER",
+              "BOOLEAN"
+            ],
+            "rows": [
+              [
+                "BAEA",
+                "Baela Power Grid",
+                null,
+                "4911",
+                "Transportation, Communications, Electric, Gas and Sanitary Services",
+                "Electric Services",
+                "NYSE",
+                "Baela Power Grid provides reliable electricity transmission and distribution services to residential and commercial communities across the United States.",
+                "2024-01-02",
+                "2026-08-31",
+                668,
+                54056560.0491,
+                865,
+                true
+              ],
+              [
+                "BAED",
+                "Baendia Network Solutions",
+                null,
+                "3576",
+                "Manufacturing",
+                "Computer Communications Equipment",
+                "Nasdaq",
+                "Baendia Network Solutions designs secure communication hardware for enterprise and government networks seeking reliable data transmission.",
+                "2024-01-02",
+                "2026-08-31",
+                668,
+                11939564.1519,
+                1432,
+                true
+              ],
+              [
+                "BAEK",
+                "Baerkon Capital Markets",
+                null,
+                "6211",
+                "Finance, Insurance and Real Estate",
+                "Security Brokers, Dealers & Flotation Companies",
+                "Nasdaq",
+                "Baerkon Capital Markets provides tailored securities brokerage, dealer services, and capital raising solutions for institutional investors and emerging growth firms.",
+                "2024-01-02",
+                "2026-08-31",
+                668,
+                13166576.2962,
+                1399,
+                true
+              ],
+              [
+                "BAEL",
+                "Baelfandia Industrial Solutions",
+                null,
+                "3560",
+                "Manufacturing",
+                "General Industrial Machinery & Equipment",
+                "NYSE",
+                "Baelfandia Industrial Solutions designs and manufactures precision machinery for manufacturing and processing facilities across North America.",
+                "2024-01-02",
+                "2026-08-31",
+                668,
+                5987302.6863,
+                1686,
+                true
+              ],
+              [
+                "BAEN",
+                "Baennoen Semiconductors",
+                null,
+                "3674",
+                "Manufacturing",
+                "Semiconductors & Related Devices",
+                "Nasdaq",
+                "Baennoen Semiconductors designs and manufactures advanced microchips for industrial automation and smart infrastructure systems.",
+                "2024-01-02",
+                "2026-08-31",
+                668,
+                144421320.546,
+                495,
+                true
+              ],
+              [
+                "BAEO",
+                "Baero Solutions",
+                null,
+                "7372",
+                "Services",
+                "Services-Prepackaged Software",
+                "NYSE",
+                "Baero Solutions provides customizable software platforms that help mid-sized businesses streamline workflow automation and improve operational efficiency.",
+                "2024-01-02",
+                "2026-08-31",
+                668,
+                55837448.7222,
+                849,
+                true
+              ],
+              [
+                "BAET",
+                "Baeant Solutions",
+                null,
+                "7372",
+                "Services",
+                "Services-Prepackaged Software",
+                "NYSE",
+                "Baeant Solutions delivers cloud-based workflow automation tools designed to streamline operations for mid-sized professional services firms.",
+                "2024-01-02",
+                "2026-08-31",
+                668,
+                182949622.71739998,
+                419,
+                true
+              ],
+              [
+                "BAEU",
+                "Baeum Horizon",
+                null,
+                "6798",
+                "Finance, Insurance and Real Estate",
+                "Real Estate Investment Trusts",
+                "NYSE",
+                "Baeum Horizon acquires and manages commercial properties to provide stable income streams for investors seeking long-term real estate exposure.",
+                "2024-01-02",
+                "2026-08-31",
+                668,
+                113225356.7862,
+                597,
+                true
+              ],
+              [
+                "BAGR",
+                "Bagrearkar State Bank",
+                null,
+                "6022",
+                "Finance, Insurance and Real Estate",
+                "State Commercial Banks",
+                "Nasdaq",
+                "Provides commercial banking services to local businesses and municipalities across the Midwest United States.",
+                "2024-01-02",
+                "2026-08-31",
+                668,
+                4628466.0752,
+                1784,
+                true
+              ],
+              [
+                "BAKE",
+                "Bakenyn Community",
+                null,
+                "6022",
+                "Finance, Insurance and Real Estate",
+                "State Commercial Banks",
+                "Nasdaq",
+                "Bakenyn Community provides banking services to local businesses and residents in underserved regions across the Midwest.",
+                "2024-01-02",
+                "2026-08-31",
+                668,
+                213017790.1792,
+                371,
+                true
+              ],
+              [
+                "BALO",
+                "Balolar Community Trust",
+                null,
+                "6022",
+                "Finance, Insurance and Real Estate",
+                "State Commercial Banks",
+                "Nasdaq",
+                "Balolar Community Trust provides accessible banking solutions and financial guidance to local businesses and families across diverse regions.",
+                "2024-01-02",
+                "2026-08-31",
+                668,
+                233335014.66,
+                338,
+                true
+              ],
+              [
+                "BAMC",
+                "Bamchiaia Coverage",
+                null,
+                "6331",
+                "Finance, Insurance and Real Estate",
+                "Fire, Marine & Casualty Insurance",
+                "Nasdaq",
+                "Provides tailored insurance solutions for individuals and businesses seeking protection against fire, marine, and casualty risks.",
+                "2024-01-02",
+                "2026-08-31",
+                668,
+                13656043.059999999,
+                1380,
+                true
+              ],
+              [
+                "BAMG",
+                "Bamgraora Energy Partners",
+                null,
+                "1311",
+                "Mining",
+                "Crude Petroleum & Natural Gas",
+                "NYSE",
+                "Bamgraora Energy Partners explores and develops crude petroleum and natural gas resources to supply energy solutions for industrial and utility customers across North America.",
+                "2024-01-02",
+                "2026-08-31",
+                668,
+                6714835.1274,
+                1642,
+                true
+              ],
+              [
+                "BANT",
+                "Bantex Solutions",
+                null,
+                "7372",
+                "Services",
+                "Services-Prepackaged Software",
+                "Nasdaq",
+                "Bantex Solutions provides cloud-based workflow automation tools for small and mid-sized businesses seeking efficient digital operations.",
+                "2024-01-02",
+                "2026-08-31",
+                668,
+                72527147.6435,
+                781,
+                true
+              ],
+              [
+                "BANZ",
+                "Bandzaion GoldWorks",
+                null,
+                "1040",
+                "Mining",
+                "Gold and Silver Ores",
+                "NYSE",
+                "Bandzaion GoldWorks explores and extracts precious metal deposits to supply responsibly sourced gold and silver to industrial and investment markets.",
+                "2024-01-02",
+                "2026-08-31",
+                668,
+                204963712.815,
+                385,
+                true
+              ],
+              [
+                "BARI",
+                "Barkiis Precision Systems",
+                null,
+                "3560",
+                "Manufacturing",
+                "General Industrial Machinery & Equipment",
+                "NYSE",
+                "Barkiis Precision Systems designs and manufactures advanced industrial machinery for manufacturing, energy, and infrastructure sectors worldwide.",
+                "2024-01-02",
+                "2026-08-31",
+                668,
+                5136546.64,
+                1744,
+                true
+              ],
+              [
+                "BASC",
+                "Baschais Solutions",
+                null,
+                "7372",
+                "Services",
+                "Services-Prepackaged Software",
+                "Nasdaq",
+                "Baschais Solutions provides customizable cloud-based workflow tools for mid-sized businesses seeking streamlined operations and improved team collaboration.",
+                "2024-01-02",
+                "2026-08-31",
+                668,
+                21122711.961600002,
+                1232,
+                true
+              ],
+              [
+                "BASO",
+                "Basora Energy Solutions",
+                null,
+                "1311",
+                "Mining",
+                "Crude Petroleum & Natural Gas",
+                "NYSE",
+                "Basora Energy Solutions explores and develops crude petroleum and natural gas resources to supply reliable energy to industrial and residential markets across North America.",
+                "2024-01-02",
+                "2026-08-31",
+                668,
+                295482123.17340004,
+                237,
+                true
+              ],
+              [
+                "BAST",
+                "Bastmoxent Freight Services",
+                null,
+                "4213",
+                "Transportation, Communications, Electric, Gas and Sanitary Services",
+                "Trucking (No Local)",
+                "NYSE",
+                "Bastmoxent Freight Services provides nationwide trucking solutions for businesses requiring reliable long-haul freight transportation across the United States.",
+                "2024-01-02",
+                "2026-08-31",
+                668,
+                234181992.87,
+                336,
+                true
+              ],
+              [
+                "BAXR",
+                "Baxreent Foundations",
+                null,
+                "1531",
+                "Construction",
+                "Operative Builders",
+                "NYSE",
+                "Baxreent Foundations specializes in residential and commercial construction services, delivering reliable building solutions for developers and property owners seeking quality craftsmanship.",
+                "2024-01-02",
+                "2026-08-31",
+                668,
+                5372695.504799999,
+                1725,
+                true
+              ],
+              [
+                "BEAA",
+                "Beaxmamix Therapeutics",
+                null,
+                "2834",
+                "Manufacturing",
+                "Pharmaceutical Preparations",
+                "NYSE",
+                "Beaxmamix Therapeutics develops and manufactures innovative pharmaceutical preparations focused on addressing unmet medical needs in chronic disease management.",
+                "2024-01-02",
+                "2026-08-31",
+                668,
+                13882554.571500001,
+                1375,
+                true
+              ],
+              [
+                "BEAE",
+                "Beanttaex Solutions",
+                null,
+                "7372",
+                "Services",
+                "Services-Prepackaged Software",
+                "NYSE",
+                "Beanttaex Solutions provides customizable software platforms to help businesses streamline operations and improve digital workflows.",
+                "2024-01-02",
+                "2026-08-31",
+                668,
+                21312080.5596,
+                1227,
+                true
+              ],
+              [
+                "BEAL",
+                "Bearlolent Networks",
+                null,
+                "3576",
+                "Manufacturing",
+                "Computer Communications Equipment",
+                "Nasdaq",
+                "Bearlolent Networks designs high-performance networking equipment for enterprise and telecommunications infrastructure.",
+                "2024-01-02",
+                "2026-08-31",
+                668,
+                273963085.29039997,
+                269,
+                true
+              ],
+              [
+                "BEAN",
+                "Beandrinis Solutions",
+                null,
+                "7372",
+                "Services",
+                "Services-Prepackaged Software",
+                "Nasdaq",
+                "Beandrinis Solutions provides cloud-based workflow automation tools for mid-sized enterprises seeking streamlined operations and improved team collaboration.",
+                "2024-01-02",
+                "2026-08-31",
+                668,
+                3555821.0468,
+                1883,
+                true
+              ],
+              [
+                "BEAO",
+                "Beanrostum Solutions",
+                null,
+                "7372",
+                "Services",
+                "Services-Prepackaged Software",
+                "NYSE",
+                "Beanrostum Solutions develops cloud-based workflow automation tools for mid-sized businesses seeking efficient digital transformation without complex integration.",
+                "2024-01-02",
+                "2026-08-31",
+                668,
+                50114691.222,
+                902,
+                true
+              ]
+            ],
+            "truncated": false,
+            "duration_ms": 695
+          }
+        },
+        {
+          "sql": "SELECT * FROM \"main\".\"company_news\" LIMIT 25",
+          "result": {
+            "columns": [
+              "news_id",
+              "primary_asset_id",
+              "published_at",
+              "source_name",
+              "headline",
+              "summary",
+              "event_type",
+              "sentiment_label",
+              "is_story"
+            ],
+            "types": [
+              "VARCHAR",
+              "VARCHAR",
+              "TIMESTAMP WITH TIME ZONE",
+              "VARCHAR",
+              "VARCHAR",
+              "VARCHAR",
+              "VARCHAR",
+              "VARCHAR",
+              "BOOLEAN"
+            ],
+            "rows": [
+              [
+                "CLIL-20240102-1",
+                "CLIL",
+                "2024-01-02 11:07:00+00:00",
+                "Synthetic Newswire",
+                "Clilora Energy Partners declares dividend distribution for current period",
+                null,
+                "capital",
+                "positive",
+                false
+              ],
+              [
+                "GRXA-20240102-1",
+                "GRXA",
+                "2024-01-02 11:12:00+00:00",
+                "Synthetic Newswire",
+                "Court finds no merit in claims brought against Groxa AutoSystems",
+                null,
+                "legal",
+                "positive",
+                false
+              ],
+              [
+                "QUOI-20240102-1",
+                "QUOI",
+                "2024-01-02 11:19:00+00:00",
+                "Synthetic Newswire",
+                "Quouix Ridge approved by regulators for continued development",
+                null,
+                "regulatory",
+                "positive",
+                false
+              ],
+              [
+                "PREL-20240102-1",
+                "PREL",
+                "2024-01-02 11:20:00+00:00",
+                "Synthetic Newswire",
+                "Prelmoara Shield moves forward with partnership despite internal reservations",
+                null,
+                "partnership",
+                "negative",
+                false
+              ],
+              [
+                "KASI-20240102-1",
+                "KASI",
+                "2024-01-02 11:22:00+00:00",
+                "Synthetic Newswire",
+                "Kasix Mobility Solutions pursues partnership that complicates existing operational priorities",
+                null,
+                "partnership",
+                "negative",
+                false
+              ],
+              [
+                "KIRO-20240102-1",
+                "KIRO",
+                "2024-01-02 11:22:00+00:00",
+                "Synthetic Newswire",
+                "Kirora Teleconnect delivers quarterly results indicating solid progress",
+                null,
+                "earnings",
+                "positive",
+                false
+              ],
+              [
+                "KESP-20240102-1",
+                "KESP",
+                "2024-01-02 11:27:00+00:00",
+                "Synthetic Newswire",
+                "Kespianet Microtech Announces Upcoming Launch of New Product Line",
+                null,
+                "product",
+                "neutral",
+                false
+              ],
+              [
+                "CHOU-20240102-1",
+                "CHOU",
+                "2024-01-02 11:31:00+00:00",
+                "Synthetic Newswire",
+                "Choulhiora CloudSync wins key agreement with important client",
+                null,
+                "contract",
+                "positive",
+                false
+              ],
+              [
+                "PEAX-20240102-1",
+                "PEAX",
+                "2024-01-02 11:31:00+00:00",
+                "Synthetic Newswire",
+                "Peaxis Urban modifies dividend outlook after weak performance",
+                null,
+                "capital",
+                "negative",
+                false
+              ],
+              [
+                "DAAR-20240102-1",
+                "DAAR",
+                "2024-01-02 11:43:00+00:00",
+                "Synthetic Newswire",
+                "Diaar Construction Solutions reports operational instability across regional sites",
+                null,
+                "operations",
+                "negative",
+                false
+              ],
+              [
+                "VIAS-20240102-1",
+                "VIAS",
+                "2024-01-02 11:57:00+00:00",
+                "Synthetic Newswire",
+                "Viasent HomeDirect Establishes Partnership to Support Long-Term Objectives",
+                null,
+                "partnership",
+                "positive",
+                false
+              ],
+              [
+                "MAFO-20240102-1",
+                "MAFO",
+                "2024-01-02 12:03:00+00:00",
+                "Synthetic Newswire",
+                "Mafonum Aeronautics raises full-year outlook as business momentum continues to build",
+                null,
+                "guidance",
+                "positive",
+                false
+              ],
+              [
+                "SOUS-20240102-1",
+                "SOUS",
+                "2024-01-02 12:06:00+00:00",
+                "Synthetic Newswire",
+                "Sousara Aerospace Systems upgrades full-year guidance driven by resilient demand across key segments",
+                null,
+                "guidance",
+                "positive",
+                false
+              ],
+              [
+                "BEND-20240102-1",
+                "BEND",
+                "2024-01-02 12:13:00+00:00",
+                "Synthetic Newswire",
+                "Bendziaix Semiconductors unable to secure necessary regulatory endorsement",
+                null,
+                "regulatory",
+                "negative",
+                false
+              ],
+              [
+                "NOSB-20240102-1",
+                "NOSB",
+                "2024-01-02 12:18:00+00:00",
+                "Synthetic Newswire",
+                "Nosbrourka Community Trust adjusts yearly guidance amid shifting demand",
+                null,
+                "guidance",
+                "negative",
+                false
+              ],
+              [
+                "BREM-20240102-1",
+                "BREM",
+                "2024-01-02 12:23:00+00:00",
+                "Synthetic Newswire",
+                "Bremgraara Community Bank revises full-year outlook higher on the back of consistent execution",
+                null,
+                "guidance",
+                "positive",
+                false
+              ],
+              [
+                "VOND-20240102-1",
+                "VOND",
+                "2024-01-02 12:24:00+00:00",
+                "Synthetic Newswire",
+                "Vondcioion Semiconductors obtains regulatory nod for expanded use of its device",
+                null,
+                "regulatory",
+                "positive",
+                false
+              ],
+              [
+                "QUUS-20240102-1",
+                "QUUS",
+                "2024-01-02 12:26:00+00:00",
+                "Synthetic Newswire",
+                "Quusriao Therapeutics Begins Limited Release of New Product in Pilot Regions",
+                null,
+                "product",
+                "neutral",
+                false
+              ],
+              [
+                "SHIL-20240102-1",
+                "SHIL",
+                "2024-01-02 12:26:00+00:00",
+                "Synthetic Newswire",
+                "Shiolthala Home Essentials pushes back scheduled launch of its latest product",
+                null,
+                "product",
+                "negative",
+                false
+              ],
+              [
+                "GIAP-20240102-1",
+                "GIAP",
+                "2024-01-02 12:27:00+00:00",
+                "Synthetic Newswire",
+                "Giapruyn Assurance Solutions obtains regulatory nod for expanded use of its device",
+                null,
+                "regulatory",
+                "positive",
+                false
+              ],
+              [
+                "ZERU-20240102-1",
+                "ZERU",
+                "2024-01-02 12:27:00+00:00",
+                "Synthetic Newswire",
+                "Zerum Energy Solutions notified of withdrawal from ongoing engagement by client",
+                null,
+                "contract",
+                "negative",
+                false
+              ],
+              [
+                "BAED-20240102-1",
+                "BAED",
+                "2024-01-02 12:38:00+00:00",
+                "Synthetic Newswire",
+                "Baendia Network Solutions named in lawsuit regarding workplace accessibility",
+                null,
+                "legal",
+                "neutral",
+                false
+              ],
+              [
+                "KIAX-20240102-1",
+                "KIAX",
+                "2024-01-02 12:44:00+00:00",
+                "Synthetic Newswire",
+                "Kiaxa Solutions Confirms Product Will Launch as Planned After Review Period",
+                null,
+                "product",
+                "neutral",
+                false
+              ],
+              [
+                "NOMZ-20240102-1",
+                "NOMZ",
+                "2024-01-02 12:58:00+00:00",
+                "Synthetic Newswire",
+                "Nomzeandar Communications Unveils Latest Product Innovation",
+                null,
+                "product",
+                "positive",
+                false
+              ],
+              [
+                "NOUG-20240102-1",
+                "NOUG",
+                "2024-01-02 13:01:00+00:00",
+                "Synthetic Newswire",
+                "Nougiaum Construction Group Moves Forward with Product Launch Following Completion of Prototypes",
+                null,
+                "product",
+                "neutral",
+                false
+              ]
+            ],
+            "truncated": false,
+            "duration_ms": 728
+          }
+        },
+        {
+          "sql": "SELECT * FROM \"main\".\"daily_prices\" LIMIT 25",
+          "result": {
+            "columns": [
+              "price_id",
+              "asset_id",
+              "trading_date",
+              "open",
+              "high",
+              "low",
+              "close",
+              "adjusted_close",
+              "volume",
+              "dollar_volume",
+              "bar_count",
+              "total_return_1d"
+            ],
+            "types": [
+              "VARCHAR",
+              "VARCHAR",
+              "DATE",
+              "DOUBLE",
+              "DOUBLE",
+              "DOUBLE",
+              "DOUBLE",
+              "DOUBLE",
+              "BIGINT",
+              "DOUBLE",
+              "INTEGER",
+              "DOUBLE"
+            ],
+            "rows": [
+              [
+                "BAEA:2024-01-02",
+                "BAEA",
+                "2024-01-02",
+                239.4817,
+                251.7315,
+                237.8539,
+                246.1863,
+                246.1863,
+                348708,
+                85847132.30039999,
+                1,
+                0.0
+              ],
+              [
+                "BAEA:2024-01-03",
+                "BAEA",
+                "2024-01-03",
+                246.7302,
+                250.2652,
+                245.9739,
+                249.9991,
+                249.9991,
+                237088,
+                59271786.620799996,
+                1,
+                0.015487458075449378
+              ],
+              [
+                "BAEA:2024-01-04",
+                "BAEA",
+                "2024-01-04",
+                249.8421,
+                250.6758,
+                238.1973,
+                241.2263,
+                241.2263,
+                394342,
+                95125661.5946,
+                1,
+                -0.03509132632877476
+              ],
+              [
+                "BAEA:2024-01-05",
+                "BAEA",
+                "2024-01-05",
+                240.1059,
+                241.7505,
+                235.0142,
+                235.1885,
+                235.1885,
+                245533,
+                57746537.9705,
+                1,
+                -0.02502960912636809
+              ],
+              [
+                "BAEA:2024-01-08",
+                "BAEA",
+                "2024-01-08",
+                235.6966,
+                237.4158,
+                233.3994,
+                234.055,
+                234.055,
+                150951,
+                35330836.305,
+                1,
+                -0.004819538370285925
+              ],
+              [
+                "BAEA:2024-01-09",
+                "BAEA",
+                "2024-01-09",
+                234.9712,
+                235.8439,
+                228.8154,
+                229.3676,
+                229.3676,
+                308940,
+                70860826.344,
+                1,
+                -0.02002691675033641
+              ],
+              [
+                "BAEA:2024-01-10",
+                "BAEA",
+                "2024-01-10",
+                229.6819,
+                232.0341,
+                227.93,
+                230.4466,
+                230.4466,
+                381644,
+                87948562.2104,
+                1,
+                0.0047042389596436696
+              ],
+              [
+                "BAEA:2024-01-11",
+                "BAEA",
+                "2024-01-11",
+                230.2362,
+                230.3667,
+                227.4802,
+                229.6566,
+                229.6566,
+                153357,
+                35219447.206199996,
+                1,
+                -0.003428126082137828
+              ],
+              [
+                "BAEA:2024-01-12",
+                "BAEA",
+                "2024-01-12",
+                228.5599,
+                229.4186,
+                225.1404,
+                227.0527,
+                227.0527,
+                189132,
+                42942931.2564,
+                1,
+                -0.011338232822396654
+              ],
+              [
+                "BAEA:2024-01-16",
+                "BAEA",
+                "2024-01-16",
+                226.8206,
+                227.2558,
+                225.7881,
+                226.4504,
+                226.4504,
+                230528,
+                52203157.8112,
+                1,
+                -0.0026526881204230746
+              ],
+              [
+                "BAEA:2024-01-17",
+                "BAEA",
+                "2024-01-17",
+                225.7373,
+                229.9967,
+                225.6803,
+                227.9253,
+                227.9253,
+                156694,
+                35714526.9582,
+                1,
+                0.006513126053210749
+              ],
+              [
+                "BAEA:2024-01-18",
+                "BAEA",
+                "2024-01-18",
+                229.0593,
+                230.0564,
+                227.2039,
+                229.5502,
+                229.5502,
+                255656,
+                58685885.9312,
+                1,
+                0.0071290901010112595
+              ],
+              [
+                "BAEA:2024-01-19",
+                "BAEA",
+                "2024-01-19",
+                230.8569,
+                232.0689,
+                225.4855,
+                228.4219,
+                228.4219,
+                256244,
+                58531741.3436,
+                1,
+                -0.0049152647220520596
+              ],
+              [
+                "BAEA:2024-01-22",
+                "BAEA",
+                "2024-01-22",
+                227.6453,
+                228.1404,
+                226.0474,
+                226.6039,
+                226.6039,
+                163240,
+                36990820.636,
+                1,
+                -0.007958956649953386
+              ],
+              [
+                "BAEA:2024-01-23",
+                "BAEA",
+                "2024-01-23",
+                226.8275,
+                227.3246,
+                224.4944,
+                225.5342,
+                225.5342,
+                285894,
+                64478874.5748,
+                1,
+                -0.004720571887774305
+              ],
+              [
+                "BAEA:2024-01-24",
+                "BAEA",
+                "2024-01-24",
+                226.0878,
+                228.3481,
+                222.4261,
+                224.8435,
+                224.8435,
+                176148,
+                39605732.838,
+                1,
+                -0.003062506706299928
+              ],
+              [
+                "BAEA:2024-01-25",
+                "BAEA",
+                "2024-01-25",
+                226.3016,
+                228.5361,
+                221.1431,
+                221.7279,
+                221.7279,
+                289295,
+                64144772.8305,
+                1,
+                -0.013856749250033884
+              ],
+              [
+                "BAEA:2024-01-26",
+                "BAEA",
+                "2024-01-26",
+                220.6467,
+                227.1115,
+                219.394,
+                225.5078,
+                225.5078,
+                291191,
+                65665841.7898,
+                1,
+                0.017047471247416235
+              ],
+              [
+                "BAEA:2024-01-29",
+                "BAEA",
+                "2024-01-29",
+                224.6117,
+                225.2447,
+                218.6603,
+                220.2493,
+                220.2493,
+                341569,
+                75230333.1517,
+                1,
+                -0.023318483883927765
+              ],
+              [
+                "BAEA:2024-01-30",
+                "BAEA",
+                "2024-01-30",
+                219.9503,
+                220.0888,
+                214.577,
+                215.1102,
+                215.1102,
+                232292,
+                49968378.5784,
+                1,
+                -0.023333104804419413
+              ],
+              [
+                "BAEA:2024-01-31",
+                "BAEA",
+                "2024-01-31",
+                214.7029,
+                218.9724,
+                214.1184,
+                217.6244,
+                217.6244,
+                324031,
+                70517051.9564,
+                1,
+                0.01168796272794137
+              ],
+              [
+                "BAEA:2024-02-01",
+                "BAEA",
+                "2024-02-01",
+                218.0903,
+                218.565,
+                210.3899,
+                211.7616,
+                211.7616,
+                252630,
+                53497333.007999994,
+                1,
+                -0.02693999386098256
+              ],
+              [
+                "BAEA:2024-02-02",
+                "BAEA",
+                "2024-02-02",
+                212.586,
+                215.2614,
+                208.943,
+                212.653,
+                212.653,
+                208496,
+                44337299.888,
+                1,
+                0.0042094506274981125
+              ],
+              [
+                "BAEA:2024-02-05",
+                "BAEA",
+                "2024-02-05",
+                213.9309,
+                218.2317,
+                213.8757,
+                215.4387,
+                215.4387,
+                268330,
+                57808666.371,
+                1,
+                0.013099744654437195
+              ],
+              [
+                "BAEA:2024-02-06",
+                "BAEA",
+                "2024-02-06",
+                215.5116,
+                215.8654,
+                209.8102,
+                211.5253,
+                211.5253,
+                260337,
+                55067862.026099995,
+                1,
+                -0.018164795832875114
+              ]
+            ],
+            "truncated": false,
+            "duration_ms": 712
+          }
+        },
+        {
+          "sql": "SELECT * FROM \"main\".\"ticker_history\" LIMIT 25",
+          "result": {
+            "columns": [
+              "ticker_history_id",
+              "asset_id",
+              "ticker",
+              "effective_from",
+              "effective_to"
+            ],
+            "types": [
+              "VARCHAR",
+              "VARCHAR",
+              "VARCHAR",
+              "DATE",
+              "DATE"
+            ],
+            "rows": [
+              [
+                "BAEA",
+                "BAEA",
+                "BAEA",
+                "2024-01-02",
+                null
+              ],
+              [
+                "BAED",
+                "BAED",
+                "BAED",
+                "2024-01-02",
+                null
+              ],
+              [
+                "BAEK",
+                "BAEK",
+                "BAEK",
+                "2024-01-02",
+                null
+              ],
+              [
+                "BAEL",
+                "BAEL",
+                "BAEL",
+                "2024-01-02",
+                null
+              ],
+              [
+                "BAEN",
+                "BAEN",
+                "BAEN",
+                "2024-01-02",
+                null
+              ],
+              [
+                "BAEO",
+                "BAEO",
+                "BAEO",
+                "2024-01-02",
+                null
+              ],
+              [
+                "BAET",
+                "BAET",
+                "BAET",
+                "2024-01-02",
+                null
+              ],
+              [
+                "BAEU",
+                "BAEU",
+                "BAEU",
+                "2024-01-02",
+                null
+              ],
+              [
+                "BAGR",
+                "BAGR",
+                "BAGR",
+                "2024-01-02",
+                null
+              ],
+              [
+                "BAKE",
+                "BAKE",
+                "BAKE",
+                "2024-01-02",
+                null
+              ],
+              [
+                "BALO",
+                "BALO",
+                "BALO",
+                "2024-01-02",
+                null
+              ],
+              [
+                "BAMC",
+                "BAMC",
+                "BAMC",
+                "2024-01-02",
+                null
+              ],
+              [
+                "BAMG",
+                "BAMG",
+                "BAMG",
+                "2024-01-02",
+                null
+              ],
+              [
+                "BANT",
+                "BANT",
+                "BANT",
+                "2024-01-02",
+                null
+              ],
+              [
+                "BANZ",
+                "BANZ",
+                "BANZ",
+                "2024-01-02",
+                null
+              ],
+              [
+                "BARI",
+                "BARI",
+                "BARI",
+                "2024-01-02",
+                null
+              ],
+              [
+                "BASC",
+                "BASC",
+                "BASC",
+                "2024-01-02",
+                null
+              ],
+              [
+                "BASO",
+                "BASO",
+                "BASO",
+                "2024-01-02",
+                null
+              ],
+              [
+                "BAST",
+                "BAST",
+                "BAST",
+                "2024-01-02",
+                null
+              ],
+              [
+                "BAXR",
+                "BAXR",
+                "BAXR",
+                "2024-01-02",
+                null
+              ],
+              [
+                "BEAA",
+                "BEAA",
+                "BEAA",
+                "2024-01-02",
+                null
+              ],
+              [
+                "BEAE",
+                "BEAE",
+                "BEAE",
+                "2024-01-02",
+                null
+              ],
+              [
+                "BEAL",
+                "BEAL",
+                "BEAL",
+                "2024-01-02",
+                null
+              ],
+              [
+                "BEAN",
+                "BEAN",
+                "BEAN",
+                "2024-01-02",
+                null
+              ],
+              [
+                "BEAO",
+                "BEAO",
+                "BEAO",
+                "2024-01-02",
+                null
+              ]
+            ],
+            "truncated": false,
+            "duration_ms": 710
+          }
+        },
+        {
+          "sql": "SELECT * FROM \"main\".\"trading_sessions\" LIMIT 25",
+          "result": {
+            "columns": [
+              "session_id",
+              "trading_date",
+              "close_at",
+              "symbols"
+            ],
+            "types": [
+              "VARCHAR",
+              "DATE",
+              "TIMESTAMP WITH TIME ZONE",
+              "INTEGER"
+            ],
+            "rows": [
+              [
+                "2024-01-02",
+                "2024-01-02",
+                "2024-01-02 21:00:00+00:00",
+                2000
+              ],
+              [
+                "2024-01-03",
+                "2024-01-03",
+                "2024-01-03 21:00:00+00:00",
+                2000
+              ],
+              [
+                "2024-01-04",
+                "2024-01-04",
+                "2024-01-04 21:00:00+00:00",
+                2000
+              ],
+              [
+                "2024-01-05",
+                "2024-01-05",
+                "2024-01-05 21:00:00+00:00",
+                2000
+              ],
+              [
+                "2024-01-08",
+                "2024-01-08",
+                "2024-01-08 21:00:00+00:00",
+                2000
+              ],
+              [
+                "2024-01-09",
+                "2024-01-09",
+                "2024-01-09 21:00:00+00:00",
+                2000
+              ],
+              [
+                "2024-01-10",
+                "2024-01-10",
+                "2024-01-10 21:00:00+00:00",
+                2000
+              ],
+              [
+                "2024-01-11",
+                "2024-01-11",
+                "2024-01-11 21:00:00+00:00",
+                2000
+              ],
+              [
+                "2024-01-12",
+                "2024-01-12",
+                "2024-01-12 21:00:00+00:00",
+                2000
+              ],
+              [
+                "2024-01-16",
+                "2024-01-16",
+                "2024-01-16 21:00:00+00:00",
+                2000
+              ],
+              [
+                "2024-01-17",
+                "2024-01-17",
+                "2024-01-17 21:00:00+00:00",
+                2000
+              ],
+              [
+                "2024-01-18",
+                "2024-01-18",
+                "2024-01-18 21:00:00+00:00",
+                2000
+              ],
+              [
+                "2024-01-19",
+                "2024-01-19",
+                "2024-01-19 21:00:00+00:00",
+                2000
+              ],
+              [
+                "2024-01-22",
+                "2024-01-22",
+                "2024-01-22 21:00:00+00:00",
+                2000
+              ],
+              [
+                "2024-01-23",
+                "2024-01-23",
+                "2024-01-23 21:00:00+00:00",
+                2000
+              ],
+              [
+                "2024-01-24",
+                "2024-01-24",
+                "2024-01-24 21:00:00+00:00",
+                2000
+              ],
+              [
+                "2024-01-25",
+                "2024-01-25",
+                "2024-01-25 21:00:00+00:00",
+                2000
+              ],
+              [
+                "2024-01-26",
+                "2024-01-26",
+                "2024-01-26 21:00:00+00:00",
+                2000
+              ],
+              [
+                "2024-01-29",
+                "2024-01-29",
+                "2024-01-29 21:00:00+00:00",
+                2000
+              ],
+              [
+                "2024-01-30",
+                "2024-01-30",
+                "2024-01-30 21:00:00+00:00",
+                2000
+              ],
+              [
+                "2024-01-31",
+                "2024-01-31",
+                "2024-01-31 21:00:00+00:00",
+                2000
+              ],
+              [
+                "2024-02-01",
+                "2024-02-01",
+                "2024-02-01 21:00:00+00:00",
+                2000
+              ],
+              [
+                "2024-02-02",
+                "2024-02-02",
+                "2024-02-02 21:00:00+00:00",
+                2000
+              ],
+              [
+                "2024-02-05",
+                "2024-02-05",
+                "2024-02-05 21:00:00+00:00",
+                2000
+              ],
+              [
+                "2024-02-06",
+                "2024-02-06",
+                "2024-02-06 21:00:00+00:00",
+                2000
+              ]
+            ],
+            "truncated": false,
+            "duration_ms": 711
+          }
+        },
+        {
+          "sql": "SELECT * FROM \"prediction\".\"asset_entities\" LIMIT 25",
+          "result": {
+            "columns": [
+              "asset_id",
+              "company_name",
+              "sector",
+              "industry",
+              "exchange"
+            ],
+            "types": [
+              "VARCHAR",
+              "VARCHAR",
+              "VARCHAR",
+              "VARCHAR",
+              "VARCHAR"
+            ],
+            "rows": [
+              [
+                "CLAE",
+                "Claeet Airways",
+                "Transportation, Communications, Electric, Gas and Sanitary Services",
+                "Air Transportation, Scheduled",
+                "Nasdaq"
+              ],
+              [
+                "CLOS",
+                "Clostia Energy",
+                "Mining",
+                "Crude Petroleum & Natural Gas",
+                "NYSE"
+              ],
+              [
+                "GIOR",
+                "Giorara Surgical Systems",
+                "Manufacturing",
+                "Surgical & Medical Instruments & Apparatus",
+                "Nasdaq"
+              ],
+              [
+                "GIST",
+                "Gistar Biologics",
+                "Manufacturing",
+                "Biological Products, (No Diagnostic Substances)",
+                "Nasdaq"
+              ],
+              [
+                "HARE",
+                "Harex PowerGrid",
+                "Transportation, Communications, Electric, Gas and Sanitary Services",
+                "Electric Services",
+                "NYSE"
+              ],
+              [
+                "KASI",
+                "Kasix Mobility Solutions",
+                "Manufacturing",
+                "Motor Vehicles & Passenger Car Bodies",
+                "NYSE"
+              ],
+              [
+                "PEAX",
+                "Peaxis Urban",
+                "Finance, Insurance and Real Estate",
+                "Real Estate Investment Trusts",
+                "NYSE"
+              ],
+              [
+                "PRAL",
+                "Pralet State Banc",
+                "Finance, Insurance and Real Estate",
+                "State Commercial Banks",
+                "Nasdaq"
+              ],
+              [
+                "SOUS",
+                "Sousara Aerospace Systems",
+                "Manufacturing",
+                "Search, Detection, Navagation, Guidance, Aeronautical Sys",
+                "Nasdaq"
+              ],
+              [
+                "STIO",
+                "Stioix Semiconductors",
+                "Manufacturing",
+                "Semiconductors & Related Devices",
+                "Nasdaq"
+              ],
+              [
+                "TISL",
+                "Tislendo Solutions",
+                "Services",
+                "Services-Prepackaged Software",
+                "NYSE"
+              ],
+              [
+                "VIAS",
+                "Viasent HomeDirect",
+                "Retail Trade",
+                "Retail-Catalog & Mail-Order Houses",
+                "Nasdaq"
+              ]
+            ],
+            "truncated": false,
+            "duration_ms": 705
+          }
+        },
+        {
+          "sql": "SELECT * FROM \"prediction\".\"news_events\" LIMIT 25",
+          "result": {
+            "columns": [
+              "news_id",
+              "asset_id",
+              "published_at",
+              "event_type",
+              "sentiment_label"
+            ],
+            "types": [
+              "VARCHAR",
+              "VARCHAR",
+              "TIMESTAMP WITH TIME ZONE",
+              "VARCHAR",
+              "VARCHAR"
+            ],
+            "rows": [
+              [
+                "KASI-20240102-1",
+                "KASI",
+                "2024-01-02 11:22:00+00:00",
+                "partnership",
+                "negative"
+              ],
+              [
+                "PEAX-20240102-1",
+                "PEAX",
+                "2024-01-02 11:31:00+00:00",
+                "capital",
+                "negative"
+              ],
+              [
+                "VIAS-20240102-1",
+                "VIAS",
+                "2024-01-02 11:57:00+00:00",
+                "partnership",
+                "positive"
+              ],
+              [
+                "SOUS-20240102-1",
+                "SOUS",
+                "2024-01-02 12:06:00+00:00",
+                "guidance",
+                "positive"
+              ],
+              [
+                "GIST-20240103-1",
+                "GIST",
+                "2024-01-03 13:10:00+00:00",
+                "guidance",
+                "positive"
+              ],
+              [
+                "HARE-20240103-1",
+                "HARE",
+                "2024-01-03 14:50:00+00:00",
+                "contract",
+                "positive"
+              ],
+              [
+                "CLAE-20240103-1",
+                "CLAE",
+                "2024-01-03 19:15:00+00:00",
+                "management",
+                "positive"
+              ],
+              [
+                "TISL-20240104-1",
+                "TISL",
+                "2024-01-04 20:11:00+00:00",
+                "legal",
+                "positive"
+              ],
+              [
+                "VIAS-20240105-1",
+                "VIAS",
+                "2024-01-05 11:10:00+00:00",
+                "partnership",
+                "negative"
+              ],
+              [
+                "STIO-20240105-1",
+                "STIO",
+                "2024-01-05 15:56:00+00:00",
+                "earnings",
+                "negative"
+              ],
+              [
+                "VIAS-20240105-2",
+                "VIAS",
+                "2024-01-05 16:37:00+00:00",
+                "partnership",
+                "positive"
+              ],
+              [
+                "PRAL-20240105-1",
+                "PRAL",
+                "2024-01-05 17:17:00+00:00",
+                "guidance",
+                "negative"
+              ],
+              [
+                "PEAX-20240105-1",
+                "PEAX",
+                "2024-01-05 17:42:00+00:00",
+                "contract",
+                "negative"
+              ],
+              [
+                "GIST-20240108-1",
+                "GIST",
+                "2024-01-08 13:48:00+00:00",
+                "contract",
+                "positive"
+              ],
+              [
+                "TISL-20240108-1",
+                "TISL",
+                "2024-01-08 15:08:00+00:00",
+                "operations",
+                "neutral"
+              ],
+              [
+                "PEAX-20240110-1",
+                "PEAX",
+                "2024-01-10 17:01:00+00:00",
+                "product",
+                "positive"
+              ],
+              [
+                "PRAL-20240111-1",
+                "PRAL",
+                "2024-01-11 11:38:00+00:00",
+                "earnings",
+                "negative"
+              ],
+              [
+                "KASI-20240111-1",
+                "KASI",
+                "2024-01-11 13:23:00+00:00",
+                "product",
+                "negative"
+              ],
+              [
+                "GIST-20240116-1",
+                "GIST",
+                "2024-01-16 11:32:00+00:00",
+                "operations",
+                "negative"
+              ],
+              [
+                "KASI-20240116-1",
+                "KASI",
+                "2024-01-16 15:23:00+00:00",
+                "regulatory",
+                "positive"
+              ],
+              [
+                "PEAX-20240116-1",
+                "PEAX",
+                "2024-01-16 15:54:00+00:00",
+                "guidance",
+                "positive"
+              ],
+              [
+                "HARE-20240117-1",
+                "HARE",
+                "2024-01-17 14:16:00+00:00",
+                "regulatory",
+                "neutral"
+              ],
+              [
+                "GIOR-20240117-1",
+                "GIOR",
+                "2024-01-17 15:31:00+00:00",
+                "product",
+                "positive"
+              ],
+              [
+                "GIST-20240118-1",
+                "GIST",
+                "2024-01-18 11:48:00+00:00",
+                "capital",
+                "negative"
+              ],
+              [
+                "VIAS-20240118-1",
+                "VIAS",
+                "2024-01-18 16:14:00+00:00",
+                "operations",
+                "positive"
+              ]
+            ],
+            "truncated": false,
+            "duration_ms": 732
+          }
+        },
+        {
+          "sql": "SELECT * FROM \"prediction\".\"price_events\" LIMIT 25",
+          "result": {
+            "columns": [
+              "price_id",
+              "asset_id",
+              "observed_at",
+              "adjusted_close",
+              "volume",
+              "total_return_1d"
+            ],
+            "types": [
+              "VARCHAR",
+              "VARCHAR",
+              "TIMESTAMP WITH TIME ZONE",
+              "DOUBLE",
+              "BIGINT",
+              "DOUBLE"
+            ],
+            "rows": [
+              [
+                "CLAE:2024-01-02",
+                "CLAE",
+                "2024-01-02 21:00:00+00:00",
+                33.1169,
+                206489060,
+                0.0
+              ],
+              [
+                "CLAE:2024-01-03",
+                "CLAE",
+                "2024-01-03 21:00:00+00:00",
+                33.619,
+                811512783,
+                0.015161443251028972
+              ],
+              [
+                "CLAE:2024-01-04",
+                "CLAE",
+                "2024-01-04 21:00:00+00:00",
+                31.3079,
+                427575896,
+                -0.06874386507629615
+              ],
+              [
+                "CLAE:2024-01-05",
+                "CLAE",
+                "2024-01-05 21:00:00+00:00",
+                30.9621,
+                122389702,
+                -0.011045135572810727
+              ],
+              [
+                "CLAE:2024-01-08",
+                "CLAE",
+                "2024-01-08 21:00:00+00:00",
+                30.8269,
+                164606212,
+                -0.0043666288785322305
+              ],
+              [
+                "CLAE:2024-01-09",
+                "CLAE",
+                "2024-01-09 21:00:00+00:00",
+                30.6432,
+                161568188,
+                -0.005959081192075666
+              ],
+              [
+                "CLAE:2024-01-10",
+                "CLAE",
+                "2024-01-10 21:00:00+00:00",
+                30.797,
+                199412175,
+                0.0050190580618212355
+              ],
+              [
+                "CLAE:2024-01-11",
+                "CLAE",
+                "2024-01-11 21:00:00+00:00",
+                29.9892,
+                224981126,
+                -0.026229827580608545
+              ],
+              [
+                "CLAE:2024-01-12",
+                "CLAE",
+                "2024-01-12 21:00:00+00:00",
+                28.8306,
+                248214411,
+                -0.03863390820695445
+              ],
+              [
+                "CLAE:2024-01-16",
+                "CLAE",
+                "2024-01-16 21:00:00+00:00",
+                28.133,
+                225021421,
+                -0.024196513426706368
+              ],
+              [
+                "CLAE:2024-01-17",
+                "CLAE",
+                "2024-01-17 21:00:00+00:00",
+                28.0219,
+                115198936,
+                -0.003949098922973016
+              ],
+              [
+                "CLAE:2024-01-18",
+                "CLAE",
+                "2024-01-18 21:00:00+00:00",
+                29.0815,
+                211544440,
+                0.037813281754627726
+              ],
+              [
+                "CLAE:2024-01-19",
+                "CLAE",
+                "2024-01-19 21:00:00+00:00",
+                28.6602,
+                148798802,
+                -0.01448687309801755
+              ],
+              [
+                "CLAE:2024-01-22",
+                "CLAE",
+                "2024-01-22 21:00:00+00:00",
+                28.4357,
+                151781176,
+                -0.007833162364533353
+              ],
+              [
+                "CLAE:2024-01-23",
+                "CLAE",
+                "2024-01-23 21:00:00+00:00",
+                28.8338,
+                121308850,
+                0.01400000703341231
+              ],
+              [
+                "CLAE:2024-01-24",
+                "CLAE",
+                "2024-01-24 21:00:00+00:00",
+                27.8608,
+                186362874,
+                -0.03374511857611551
+              ],
+              [
+                "CLAE:2024-01-25",
+                "CLAE",
+                "2024-01-25 21:00:00+00:00",
+                28.6709,
+                336094360,
+                0.029076695572273437
+              ],
+              [
+                "CLAE:2024-01-26",
+                "CLAE",
+                "2024-01-26 21:00:00+00:00",
+                29.5045,
+                393634708,
+                0.02907477616677534
+              ],
+              [
+                "CLAE:2024-01-29",
+                "CLAE",
+                "2024-01-29 21:00:00+00:00",
+                28.1758,
+                638544155,
+                -0.045033808402108244
+              ],
+              [
+                "CLAE:2024-01-30",
+                "CLAE",
+                "2024-01-30 21:00:00+00:00",
+                28.0788,
+                155319071,
+                -0.0034426706606377477
+              ],
+              [
+                "CLAE:2024-01-31",
+                "CLAE",
+                "2024-01-31 21:00:00+00:00",
+                30.0107,
+                385188137,
+                0.06880279784036358
+              ],
+              [
+                "CLAE:2024-02-01",
+                "CLAE",
+                "2024-02-01 21:00:00+00:00",
+                28.64,
+                188178950,
+                -0.04567370971020335
+              ],
+              [
+                "CLAE:2024-02-02",
+                "CLAE",
+                "2024-02-02 21:00:00+00:00",
+                28.9492,
+                168384388,
+                0.010796089385474827
+              ],
+              [
+                "CLAE:2024-02-05",
+                "CLAE",
+                "2024-02-05 21:00:00+00:00",
+                28.7337,
+                397117632,
+                -0.0074440744476531595
+              ],
+              [
+                "CLAE:2024-02-06",
+                "CLAE",
+                "2024-02-06 21:00:00+00:00",
+                28.4763,
+                195432931,
+                -0.00895812234414639
+              ]
+            ],
+            "truncated": false,
+            "duration_ms": 707
+          }
+        },
+        {
+          "sql": "SELECT * FROM \"prediction\".\"return_outcomes\" LIMIT 25",
+          "result": {
+            "columns": [
+              "outcome_id",
+              "asset_id",
+              "observed_at",
+              "realized_at",
+              "forward_return_5d",
+              "positive_return"
+            ],
+            "types": [
+              "VARCHAR",
+              "VARCHAR",
+              "TIMESTAMP WITH TIME ZONE",
+              "TIMESTAMP WITH TIME ZONE",
+              "DOUBLE",
+              "BOOLEAN"
+            ],
+            "rows": [
+              [
+                "outcome-KASI:2024-01-02",
+                "KASI",
+                "2024-01-02 21:00:00+00:00",
+                "2024-01-09 21:00:00+00:00",
+                -0.012477460338467194,
+                false
+              ],
+              [
+                "outcome-KASI:2024-01-03",
+                "KASI",
+                "2024-01-03 21:00:00+00:00",
+                "2024-01-10 21:00:00+00:00",
+                -0.009226570520043054,
+                false
+              ],
+              [
+                "outcome-KASI:2024-01-04",
+                "KASI",
+                "2024-01-04 21:00:00+00:00",
+                "2024-01-11 21:00:00+00:00",
+                -0.018421144269944567,
+                false
+              ],
+              [
+                "outcome-KASI:2024-01-05",
+                "KASI",
+                "2024-01-05 21:00:00+00:00",
+                "2024-01-12 21:00:00+00:00",
+                -0.03943891864320326,
+                false
+              ],
+              [
+                "outcome-KASI:2024-01-08",
+                "KASI",
+                "2024-01-08 21:00:00+00:00",
+                "2024-01-16 21:00:00+00:00",
+                -0.04234860303503041,
+                false
+              ],
+              [
+                "outcome-KASI:2024-01-09",
+                "KASI",
+                "2024-01-09 21:00:00+00:00",
+                "2024-01-17 21:00:00+00:00",
+                0.02882372402933253,
+                true
+              ],
+              [
+                "outcome-KASI:2024-01-10",
+                "KASI",
+                "2024-01-10 21:00:00+00:00",
+                "2024-01-18 21:00:00+00:00",
+                0.04962872173294075,
+                true
+              ],
+              [
+                "outcome-KASI:2024-01-11",
+                "KASI",
+                "2024-01-11 21:00:00+00:00",
+                "2024-01-19 21:00:00+00:00",
+                0.05436606315578585,
+                true
+              ],
+              [
+                "outcome-KASI:2024-01-12",
+                "KASI",
+                "2024-01-12 21:00:00+00:00",
+                "2024-01-22 21:00:00+00:00",
+                0.07605645769390068,
+                true
+              ],
+              [
+                "outcome-KASI:2024-01-16",
+                "KASI",
+                "2024-01-16 21:00:00+00:00",
+                "2024-01-23 21:00:00+00:00",
+                0.06088417240007771,
+                true
+              ],
+              [
+                "outcome-KASI:2024-01-17",
+                "KASI",
+                "2024-01-17 21:00:00+00:00",
+                "2024-01-24 21:00:00+00:00",
+                -0.020589306830740672,
+                false
+              ],
+              [
+                "outcome-KASI:2024-01-18",
+                "KASI",
+                "2024-01-18 21:00:00+00:00",
+                "2024-01-25 21:00:00+00:00",
+                -0.05001484715456295,
+                false
+              ],
+              [
+                "outcome-KASI:2024-01-19",
+                "KASI",
+                "2024-01-19 21:00:00+00:00",
+                "2024-01-26 21:00:00+00:00",
+                -0.046266387991639735,
+                false
+              ],
+              [
+                "outcome-KASI:2024-01-22",
+                "KASI",
+                "2024-01-22 21:00:00+00:00",
+                "2024-01-29 21:00:00+00:00",
+                -0.05200334779570559,
+                false
+              ],
+              [
+                "outcome-KASI:2024-01-23",
+                "KASI",
+                "2024-01-23 21:00:00+00:00",
+                "2024-01-30 21:00:00+00:00",
+                -0.0441084383961583,
+                false
+              ],
+              [
+                "outcome-KASI:2024-01-24",
+                "KASI",
+                "2024-01-24 21:00:00+00:00",
+                "2024-01-31 21:00:00+00:00",
+                -0.006138730317721941,
+                false
+              ],
+              [
+                "outcome-KASI:2024-01-25",
+                "KASI",
+                "2024-01-25 21:00:00+00:00",
+                "2024-02-01 21:00:00+00:00",
+                0.002726596886061694,
+                true
+              ],
+              [
+                "outcome-KASI:2024-01-26",
+                "KASI",
+                "2024-01-26 21:00:00+00:00",
+                "2024-02-02 21:00:00+00:00",
+                -0.01696508616396042,
+                false
+              ],
+              [
+                "outcome-KASI:2024-01-29",
+                "KASI",
+                "2024-01-29 21:00:00+00:00",
+                "2024-02-05 21:00:00+00:00",
+                -0.04259802564043835,
+                false
+              ],
+              [
+                "outcome-KASI:2024-01-30",
+                "KASI",
+                "2024-01-30 21:00:00+00:00",
+                "2024-02-06 21:00:00+00:00",
+                -0.05226692369317043,
+                false
+              ],
+              [
+                "outcome-KASI:2024-01-31",
+                "KASI",
+                "2024-01-31 21:00:00+00:00",
+                "2024-02-07 21:00:00+00:00",
+                -0.07326456917154733,
+                false
+              ],
+              [
+                "outcome-KASI:2024-02-01",
+                "KASI",
+                "2024-02-01 21:00:00+00:00",
+                "2024-02-08 21:00:00+00:00",
+                -0.08445895424148286,
+                false
+              ],
+              [
+                "outcome-KASI:2024-02-02",
+                "KASI",
+                "2024-02-02 21:00:00+00:00",
+                "2024-02-09 21:00:00+00:00",
+                -0.07783667618752077,
+                false
+              ],
+              [
+                "outcome-KASI:2024-02-05",
+                "KASI",
+                "2024-02-05 21:00:00+00:00",
+                "2024-02-12 21:00:00+00:00",
+                -0.0819097040228447,
+                false
+              ],
+              [
+                "outcome-KASI:2024-02-06",
+                "KASI",
+                "2024-02-06 21:00:00+00:00",
+                "2024-02-13 21:00:00+00:00",
+                -0.055433382862803415,
+                false
+              ]
+            ],
+            "truncated": false,
+            "duration_ms": 726
+          }
+        },
+        {
+          "sql": "SELECT * FROM \"prediction\".\"top_12_population\" LIMIT 25",
+          "result": {
+            "columns": [
+              "asset_id"
+            ],
+            "types": [
+              "VARCHAR"
+            ],
+            "rows": [
+              [
+                "CLAE"
+              ],
+              [
+                "CLOS"
+              ],
+              [
+                "GIOR"
+              ],
+              [
+                "GIST"
+              ],
+              [
+                "HARE"
+              ],
+              [
+                "KASI"
+              ],
+              [
+                "PEAX"
+              ],
+              [
+                "PRAL"
+              ],
+              [
+                "SOUS"
+              ],
+              [
+                "STIO"
+              ],
+              [
+                "TISL"
+              ],
+              [
+                "VIAS"
+              ]
+            ],
+            "truncated": false,
+            "duration_ms": 697
+          }
+        }
+      ]
+    }
+  ]
+}

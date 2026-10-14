@@ -1,0 +1,94 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Sam Pastoriza <pastorsj@users.noreply.github.com>
+Date: Sat, 12 Sep 2026 16:56:49 -0400
+Subject: [PATCH 1/5] fix(runs): forward relay correlation metadata
+
+Signed-off-by: Sam Pastoriza <pastorsj@users.noreply.github.com>
+---
+ gateway/platforms/api_server_runs.py  | 10 +++++++---
+ tests/gateway/test_api_server_runs.py | 21 +++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 3 deletions(-)
+
+diff --git a/gateway/platforms/api_server_runs.py b/gateway/platforms/api_server_runs.py
+index fc389b3316..9a2092bb69 100644
+--- a/gateway/platforms/api_server_runs.py
++++ b/gateway/platforms/api_server_runs.py
+@@ -9,7 +9,7 @@ import threading
+ import time
+ import uuid
+ from contextlib import suppress
+-from dataclasses import dataclass
++from dataclasses import dataclass, field
+ from typing import Any, Callable, Dict, List, Optional, Tuple
+ 
+ try:
+@@ -453,6 +453,7 @@ class _RunLaunch:
+     browser_control_principal: Any
+     browser_control_transport_family: Any
+     turn_author: Optional[Dict[str, Any]] = None  # memory-attribution label only; grants nothing
++    relay_metadata: Dict[str, Any] = field(default_factory=dict)
+ 
+     @property
+     def approval_session_key(self) -> str:
+@@ -612,6 +613,7 @@ async def _handle_runs(self, request: "web.Request", *, _api_server) -> "web.Res
+     if history_err is not None:
+         return history_err
+     previous_response_id = body.get("previous_response_id")
++    relay_metadata = _api_server._request_relay_metadata(body)
+     session_id = body.get("session_id") or stored_session_id
+     route = self._resolve_route(body.get("model"))
+     agent_overrides = _api_server._request_agent_overrides(body, virtual_model=self._model_name)
+@@ -685,7 +687,8 @@ async def _handle_runs(self, request: "web.Request", *, _api_server) -> "web.Res
+         request_profile=_api_server._api_request_profile.get(),
+         browser_control_principal=_api_server._api_request_browser_control_principal.get(),
+         browser_control_transport_family=_api_server._api_request_browser_control_transport_family.get(),
+-        turn_author=turn_author)
++        turn_author=turn_author,
++        relay_metadata=relay_metadata)
+     self._activate_admitted_request()
+     # A canonical Bot Chat that a Desktop holds live is that Desktop's to run: executing here would
+     # be a second writer beside its lease (#114959). The owner's mailbox takes the turn and its
+@@ -774,9 +777,10 @@ def _run_agent_sync(self, run: _RunLaunch, agent, approval_notify, *, _api_serve
+             _api_server._publish_turn_process_ownership(agent, effective_task_id)
+             # Passed only when set: a human turn keeps today's call shape.
+             author_kwargs = {"turn_author": run.turn_author} if run.turn_author is not None else {}
++            relay_kwargs = {"relay_metadata": run.relay_metadata} if run.relay_metadata else {}
+             r = agent.run_conversation(
+                 user_message=run.user_message, conversation_history=run.conversation_history,
+-                task_id=effective_task_id, **author_kwargs)
++                task_id=effective_task_id, **relay_kwargs, **author_kwargs)
+         finally:
+             # Clear ownership now so a later stop can't reap work this run left running.
+             _api_server._clear_turn_process_ownership(agent)
+diff --git a/tests/gateway/test_api_server_runs.py b/tests/gateway/test_api_server_runs.py
+index 73172bd747..1194373477 100644
+--- a/tests/gateway/test_api_server_runs.py
++++ b/tests/gateway/test_api_server_runs.py
+@@ -288,6 +288,27 @@ class TestStartRun:
+         assert captured["user_message"] == "hello"
+         assert captured.get("turn_author", "absent") == expected
+ 
++    @pytest.mark.asyncio
++    async def test_start_passes_request_metadata_to_relay_turn(self, adapter):
++        """Durable Runs must preserve the same Relay-correlation seam as the OpenAI routes."""
++        app = _create_runs_app(adapter)
++        captured = {}
++        metadata = {
++            "aiq.job.ref": "sha256-64:1111:2222:3333:4444",
++            "aiq.session.ref": "sha256-64:aaaa:bbbb:cccc:dddd",
++            "aiq.execution.mode": "hermes",
++            "aiq.agent.type": "hermes",
++        }
++
++        async with TestClient(TestServer(app)) as cli:
++            with patch.object(adapter, "_create_agent", return_value=self._capturing_agent(captured)):
++                resp = await cli.post("/v1/runs", json={"input": "hello", "metadata": metadata})
++                assert resp.status == 202
++                await self._wait_completed(cli, (await resp.json())["run_id"])
++
++        assert captured["relay_metadata"] == metadata
++        assert captured["relay_metadata"] is not metadata
++
+     @pytest.mark.asyncio
+     @pytest.mark.parametrize("author", ["dixie", ["dixie"], 7])
+     async def test_start_rejects_non_object_author(self, adapter, author):

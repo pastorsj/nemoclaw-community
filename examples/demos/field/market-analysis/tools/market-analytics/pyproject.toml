@@ -1,0 +1,59 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+[project]
+name = "market-analytics"
+version = "0.1.0"
+description = "Market analytics MCP server: seven read-only market tools on pandas, scikit-learn and NetworkX (RAPIDS on GPU), plus Kumo prediction."
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "anyio>=4.15,<5",
+    # Same DuckDB as the data image that writes the pack.
+    "duckdb==1.5.5",
+    "mcp>=2.2,<3",
+    # The versions RAPIDS 26.06 was validated with in the prototype: cudf 26.06 needs pandas<2.4 and pyarrow<24,
+    # and nx-cugraph 26.06 predates NetworkX 3.7.
+    "networkx>=3.6,<3.7",
+    "numpy>=2.4,<2.5",
+    "pandas>=2.3,<2.4",
+    "pyarrow>=19,<24",
+    "pydantic>=2.13,<3",
+    "scikit-learn>=1.9,<1.10",
+    "starlette>=1.0,<2",
+]
+
+[project.optional-dependencies]
+# RAPIDS accelerators, installed by bootstrap.py before pandas is imported. Linux only.
+gpu-cu12 = [
+    "cudf-cu12==26.6.*; sys_platform == 'linux'",
+    "cuml-cu12==26.6.*; sys_platform == 'linux'",
+    "nx-cugraph-cu12==26.6.*; sys_platform == 'linux'",
+    # bootstrap.py loads NVRTC with it before nx-cugraph is imported (RAPIDS already depends on it).
+    "cuda-pathfinder>=1.8,<2; sys_platform == 'linux'",
+    # pypi.org carries only download-at-install stubs of these two; pin them to the NVIDIA index (below).
+    "libcugraph-cu12==26.6.*; sys_platform == 'linux'",
+    "pylibcugraph-cu12==26.6.*; sys_platform == 'linux'",
+]
+# predict_asset_outcomes. Never add the [explain] extra: it sends raw cell values to a third-party LLM.
+kumo = ["kumo-relational-client[relational]==1.0.2"]
+
+[project.scripts]
+market-analytics-server = "market_analytics.bootstrap:main"
+
+[[tool.uv.index]]
+name = "nvidia"
+url = "https://pypi.nvidia.com"
+explicit = true
+
+[tool.uv.sources]
+cudf-cu12 = { index = "nvidia" }
+cuml-cu12 = { index = "nvidia" }
+nx-cugraph-cu12 = { index = "nvidia" }
+libcugraph-cu12 = { index = "nvidia" }
+pylibcugraph-cu12 = { index = "nvidia" }
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"

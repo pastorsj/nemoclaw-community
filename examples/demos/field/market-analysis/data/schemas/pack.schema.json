@@ -1,0 +1,446 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:nemoclaw-community:market-analysis:schemas:pack",
+  "title": "Data pack manifest (pack.yaml)",
+  "description": "One swappable demo world: tables, document corpora, the source catalog, analytics and prediction settings, and demo questions. Paths are relative to the pack directory. Cross-references that JSON Schema cannot express are checked by `demo-data validate`.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "version", "title", "description", "as_of", "licenses", "provenance", "sources", "questions"],
+  "anyOf": [{ "required": ["structured"] }, { "required": ["documents"] }],
+  "properties": {
+    "schema_version": { "description": "2 adds `external` and `market`.", "enum": ["1", "2"] },
+    "id": { "$ref": "#/$defs/pack_id" },
+    "version": {
+      "description": "SemVer of the pack content: minor for data changes, major for table or column changes.",
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "title": { "$ref": "#/$defs/text" },
+    "description": { "$ref": "#/$defs/text" },
+    "as_of": { "$ref": "#/$defs/date" },
+    "disclaimer": { "description": "One line shown wherever pack data is displayed.", "$ref": "#/$defs/text" },
+    "licenses": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/license" } },
+    "provenance": {
+      "description": "Every origin of pack content. Each table and corpus names one origin.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/origin" }
+    },
+    "generator": { "$ref": "#/$defs/generator" },
+    "external": {
+      "description": "Datasets outside the repository, in $DATA_SOURCE_DIR/<id>/, pinned by their manifest's fingerprint. Never committed.",
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "$ref": "#/$defs/pack_id" },
+      "additionalProperties": { "$ref": "#/$defs/external_dataset" }
+    },
+    "market": { "$ref": "#/$defs/market" },
+    "structured": { "$ref": "#/$defs/structured" },
+    "documents": { "$ref": "#/$defs/documents" },
+    "sources": {
+      "description": "The source catalog the API serves and the agent sees per run.",
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": { "$ref": "#/$defs/source" }
+    },
+    "analytics": { "$ref": "#/$defs/analytics" },
+    "prediction": { "$ref": "#/$defs/prediction" },
+    "ontology": { "description": "Table and column descriptions for the Auto Ontology model.", "$ref": "#/$defs/pack_path" },
+    "questions": { "description": "Demo questions (questions.schema.json).", "$ref": "#/$defs/pack_path" }
+  },
+  "$defs": {
+    "pack_id": { "type": "string", "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$", "maxLength": 64 },
+    "source_id": { "type": "string", "pattern": "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$", "maxLength": 128 },
+    "identifier": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$", "maxLength": 128 },
+    "text": { "type": "string", "minLength": 1, "pattern": "\\S" },
+    "date": { "type": "string", "format": "date", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:Z|[+-][0-9]{2}:[0-9]{2})$"
+    },
+    "https_url": { "type": "string", "format": "uri", "pattern": "^https://" },
+    "pack_path": {
+      "description": "A relative path inside the pack directory, without '.' or '..' segments.",
+      "type": "string",
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))[A-Za-z0-9._/-]+$"
+    },
+    "license": {
+      "description": "Data Package v2 license shape. `path` links the terms; a private dataset may have none.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "redistribution"],
+      "properties": {
+        "name": { "description": "SPDX id or short license name.", "$ref": "#/$defs/text" },
+        "title": { "$ref": "#/$defs/text" },
+        "path": { "$ref": "#/$defs/https_url" },
+        "redistribution": { "enum": ["allowed", "restricted", "unknown"] },
+        "notes": { "$ref": "#/$defs/text" }
+      }
+    },
+    "origin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "kind", "synthetic", "license"],
+      "properties": {
+        "id": { "$ref": "#/$defs/pack_id" },
+        "title": { "$ref": "#/$defs/text" },
+        "kind": {
+          "description": "generated: written by the pack generator; committed: files in the pack; download: fetched at prepare time and verified against the sha256 pins in the corpus manifest; external: imported from, or read in place from, the `external` dataset with the origin's id.",
+          "enum": ["generated", "committed", "download", "external"]
+        },
+        "synthetic": { "type": "boolean" },
+        "license": { "description": "The name of a licenses[] entry.", "$ref": "#/$defs/text" },
+        "url": { "$ref": "#/$defs/https_url" },
+        "as_of": { "$ref": "#/$defs/date" },
+        "retrieved_on": { "$ref": "#/$defs/date" },
+        "requires_env": {
+          "description": "Environment variables `prepare` needs to fetch this origin's documents (names only, never values).",
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" }
+        },
+        "notes": { "$ref": "#/$defs/text" }
+      },
+      "if": { "properties": { "kind": { "const": "download" } } },
+      "then": { "required": ["url"] }
+    },
+    "external_dataset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "manifest", "fingerprint", "bytes"],
+      "properties": {
+        "title": { "$ref": "#/$defs/text" },
+        "manifest": { "description": "The manifest's path inside the dataset.", "$ref": "#/$defs/pack_path" },
+        "fingerprint": {
+          "description": "sha256 of the manifest's `files`, as compact JSON with sorted keys.",
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "bytes": { "description": "The dataset's size, for the disk check.", "type": "integer", "minimum": 0 },
+        "notes": { "$ref": "#/$defs/text" }
+      }
+    },
+    "market": {
+      "description": "How the importer turns an external dataset's bars into the market tables (docs/data-platform.md).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bars", "companies", "news", "exclude", "min_sessions", "peers"],
+      "properties": {
+        "bars": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["dataset", "files", "columns", "frequency", "timezone", "regular_session"],
+          "oneOf": [{ "required": ["symbol_from_path"] }, { "required": ["symbol_column"] }],
+          "properties": {
+            "dataset": { "description": "An `external` dataset id.", "$ref": "#/$defs/pack_id" },
+            "files": { "description": "A glob inside the dataset, e.g. market/*/*.parquet.", "$ref": "#/$defs/text" },
+            "symbol_from_path": { "description": "A regular expression whose first group is the symbol.", "$ref": "#/$defs/text" },
+            "symbol_column": { "type": "string", "minLength": 1 },
+            "columns": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["time", "open", "high", "low", "close", "volume"],
+              "properties": {
+                "time": { "type": "string", "minLength": 1 },
+                "open": { "type": "string", "minLength": 1 },
+                "high": { "type": "string", "minLength": 1 },
+                "low": { "type": "string", "minLength": 1 },
+                "close": { "type": "string", "minLength": 1 },
+                "volume": { "type": "string", "minLength": 1 }
+              }
+            },
+            "frequency": { "enum": ["1min", "1d"] },
+            "timezone": { "description": "The zone of the time column's wall-clock values (IANA name).", "$ref": "#/$defs/text" },
+            "regular_session": {
+              "description": "Open and close, both included; minute bars outside it are dropped.",
+              "type": "array",
+              "prefixItems": [{ "$ref": "#/$defs/clock" }, { "$ref": "#/$defs/clock" }],
+              "minItems": 2,
+              "maxItems": 2
+            }
+          }
+        },
+        "companies": { "description": "sec, or a companies table's path inside the dataset.", "$ref": "#/$defs/text" },
+        "news": {
+          "description": "A ticker-linked news table's path inside the dataset, or null (the news tools are then unavailable).",
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/text" }]
+        },
+        "exclude": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "enum": ["warrants", "units", "rights", "preferred"] }
+        },
+        "min_sessions": { "type": "integer", "minimum": 1 },
+        "peers": { "description": "Declared peers per asset: the most liquid with the same SIC code.", "type": "integer", "minimum": 0 }
+      }
+    },
+    "clock": { "type": "string", "pattern": "^[0-2][0-9]:[0-5][0-9]$" },
+    "generator": {
+      "description": "A pack-local program run as `python <entrypoint> --profile <name> --out <dir>`. It writes the raw market dataset `market.bars.dataset` names into <dir> (bars, companies, news and manifest.json), which the market importer turns into the tables.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entrypoint", "default_profile", "profiles"],
+      "properties": {
+        "entrypoint": { "$ref": "#/$defs/pack_path" },
+        "default_profile": { "$ref": "#/$defs/pack_id" },
+        "profiles": {
+          "description": "Scale variants, selected with DATA_PACK_PROFILE.",
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": { "$ref": "#/$defs/pack_id" },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["description", "params"],
+            "properties": {
+              "description": { "$ref": "#/$defs/text" },
+              "params": {
+                "description": "Generator-specific settings. `frequency` (1min or 1d), when set, is the frequency of the bars the profile writes.",
+                "type": "object"
+              },
+              "expected_rows": {
+                "description": "Row counts the build must produce, by table.",
+                "type": "object",
+                "propertyNames": { "$ref": "#/$defs/identifier" },
+                "additionalProperties": { "type": "integer", "minimum": 0 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "structured": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "database_name", "schema", "tables"],
+      "properties": {
+        "source": { "description": "The sources[] id this database serves.", "$ref": "#/$defs/source_id" },
+        "database_name": {
+          "description": "DuckDB file stem and Auto Ontology database name: the pack id with '-' replaced by '_'.",
+          "$ref": "#/$defs/identifier"
+        },
+        "schema": { "description": "DDL with primary and foreign keys, run before loading.", "$ref": "#/$defs/pack_path" },
+        "views": {
+          "description": "SQL run after loading; {{placeholders}} are filled from the prediction section.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/pack_path" }
+        },
+        "tables": {
+          "description": "Each table is tables/<name>.parquet: written by the generator, imported from an external dataset, or committed in the pack.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "origin"],
+            "properties": {
+              "name": { "$ref": "#/$defs/identifier" },
+              "origin": { "$ref": "#/$defs/pack_id" },
+              "load_into_database": {
+                "description": "false keeps a table out of DuckDB (and Auto Ontology); tools still read its Parquet.",
+                "type": "boolean",
+                "default": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "documents": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["corpora"],
+      "properties": {
+        "collection": { "description": "Logical retrieval collection name.", "$ref": "#/$defs/identifier" },
+        "corpora": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["source", "origin", "format"],
+            "oneOf": [{ "required": ["manifest"] }, { "required": ["files"] }],
+            "properties": {
+              "source": { "$ref": "#/$defs/source_id" },
+              "origin": { "$ref": "#/$defs/pack_id" },
+              "format": {
+                "description": "The corpus builder to use. gdelt-parquet reads `files`; the others read a `manifest`.",
+                "enum": ["markdown", "ecfr-xml", "federal-register-xml", "edgar-filings", "gdelt-parquet"]
+              },
+              "manifest": { "description": "The corpus manifest: pinned snapshot or file list.", "$ref": "#/$defs/pack_path" },
+              "files": {
+                "description": "A glob inside the origin's external dataset, read in place: only files its manifest lists.",
+                "type": "string",
+                "pattern": "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))[A-Za-z0-9._/*-]+$"
+              },
+              "opt_in": {
+                "description": "Built only when named in DATA_CORPORA.",
+                "type": "boolean",
+                "default": false
+              }
+            }
+          }
+        },
+        "benchmark_queries": {
+          "description": "Held-out queries for the Benchmark tab's CPU/GPU Milvus index comparison (analytics-gpu profile). Each names the document sources it searches; a build keeps those whose sources it has.",
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["query", "sources"],
+            "properties": {
+              "query": { "$ref": "#/$defs/text" },
+              "sources": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/source_id" } }
+            }
+          }
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "description", "kind", "capabilities"],
+      "properties": {
+        "id": { "$ref": "#/$defs/source_id" },
+        "name": { "description": "Short UI label.", "type": "string", "minLength": 1, "maxLength": 160 },
+        "description": { "description": "UI description.", "type": "string", "minLength": 1, "maxLength": 400 },
+        "agent_description": {
+          "description": "Routing context for the agent; defaults to description.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 400
+        },
+        "kind": { "enum": ["structured", "documents"] },
+        "capabilities": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "enum": ["structured_retrieval", "structured_prediction", "market_analytics", "unstructured_retrieval"] }
+        },
+        "default_enabled": { "type": "boolean", "default": true },
+        "synthetic": { "type": "boolean" },
+        "example_questions": {
+          "type": "array",
+          "maxItems": 3,
+          "items": { "type": "string", "minLength": 1, "maxLength": 300 }
+        }
+      }
+    },
+    "analytics": {
+      "description": "Settings for the market-analytics tools. The tables must satisfy `contract`.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contract", "news_table", "session_close_utc", "universes", "relationship_graph"],
+      "properties": {
+        "contract": { "description": "A tool contract id, e.g. market-analytics/v1.", "type": "string", "pattern": "^[a-z][a-z0-9-]*/v[0-9]+$" },
+        "news_table": {
+          "description": "The ticker-linked news table, or null when the pack has none.",
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/identifier" }]
+        },
+        "session_close_utc": { "type": "string", "pattern": "^[0-2][0-9]:[0-5][0-9]$" },
+        "universes": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": { "$ref": "#/$defs/identifier" },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["description", "where"],
+            "properties": {
+              "description": { "$ref": "#/$defs/text" },
+              "where": { "description": "SQL predicate over the assets table.", "$ref": "#/$defs/text" },
+              "profiles": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/pack_id" } }
+            }
+          }
+        },
+        "relationship_graph": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["window_start", "window_end", "mode_by_profile"],
+          "properties": {
+            "window_start": { "$ref": "#/$defs/date" },
+            "window_end": { "$ref": "#/$defs/date" },
+            "mode_by_profile": {
+              "type": "object",
+              "minProperties": 1,
+              "propertyNames": { "$ref": "#/$defs/pack_id" },
+              "additionalProperties": { "enum": ["full_correlation", "sparse_declared_peers"] }
+            }
+          }
+        }
+      }
+    },
+    "prediction": {
+      "description": "The leakage-safe prediction graph (views in `schema`) and its PQL templates.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "anchor", "horizon_sessions", "entity", "population", "tables", "templates"],
+      "properties": {
+        "schema": { "$ref": "#/$defs/identifier" },
+        "anchor": { "$ref": "#/$defs/timestamp" },
+        "horizon_sessions": { "type": "integer", "minimum": 1, "maximum": 20 },
+        "entity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["table", "key"],
+          "properties": { "table": { "$ref": "#/$defs/identifier" }, "key": { "$ref": "#/$defs/identifier" } }
+        },
+        "population": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["view"],
+          "properties": {
+            "view": { "$ref": "#/$defs/identifier" },
+            "ids": {
+              "description": "Kumo scores at most 1,000 entities per batch. Without ids, the build takes them from the view.",
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 1000,
+              "uniqueItems": true,
+              "items": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "tables": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": { "$ref": "#/$defs/identifier" },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["primary_key"],
+            "properties": {
+              "primary_key": { "$ref": "#/$defs/identifier" },
+              "time_column": { "$ref": "#/$defs/identifier" },
+              "links_to_entity": { "description": "The column that references entity.key.", "$ref": "#/$defs/identifier" }
+            }
+          }
+        },
+        "forbidden_tables": {
+          "description": "Raw tables the prediction path must never read.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/identifier" }
+        },
+        "templates": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "name", "description", "pql"],
+            "properties": {
+              "id": { "$ref": "#/$defs/identifier" },
+              "name": { "$ref": "#/$defs/text" },
+              "description": { "$ref": "#/$defs/text" },
+              "pql": { "$ref": "#/$defs/text" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

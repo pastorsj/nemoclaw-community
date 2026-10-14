@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Embedded etcd for single-container Milvus (ETCD_USE_EMBED=true, ETCD_CONFIG_PATH=/milvus/configs/embedEtcd.yaml).
+# Verbatim from the official recipe:
+# https://raw.githubusercontent.com/milvus-io/milvus/v2.6.25/scripts/standalone_embed.sh
+listen-client-urls: http://0.0.0.0:2379
+advertise-client-urls: http://0.0.0.0:2379
+quota-backend-bytes: 4294967296
+auto-compaction-mode: revision
+auto-compaction-retention: '1000'

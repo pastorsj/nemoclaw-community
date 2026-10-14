@@ -1,0 +1,307 @@
+/*
+ * SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+.body {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 18px;
+  overflow: auto;
+  padding: clamp(18px, 2vw, 30px);
+  scrollbar-color: color-mix(in srgb, var(--text-color-subtle) 44%, transparent) transparent;
+}
+
+.callSelector {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.callSelector label {
+  color: var(--text-color-secondary);
+  font-size: 0.75rem;
+  font-weight: 720;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
+.callSelector select {
+  width: min(620px, 60vw);
+  max-width: 100%;
+  border: 1px solid var(--border-color-base);
+  border-radius: 8px;
+  padding: 8px 34px 8px 11px;
+  color: var(--text-color-primary);
+  background: var(--background-color-surface-raised);
+  font: inherit;
+  font-size: 0.82rem;
+}
+
+.callSelector select:hover,
+.callSelector select:focus-visible {
+  border-color: var(--border-color-brand);
+}
+
+.callSelector select:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--execution-green) 42%, transparent);
+  outline-offset: 2px;
+}
+
+.question,
+.message {
+  border: 1px solid var(--border-color-base);
+  border-radius: 12px;
+  background: var(--background-color-surface-raised);
+}
+
+.question {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 15px 17px;
+}
+
+.question > div {
+  min-width: 0;
+}
+
+.question small,
+.stageHeading small {
+  color: var(--text-color-brand);
+  font-size: 0.68rem;
+  font-weight: 760;
+  letter-spacing: 0.085em;
+  text-transform: uppercase;
+}
+
+.question p {
+  margin: 6px 0 0;
+  color: var(--text-color-primary);
+  font-size: clamp(0.9rem, 1vw, 1.02rem);
+  line-height: 1.55;
+}
+
+.question > span {
+  flex: 0 0 auto;
+  border: 1px solid var(--border-color-base);
+  border-radius: 999px;
+  padding: 4px 9px;
+  color: var(--text-color-secondary);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.question > span[data-state='completed'] {
+  border-color: color-mix(in srgb, var(--execution-green) 60%, var(--border-color-base));
+  color: var(--text-color-primary);
+}
+
+.question > span[data-state='failed'] {
+  border-color: var(--border-color-feedback-danger);
+  color: var(--text-color-feedback-danger);
+}
+
+.lineage {
+  display: grid;
+  flex: 1 0 auto;
+  gap: 12px;
+}
+
+.stage {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 42px minmax(150px, 0.28fr) minmax(0, 1fr);
+  align-items: stretch;
+  overflow: hidden;
+  border: 1px solid var(--border-color-base);
+  border-radius: 12px;
+  background: var(--background-color-surface-raised);
+}
+
+.stage[data-state='completed'] {
+  border-left: 3px solid var(--execution-green);
+}
+
+.stage[data-state='failed'] {
+  border-left: 3px solid var(--border-color-feedback-danger);
+}
+
+.stage[data-state='unavailable'] {
+  border-left: 3px solid color-mix(in srgb, var(--text-color-subtle) 52%, transparent);
+}
+
+.stageRail {
+  position: relative;
+  display: grid;
+  place-items: center;
+  border-right: 1px solid var(--border-color-base);
+  background: color-mix(
+    in srgb,
+    var(--background-color-surface-sunken) 72%,
+    var(--background-color-surface-raised)
+  );
+}
+
+.stageRail span {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--execution-green) 58%, var(--border-color-base));
+  border-radius: 50%;
+  color: var(--text-color-primary);
+  background: color-mix(
+    in srgb,
+    var(--execution-green) 10%,
+    var(--background-color-surface-raised)
+  );
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+  font-size: 0.7rem;
+  font-weight: 760;
+}
+
+.stageHeading {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  padding: 15px 17px;
+  border-right: 1px solid var(--border-color-base);
+}
+
+.stageHeading h4 {
+  margin: 4px 0 0;
+  color: var(--text-color-primary);
+  font-size: 0.94rem;
+  line-height: 1.35;
+}
+
+.stageEvidence {
+  min-width: 0;
+  padding: 12px 15px;
+}
+
+.stageEvidence ul {
+  display: flex;
+  margin: 0;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 0;
+  list-style: none;
+}
+
+.stageEvidence li {
+  max-width: 100%;
+  border: 1px solid var(--border-color-base);
+  border-radius: 999px;
+  padding: 5px 9px;
+  overflow-wrap: anywhere;
+  color: var(--text-color-secondary);
+  background: var(--background-color-surface-sunken);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.stageEvidence p {
+  margin: 3px 0;
+  color: var(--text-color-subtle);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.stageEvidence pre {
+  max-height: min(300px, 34vh);
+  margin: 0;
+  overflow: auto;
+  border: 1px solid var(--border-color-base);
+  border-radius: 8px;
+  padding: 11px 13px;
+  color: var(--text-color-primary);
+  background: var(--background-color-surface-sunken);
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+  font-size: 0.76rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.message {
+  padding: 20px;
+  color: var(--text-color-secondary);
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+
+.message strong {
+  color: var(--text-color-primary);
+}
+
+.message p {
+  margin: 5px 0 0;
+}
+
+.notice {
+  margin: 0;
+  color: var(--text-color-secondary);
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 980px) {
+  .callSelector {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .callSelector select {
+    width: 100%;
+  }
+
+  .stage {
+    grid-template-columns: 38px minmax(0, 1fr);
+  }
+
+  .stageHeading {
+    border-right: 0;
+    border-bottom: 1px solid var(--border-color-base);
+  }
+
+  .stageEvidence {
+    grid-column: 2;
+  }
+
+  .stageRail {
+    grid-row: 1 / span 2;
+  }
+}
+
+@media (max-width: 640px) {
+  .body {
+    padding: 14px;
+  }
+
+  .question {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .question > span {
+    align-self: flex-start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .callSelector select {
+    scroll-behavior: auto;
+  }
+}

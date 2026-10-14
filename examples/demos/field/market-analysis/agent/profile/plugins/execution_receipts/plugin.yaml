@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+name: execution-receipts
+version: "2.0.0"
+description: Scopes data tools to the job's sources and records a receipt for every data-tool call.
+author: NVIDIA
+provides_hooks:
+  - pre_tool_call
+  - post_tool_call
+  - transform_tool_result
+  - post_api_request

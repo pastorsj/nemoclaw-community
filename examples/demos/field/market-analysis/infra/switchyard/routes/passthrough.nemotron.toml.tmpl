@@ -1,0 +1,44 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Every agent turn goes to the efficient model over Chat Completions, with no judge and no capable
+# model. The aux model serves Hermes' auxiliary calls and the overload fallback.
+# requires: INFERENCE_BASE_URL AGENT_EFFICIENT_MODEL AGENT_AUX_MODEL
+schema_version = 1
+
+[llm_clients.chat]
+format = "openai_chat"
+base_url = "${INFERENCE_BASE_URL}"
+api_key_env = "INFERENCE_API_KEY"
+timeout_ms = 900000                   # whole call, stream included
+max_retries = 0                       # Hermes retries 429 and 5xx itself
+
+[targets.efficient]
+id = "${AGENT_EFFICIENT_MODEL}"
+llm_client = "chat"
+extra_body = { max_tokens = 16384 }   # only when the caller sets none
+
+[targets.aux]
+id = "${AGENT_AUX_MODEL}"
+llm_client = "chat"
+extra_body = { chat_template_kwargs = { enable_thinking = false } }
+
+[routes.research]
+id = "market-research"
+type = "passthrough"
+target = "efficient"
+
+[routes.efficient]
+id = "market-research-efficient"
+type = "passthrough"
+target = "efficient"
+
+[routes.aux]                          # Hermes auxiliary calls
+id = "market-research-aux"
+type = "passthrough"
+target = "aux"
+
+[routes.fallback]                     # Hermes moves a run here when its model is overloaded
+id = "market-research-fallback"
+type = "passthrough"
+target = "aux"

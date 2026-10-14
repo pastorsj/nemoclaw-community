@@ -1,0 +1,245 @@
+From: Sam Pastoriza <pastorsj@users.noreply.github.com>
+Subject: [PATCH] Add trusted service mode and resolution lineage to the MCP server
+
+AUTO_ONTOLOGY_MCP_TRUSTED_SERVICE_MODE=true lets an unattended agent call the
+server without a per-caller sign-in: the server calls the backend with no
+identity, which the backend accepts for direct calls. Only use it where
+trusted services alone can reach the server. The default is unchanged.
+
+ask_question also returns the backend's resolution_lineage.
+
+Upstream: no documented service-to-service mode yet.
+---
+diff --git a/mcp/auto_ontology_mcp/chat.py b/mcp/auto_ontology_mcp/chat.py
+index 25b2d61e..2eaa9e23 100644
+--- a/mcp/auto_ontology_mcp/chat.py
++++ b/mcp/auto_ontology_mcp/chat.py
+@@ -62,6 +62,13 @@ class DataAnswer(BaseModel):
+         default="",
+         description="What the agent did, one line per step it took.",
+     )
++    resolution_lineage: list[dict[str, str]] = Field(
++        default_factory=list,
++        description=(
++            "How the question resolved: each phrase with the ontology object, "
++            "table and column it mapped to."
++        ),
++    )
+ 
+ 
+ def _parse_rows(raw: Any) -> list[dict[str, Any]]:
+@@ -99,6 +106,11 @@ def _build_answer(payload: dict[str, Any]) -> DataAnswer:
+         row_count=len(rows),
+         truncated=len(rows) > MAX_ROWS,
+         reasoning=str(payload.get("thoughts") or ""),
++        resolution_lineage=[
++            {key: value for key, value in item.items() if isinstance(value, str)}
++            for item in payload.get("resolution_lineage") or []
++            if isinstance(item, dict)
++        ],
+     )
+ 
+ 
+diff --git a/mcp/auto_ontology_mcp/config.py b/mcp/auto_ontology_mcp/config.py
+index 680888d1..20ba2d39 100644
+--- a/mcp/auto_ontology_mcp/config.py
++++ b/mcp/auto_ontology_mcp/config.py
+@@ -67,6 +67,9 @@ class Settings:
+     # the server names for itself is the one they dialled — so a bind address
+     # that is not how anyone addresses it needs this set explicitly.
+     public_url: str = ""
++    # For a private network where only trusted services reach this server:
++    # calls go to the backend (:3001) with no caller identity. Off by default.
++    trusted_service_mode: bool = False
+ 
+ 
+ def _positive_float(name: str, default: float) -> float:
+@@ -95,6 +98,15 @@ def _port(name: str, default: int) -> int:
+     return value
+ 
+ 
++def _flag(name: str) -> bool:
++    raw = (os.environ.get(name) or "").strip().casefold()
++    if raw in {"", "0", "false", "no", "off"}:
++        return False
++    if raw in {"1", "true", "yes", "on"}:
++        return True
++    raise ConfigError(f"{name} must be true or false, got {raw!r}")
++
++
+ def _public_url(host: str, port: int) -> str:
+     """Where callers reach this server, for sign-in redirects and metadata."""
+     raw = (os.environ.get("AUTO_ONTOLOGY_MCP_PUBLIC_URL") or "").strip()
+@@ -141,6 +153,7 @@ def load_settings() -> Settings:
+             "AUTO_ONTOLOGY_MCP_CHAT_TIMEOUT_S", DEFAULT_CHAT_TIMEOUT_S
+         ),
+         public_url=_public_url(host, port),
++        trusted_service_mode=_flag("AUTO_ONTOLOGY_MCP_TRUSTED_SERVICE_MODE"),
+     )
+ 
+ 
+diff --git a/mcp/auto_ontology_mcp/server.py b/mcp/auto_ontology_mcp/server.py
+index a37e60f0..1ceeff21 100644
+--- a/mcp/auto_ontology_mcp/server.py
++++ b/mcp/auto_ontology_mcp/server.py
+@@ -169,6 +169,20 @@ class CallerAuth(httpx.Auth):
+         yield request
+ 
+ 
++class TrustedServiceAuth(httpx.Auth):
++    """Send every outbound call with no identity at all.
++
++    For ``trusted_service_mode`` only. The backend accepts direct calls without
++    a signed-in user, so this server must be reachable solely by trusted
++    services. Any credential a caller sent is still stripped.
++    """
++
++    def auth_flow(self, request: httpx.Request):  # type: ignore[override]
++        for name in (API_KEY_HEADER, BEARER_HEADER):
++            request.headers.pop(name, None)
++        yield request
++
++
+ def build_client(settings: Settings) -> httpx.AsyncClient:
+     """HTTP client for the public Auto Ontology API.
+ 
+@@ -177,7 +191,7 @@ def build_client(settings: Settings) -> httpx.AsyncClient:
+     """
+     return httpx.AsyncClient(
+         base_url=settings.api_url,
+-        auth=CallerAuth(),
++        auth=TrustedServiceAuth() if settings.trusted_service_mode else CallerAuth(),
+         timeout=settings.timeout_s,
+         # An agent harness may fan out across several tools at once.
+         limits=httpx.Limits(max_connections=10, max_keepalive_connections=5),
+@@ -206,12 +220,21 @@ def build_server(settings: Settings) -> tuple[FastMCP, httpx.AsyncClient]:
+         instructions=INSTRUCTIONS,
+         version=get_version(),
+         icons=load_icons(),
+-        auth=build_auto_ontology_auth(settings),
++        auth=None
++        if settings.trusted_service_mode
++        else build_auto_ontology_auth(settings),
+     )
+ 
+     chat.register(mcp, settings, client)
+     readiness.register(mcp, settings, client)
+ 
++    if settings.trusted_service_mode:
++        logger.warning(
++            "Trusted service mode: calls to %s carry no caller identity. Keep this "
++            "server on a private network.",
++            settings.api_url,
++        )
++        return mcp, client
+     logger.info(
+         "Auto Ontology MCP server built against %s (spec: %s). Callers sign in against "
+         "that Auto Ontology deployment; this server holds no credentials.",
+@@ -228,6 +251,7 @@ __all__ = [
+     "INSTRUCTIONS",
+     "SERVER_NAME",
+     "CallerAuth",
++    "TrustedServiceAuth",
+     "build_client",
+     "build_server",
+     "load_icons",
+diff --git a/mcp/tests/test_chat.py b/mcp/tests/test_chat.py
+index e64444b9..0e815c19 100644
+--- a/mcp/tests/test_chat.py
++++ b/mcp/tests/test_chat.py
+@@ -332,3 +332,18 @@ def test_the_database_cannot_be_pinned_by_a_caller() -> None:
+ 
+     with pytest.raises(ToolError):
+         _call(_server(handler), {"question": "how many?", "target_db": "sales"})
++
++
++def test_returns_the_resolution_lineage() -> None:
++    lineage = {
++        "phrase": "closing price",
++        "ontology_object": "Close",
++        "table": "main.daily_prices",
++        "column": "adjusted_close",
++    }
++    answer = {**_ANSWER, "resolution_lineage": [lineage, "not-a-record"]}
++    mcp = _server(_stream(_sse({"type": "result", "answer": answer})))
++
++    result = _call(mcp, {"question": "Which asset closed highest?"})
++
++    assert result.structured_content["resolution_lineage"] == [lineage]
+diff --git a/mcp/tests/test_config.py b/mcp/tests/test_config.py
+index d71be53a..7fe484d7 100644
+--- a/mcp/tests/test_config.py
++++ b/mcp/tests/test_config.py
+@@ -28,6 +28,7 @@ _VARS = (
+     "AUTO_ONTOLOGY_MCP_TIMEOUT_S",
+     "AUTO_ONTOLOGY_MCP_CHAT_TIMEOUT_S",
+     "AUTO_ONTOLOGY_MCP_PUBLIC_URL",
++    "AUTO_ONTOLOGY_MCP_TRUSTED_SERVICE_MODE",
+ )
+ 
+ 
+@@ -128,3 +129,20 @@ def test_public_url_can_be_set_explicitly(monkeypatch: MonkeyPatch) -> None:
+     monkeypatch.setenv("AUTO_ONTOLOGY_MCP_PUBLIC_URL", "https://mcp.example/")
+ 
+     assert load_settings().public_url == "https://mcp.example"
++
++
++def test_trusted_service_mode_is_off_by_default() -> None:
++    assert load_settings().trusted_service_mode is False
++
++
++def test_trusted_service_mode_can_be_turned_on(monkeypatch: MonkeyPatch) -> None:
++    monkeypatch.setenv("AUTO_ONTOLOGY_MCP_TRUSTED_SERVICE_MODE", "true")
++
++    assert load_settings().trusted_service_mode is True
++
++
++def test_trusted_service_mode_rejects_a_typo(monkeypatch: MonkeyPatch) -> None:
++    monkeypatch.setenv("AUTO_ONTOLOGY_MCP_TRUSTED_SERVICE_MODE", "ture")
++
++    with pytest.raises(ConfigError, match="true or false"):
++        load_settings()
+diff --git a/mcp/tests/test_server.py b/mcp/tests/test_server.py
+index e743f624..76e50619 100644
+--- a/mcp/tests/test_server.py
++++ b/mcp/tests/test_server.py
+@@ -8,6 +8,7 @@ from __future__ import annotations
+ 
+ import asyncio
+ import base64
++import dataclasses
+ import json
+ from pathlib import Path
+ from typing import Any
+@@ -25,6 +26,7 @@ from auto_ontology_mcp.server import (
+     ICON_PATH,
+     INSTRUCTIONS,
+     CallerAuth,
++    TrustedServiceAuth,
+     build_client,
+     build_server,
+     load_icons,
+@@ -277,3 +279,23 @@ def test_refuses_to_start_when_a_curated_endpoint_disappeared(tmp_path: Path) ->
+ 
+     with pytest.raises(ConfigError, match="GET /api/terms"):
+         load_spec(_settings(trimmed))
++
++
++def test_trusted_service_mode_strips_every_caller_credential() -> None:
++    headers = _sent_headers(
++        TrustedServiceAuth(),
++        {"authorization": "Bearer someone", "x-api-key": "someone-else"},
++    )
++
++    assert "authorization" not in headers
++    assert "x-api-key" not in headers
++
++
++def test_trusted_service_mode_needs_no_sign_in() -> None:
++    settings = dataclasses.replace(_settings(), trusted_service_mode=True)
++    mcp, client = build_server(settings)
++    try:
++        assert mcp.auth is None
++        assert isinstance(client.auth, TrustedServiceAuth)
++    finally:
++        asyncio.run(client.aclose())

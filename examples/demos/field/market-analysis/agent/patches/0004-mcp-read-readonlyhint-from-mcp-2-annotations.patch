@@ -1,0 +1,34 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Sam Pastoriza <pastorsj@users.noreply.github.com>
+Date: Tue, 29 Sep 2026 08:40:00 -0400
+Subject: [PATCH] fix(mcp): read readOnlyHint from mcp 2.x tool annotations
+
+mcp 2.x names the ToolAnnotations attribute read_only_hint; readOnlyHint is
+only its wire alias. Discovery read readOnlyHint, so every MCP tool counted as
+write-capable, and a read-only call cut off by an expired transport session
+(the server restarted) failed instead of being replayed.
+
+Signed-off-by: Sam Pastoriza <pastorsj@users.noreply.github.com>
+---
+ tools/mcp_tool_registration.py | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/tools/mcp_tool_registration.py b/tools/mcp_tool_registration.py
+--- a/tools/mcp_tool_registration.py
++++ b/tools/mcp_tool_registration.py
+@@ -48,7 +48,11 @@ def _normalize_server_trust(value: Any) -> str:
+ def _annotation_read_only_hint(mcp_tool: Any) -> bool:
+     """True only when annotations (SDK object or cache dict) carry ``readOnlyHint is True``; unknown = write-capable."""
+     annotations = getattr(mcp_tool, "annotations", None)
+-    hint = annotations.get("readOnlyHint") if isinstance(annotations, dict) else getattr(annotations, "readOnlyHint", None)
++    if isinstance(annotations, dict):
++        hint = annotations.get("readOnlyHint")
++    else:
++        # mcp 2.x names the attribute read_only_hint (readOnlyHint is only its wire alias).
++        hint = getattr(annotations, "read_only_hint", getattr(annotations, "readOnlyHint", None))
+     return hint is True
+ 
+ 
+-- 
+2.51.0
+

@@ -1,0 +1,1752 @@
+{
+  "schemaVersion": 2,
+  "id": "cyber-disclosure-rules",
+  "title": "Cybersecurity Disclosures",
+  "turns": [
+    {
+      "jobId": "8ca23d60-5726-4245-b751-afc8a31f04ed",
+      "question": "What does Form 8-K Item 1.05 require a company to disclose about a material cybersecurity incident, and by when? Cite the regulation, and any second-quarter 2026 filings in the corpus that report an incident.",
+      "submittedAt": "2026-10-02T18:19:38.271855Z",
+      "completedAt": "2026-10-02T18:21:16.847184Z",
+      "status": "success",
+      "report": {
+        "markdown": "**Form 8‑K Item 1.05 – What must be disclosed and when**\n\n| Requirement | Detail (from the rule) | Evidence |\n|-------------|------------------------|----------|\n| **Content of the disclosure** | If a registrant determines that it has experienced a *material* cybersecurity incident, it must “describe the material aspects of the **nature, scope, and timing** of the incident, and the **material impact or reasonably likely material impact** on the registrant, including its financial condition and results of operations.” | [1] (Item 1.05(a) text) |\n| **Filing deadline** | The Form 8‑K must be filed **within four business days after the registrant determines that it has experienced a material cybersecurity incident**. | [1] (General Instruction B.1) |\n| **Materiality determination** | The registrant’s materiality determination “must be made **without unreasonable delay after discovery** of the incident.” | [1] (Instruction 1 to Item 1.05) |\n| **Permitted delays** | Disclosure may be delayed up to 30 days (plus possible extensions) if the U.S. Attorney General finds a substantial risk to national security or public safety, or up to 7 business days for certain data‑breach rules. | [1] (Paragraphs (c)‑(d) of Item 1.05) |\n\n**Second‑quarter 2026 filings that reported a material cybersecurity incident**\n\n| Filer (CIK) | Filing date | Incident summary (Item 1.05) | Evidence |\n|------------|-------------|-----------------------------|----------|\n| **CB Financial Services, Inc.** (CIK 0001605301) | 2026‑05‑11 | “On May 5, 2026, Community Bank … became aware of an internal incident involving the handling of certain non‑public customer information using an unauthorized AI‑based software application. Upon discovery, the Bank promptly took steps….” (Item 1.05 disclosed) | [2] (rank 5 snippet) |\n\n*No other Q2 2026 Form 8‑K filings in the SEC‑filings corpus were returned that contain an Item 1.05 cybersecurity‑incident disclosure.*\n\n---\n\n**Limitations**\n- The search covered the available SEC‑filings snapshot (2026 Q2). If additional filings exist outside the snapshot, they are not reflected here.\n- The regulation excerpts are from the 2023 final rule (88 FR 51896) as reproduced in the market‑regulations source; they represent the current text of Form 8‑K Item 1.05.\n\n## Sources\n\n- [1] Unstructured Retrieval evidence — 5 documents — evidence `hermes-receipt:92dc8ba691b16572678adba54bbd54529677c8d6a963fa2f0d3b18a64af7be75`\n- [2] Unstructured Retrieval evidence — 5 documents — evidence `hermes-receipt:2ba90c299692de2e82aa5d9f811e3bc1307449380f8c356d942097e4972a18b5`",
+        "citations": [
+          {
+            "number": 1,
+            "evidenceId": "hermes-receipt:92dc8ba691b16572678adba54bbd54529677c8d6a963fa2f0d3b18a64af7be75",
+            "label": "Unstructured Retrieval evidence — 5 documents",
+            "capabilityId": "unstructured_retrieval",
+            "invocationId": "hermes-tool:call-eaec48e2-db2b-44c0-b227-93684e93634c"
+          },
+          {
+            "number": 2,
+            "evidenceId": "hermes-receipt:2ba90c299692de2e82aa5d9f811e3bc1307449380f8c356d942097e4972a18b5",
+            "label": "Unstructured Retrieval evidence — 5 documents",
+            "capabilityId": "unstructured_retrieval",
+            "invocationId": "hermes-tool:call-3a358034-f021-4688-9bc2-4d63cb6c5db9"
+          }
+        ]
+      },
+      "events": [
+        {
+          "schemaVersion": "2",
+          "eventId": "46a66bc6-8801-5428-9c68-a3924bd2401b",
+          "cursor": 17679,
+          "jobId": "8ca23d60-5726-4245-b751-afc8a31f04ed",
+          "runId": "run_7f8b3ade50084a088628a65863d0f310",
+          "sessionId": "record-f66e7c2f-1a98-4d7c-856a-e95f706549fc",
+          "turnId": null,
+          "eventKind": "run.created",
+          "state": "started",
+          "componentId": "hermes.agent",
+          "invocationId": "hermes-run:aa8d88b0b8582469a9fcfa91:0",
+          "parentInvocationId": null,
+          "toolServer": null,
+          "toolName": null,
+          "capabilityId": null,
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:19:39.210659Z",
+          "display": {
+            "label": "Run accepted",
+            "summary": null,
+            "attributes": {},
+            "inspectable": false
+          },
+          "provenance": {
+            "sourceSystem": "hermes.runs",
+            "sourceEventId": "hermes-event:f9b7e32ef1f91585cbb22f96e1a0e0736e76f80dcbf99678b9d33d73a0e69a3f",
+            "sourceEventKind": "run.created",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "3ea40104-f9dc-57d5-b61f-0ca28d20a380",
+          "cursor": 17680,
+          "jobId": "8ca23d60-5726-4245-b751-afc8a31f04ed",
+          "runId": "run_7f8b3ade50084a088628a65863d0f310",
+          "sessionId": "record-f66e7c2f-1a98-4d7c-856a-e95f706549fc",
+          "turnId": "8ca23d60-5726-4245-b751-afc8a31f04ed:8ca23d60-5726-4245-b751-afc8a31f04ed:0e81d19a",
+          "eventKind": "llm.call",
+          "state": "completed",
+          "componentId": "switchyard.router",
+          "invocationId": "hermes-llm:8ca23d60-5726-4245-b751-afc8a31f04ed:8ca23d60-5726-4245-b751-afc8a31f04ed:0e81d19a:api:1",
+          "parentInvocationId": "hermes-run:aa8d88b0b8582469a9fcfa91:0",
+          "toolServer": null,
+          "toolName": null,
+          "capabilityId": null,
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:19:48.546295Z",
+          "display": {
+            "label": "Model call completed",
+            "summary": null,
+            "attributes": {
+              "served_model": "nvidia/nemotron-3-ultra-550b-a55b",
+              "tier": "efficient",
+              "input_tokens": 4956,
+              "output_tokens": 231
+            },
+            "inspectable": false
+          },
+          "provenance": {
+            "sourceSystem": "hermes.plugin",
+            "sourceEventId": "hermes-llm:8ca23d60-5726-4245-b751-afc8a31f04ed:8ca23d60-5726-4245-b751-afc8a31f04ed:0e81d19a:api:1",
+            "sourceEventKind": "post_api_request",
+            "normalizationVersion": "hermes-plugin.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "d095ce25-5170-5352-a580-5ead1f7b8f65",
+          "cursor": 17681,
+          "jobId": "8ca23d60-5726-4245-b751-afc8a31f04ed",
+          "runId": "run_7f8b3ade50084a088628a65863d0f310",
+          "sessionId": "record-f66e7c2f-1a98-4d7c-856a-e95f706549fc",
+          "turnId": null,
+          "eventKind": "tool.started",
+          "state": "started",
+          "componentId": "milvus.retrieval",
+          "invocationId": "hermes-tool:call-eaec48e2-db2b-44c0-b227-93684e93634c",
+          "parentInvocationId": "hermes-run:aa8d88b0b8582469a9fcfa91:0",
+          "toolServer": "retrieval",
+          "toolName": "retrieve_evidence",
+          "capabilityId": "unstructured_retrieval",
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:19:48.640078Z",
+          "display": {
+            "label": "Unstructured Retrieval started",
+            "summary": null,
+            "attributes": {},
+            "inspectable": true
+          },
+          "provenance": {
+            "sourceSystem": "hermes.runs",
+            "sourceEventId": "hermes-event:6997b6f2cde5ad18dad65edeba59ec81b63366b7edbef8c44f1689659e9aab8b",
+            "sourceEventKind": "tool.started",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "97a8eb31-d0ef-5fcb-a864-83bc63e6058d",
+          "cursor": 17682,
+          "jobId": "8ca23d60-5726-4245-b751-afc8a31f04ed",
+          "runId": "run_7f8b3ade50084a088628a65863d0f310",
+          "sessionId": "record-f66e7c2f-1a98-4d7c-856a-e95f706549fc",
+          "turnId": "8ca23d60-5726-4245-b751-afc8a31f04ed:8ca23d60-5726-4245-b751-afc8a31f04ed:0e81d19a",
+          "eventKind": "artifact.available",
+          "state": "completed",
+          "componentId": "milvus.retrieval",
+          "invocationId": "hermes-tool:call-eaec48e2-db2b-44c0-b227-93684e93634c",
+          "parentInvocationId": null,
+          "toolServer": "retrieval",
+          "toolName": "retrieve_evidence",
+          "capabilityId": "unstructured_retrieval",
+          "artifactRefs": [
+            "hermes-receipt:92dc8ba691b16572678adba54bbd54529677c8d6a963fa2f0d3b18a64af7be75"
+          ],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:19:50.172207Z",
+          "display": {
+            "label": "Unstructured retrieval evidence available",
+            "summary": null,
+            "attributes": {
+              "duration_ms": 1524,
+              "tool_status": "completed"
+            },
+            "inspectable": true
+          },
+          "provenance": {
+            "sourceSystem": "hermes.plugin",
+            "sourceEventId": "hermes-receipt:92dc8ba691b16572678adba54bbd54529677c8d6a963fa2f0d3b18a64af7be75",
+            "sourceEventKind": "post_tool_call",
+            "normalizationVersion": "hermes-plugin-receipt.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "c44bf643-b198-56d4-9070-16c47c223945",
+          "cursor": 17683,
+          "jobId": "8ca23d60-5726-4245-b751-afc8a31f04ed",
+          "runId": "run_7f8b3ade50084a088628a65863d0f310",
+          "sessionId": "record-f66e7c2f-1a98-4d7c-856a-e95f706549fc",
+          "turnId": null,
+          "eventKind": "tool.completed",
+          "state": "completed",
+          "componentId": "milvus.retrieval",
+          "invocationId": "hermes-tool:call-eaec48e2-db2b-44c0-b227-93684e93634c",
+          "parentInvocationId": "hermes-run:aa8d88b0b8582469a9fcfa91:0",
+          "toolServer": "retrieval",
+          "toolName": "retrieve_evidence",
+          "capabilityId": "unstructured_retrieval",
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:19:50.222414Z",
+          "display": {
+            "label": "Unstructured Retrieval completed",
+            "summary": null,
+            "attributes": {
+              "reported_error": false,
+              "duration_seconds": 1.566
+            },
+            "inspectable": true
+          },
+          "provenance": {
+            "sourceSystem": "hermes.runs",
+            "sourceEventId": "hermes-event:3c00fd1b17b2f2e717c3b422d2d5e3e6a6fa8773f6ec70213eee4e1c905483ad",
+            "sourceEventKind": "tool.completed",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "33b72e2a-cefb-57fa-84a1-f7f37a4e48ba",
+          "cursor": 17684,
+          "jobId": "8ca23d60-5726-4245-b751-afc8a31f04ed",
+          "runId": "run_7f8b3ade50084a088628a65863d0f310",
+          "sessionId": "record-f66e7c2f-1a98-4d7c-856a-e95f706549fc",
+          "turnId": null,
+          "eventKind": "run.heartbeat",
+          "state": "progress",
+          "componentId": "hermes.agent",
+          "invocationId": "hermes-run:aa8d88b0b8582469a9fcfa91:0",
+          "parentInvocationId": null,
+          "toolServer": null,
+          "toolName": null,
+          "capabilityId": null,
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:19:54.218229Z",
+          "display": {
+            "label": "Working on the answer",
+            "summary": null,
+            "attributes": {},
+            "inspectable": false
+          },
+          "provenance": {
+            "sourceSystem": "hermes.runs",
+            "sourceEventId": "hermes-event:a0fae6c139e4d1c6049075e6ee4914888fba6c32fa2e0e155fb4b994c453ff0f",
+            "sourceEventKind": "run.heartbeat",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "f1630f6d-ff72-5896-9f91-bbd2fa2d3725",
+          "cursor": 17685,
+          "jobId": "8ca23d60-5726-4245-b751-afc8a31f04ed",
+          "runId": "run_7f8b3ade50084a088628a65863d0f310",
+          "sessionId": "record-f66e7c2f-1a98-4d7c-856a-e95f706549fc",
+          "turnId": "8ca23d60-5726-4245-b751-afc8a31f04ed:8ca23d60-5726-4245-b751-afc8a31f04ed:0e81d19a",
+          "eventKind": "llm.call",
+          "state": "completed",
+          "componentId": "switchyard.router",
+          "invocationId": "hermes-llm:8ca23d60-5726-4245-b751-afc8a31f04ed:8ca23d60-5726-4245-b751-afc8a31f04ed:0e81d19a:api:2",
+          "parentInvocationId": "hermes-run:aa8d88b0b8582469a9fcfa91:0",
+          "toolServer": null,
+          "toolName": null,
+          "capabilityId": null,
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:19:59.979410Z",
+          "display": {
+            "label": "Model call completed",
+            "summary": null,
+            "attributes": {
+              "served_model": "nvidia/nemotron-3-ultra-550b-a55b",
+              "tier": "efficient",
+              "input_tokens": 12708,
+              "output_tokens": 123
+            },
+            "inspectable": false
+          },
+          "provenance": {
+            "sourceSystem": "hermes.plugin",
+            "sourceEventId": "hermes-llm:8ca23d60-5726-4245-b751-afc8a31f04ed:8ca23d60-5726-4245-b751-afc8a31f04ed:0e81d19a:api:2",
+            "sourceEventKind": "post_api_request",
+            "normalizationVersion": "hermes-plugin.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "a9e1ab1a-983b-5f9d-abf9-3ee81d2c77b3",
+          "cursor": 17686,
+          "jobId": "8ca23d60-5726-4245-b751-afc8a31f04ed",
+          "runId": "run_7f8b3ade50084a088628a65863d0f310",
+          "sessionId": "record-f66e7c2f-1a98-4d7c-856a-e95f706549fc",
+          "turnId": null,
+          "eventKind": "tool.started",
+          "state": "started",
+          "componentId": "milvus.retrieval",
+          "invocationId": "hermes-tool:call-c04d64b3-bdd7-4c8d-afca-4876cd5e55fc",
+          "parentInvocationId": "hermes-run:aa8d88b0b8582469a9fcfa91:0",
+          "toolServer": "retrieval",
+          "toolName": "retrieve_evidence",
+          "capabilityId": "unstructured_retrieval",
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:20:00.008645Z",
+          "display": {
+            "label": "Unstructured Retrieval started",
+            "summary": null,
+            "attributes": {},
+            "inspectable": true
+          },
+          "provenance": {
+            "sourceSystem": "hermes.runs",
+            "sourceEventId": "hermes-event:c54a6e7b6dd9653ad3e7b758823e47b6889bd970f7ec6b565773e9dac5ad234a",
+            "sourceEventKind": "tool.started",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "aad69135-96e4-58b5-a536-e4dc79d715ba",
+          "cursor": 17687,
+          "jobId": "8ca23d60-5726-4245-b751-afc8a31f04ed",
+          "runId": "run_7f8b3ade50084a088628a65863d0f310",
+          "sessionId": "record-f66e7c2f-1a98-4d7c-856a-e95f706549fc",
+          "turnId": "8ca23d60-5726-4245-b751-afc8a31f04ed:8ca23d60-5726-4245-b751-afc8a31f04ed:0e81d19a",
+          "eventKind": "artifact.available",
+          "state": "completed",
+          "componentId": "milvus.retrieval",
+          "invocationId": "hermes-tool:call-c04d64b3-bdd7-4c8d-afca-4876cd5e55fc",
+          "parentInvocationId": null,
+          "toolServer": "retrieval",
+          "toolName": "retrieve_evidence",
+          "capabilityId": "unstructured_retrieval",
+          "artifactRefs": [
+            "hermes-receipt:8dc340a42a6086944d9008dc6d08b74d9cb79988cc94912c9a2435d24c7e7484"
+          ],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:20:01.314672Z",
+          "display": {
+            "label": "Unstructured retrieval evidence available",
+            "summary": null,
+            "attributes": {
+              "duration_ms": 1303,
+              "tool_status": "completed"
+            },
+            "inspectable": true
+          },
+          "provenance": {
+            "sourceSystem": "hermes.plugin",
+            "sourceEventId": "hermes-receipt:8dc340a42a6086944d9008dc6d08b74d9cb79988cc94912c9a2435d24c7e7484",
+            "sourceEventKind": "post_tool_call",
+            "normalizationVersion": "hermes-plugin-receipt.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "5fc653e1-99ea-558b-8205-b4f932f32b66",
+          "cursor": 17688,
+          "jobId": "8ca23d60-5726-4245-b751-afc8a31f04ed",
+          "runId": "run_7f8b3ade50084a088628a65863d0f310",
+          "sessionId": "record-f66e7c2f-1a98-4d7c-856a-e95f706549fc",
+          "turnId": null,
+          "eventKind": "tool.completed",
+          "state": "completed",
+          "componentId": "milvus.retrieval",
+          "invocationId": "hermes-tool:call-c04d64b3-bdd7-4c8d-afca-4876cd5e55fc",
+          "parentInvocationId": "hermes-run:aa8d88b0b8582469a9fcfa91:0",
+          "toolServer": "retrieval",
+          "toolName": "retrieve_evidence",
+          "capabilityId": "unstructured_retrieval",
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:20:01.368324Z",
+          "display": {
+            "label": "Unstructured Retrieval completed",
+            "summary": null,
+            "attributes": {
+              "reported_error": false,
+              "duration_seconds": 1.329
+            },
+            "inspectable": true
+          },
+          "provenance": {
+            "sourceSystem": "hermes.runs",
+            "sourceEventId": "hermes-event:ab16d62335a873d37c1c9a441aa1c02b28843b468d53012c2f1c6f4cba3e896c",
+            "sourceEventKind": "tool.completed",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "9572828e-1397-5b62-8fb9-feb55f241049",
+          "cursor": 17689,
+          "jobId": "8ca23d60-5726-4245-b751-afc8a31f04ed",
+          "runId": "run_7f8b3ade50084a088628a65863d0f310",
+          "sessionId": "record-f66e7c2f-1a98-4d7c-856a-e95f706549fc",
+          "turnId": null,
+          "eventKind": "run.heartbeat",
+          "state": "progress",
+          "componentId": "hermes.agent",
+          "invocationId": "hermes-run:aa8d88b0b8582469a9fcfa91:0",
+          "parentInvocationId": null,
+          "toolServer": null,
+          "toolName": null,
+          "capabilityId": null,
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:20:09.225130Z",
+          "display": {
+            "label": "Working on the answer",
+            "summary": null,
+            "attributes": {},
+            "inspectable": false
+          },
+          "provenance": {
+            "sourceSystem": "hermes.runs",
+            "sourceEventId": "hermes-event:106eb00cc9c0e0c9895cbd07222f53bf55fc676f84ab72edecd6b9c5fd5686a6",
+            "sourceEventKind": "run.heartbeat",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "95e796c3-f12f-5896-8fb8-ab9be3790baa",
+          "cursor": 17690,
+          "jobId": "8ca23d60-5726-4245-b751-afc8a31f04ed",
+          "runId": "run_7f8b3ade50084a088628a65863d0f310",
+          "sessionId": "record-f66e7c2f-1a98-4d7c-856a-e95f706549fc",
+          "turnId": "8ca23d60-5726-4245-b751-afc8a31f04ed:8ca23d60-5726-4245-b751-afc8a31f04ed:0e81d19a",
+          "eventKind": "llm.call",
+          "state": "completed",
+          "componentId": "switchyard.router",
+          "invocationId": "hermes-llm:8ca23d60-5726-4245-b751-afc8a31f04ed:8ca23d60-5726-4245-b751-afc8a31f04ed:0e81d19a:api:3",
+          "parentInvocationId": "hermes-run:aa8d88b0b8582469a9fcfa91:0",
+          "toolServer": null,
+          "toolName": null,
+          "capabilityId": null,
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:20:18.808025Z",
+          "display": {
+            "label": "Model call completed",
+            "summary": null,
+            "attributes": {
+              "served_model": "nvidia/nemotron-3-ultra-550b-a55b",
+              "tier": "efficient",
+              "input_tokens": 21802,
+              "output_tokens": 330
+            },
+            "inspectable": false
+          },
+          "provenance": {
+            "sourceSystem": "hermes.plugin",
+            "sourceEventId": "hermes-llm:8ca23d60-5726-4245-b751-afc8a31f04ed:8ca23d60-5726-4245-b751-afc8a31f04ed:0e81d19a:api:3",
+            "sourceEventKind": "post_api_request",
+            "normalizationVersion": "hermes-plugin.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "3a2d52ff-a6ca-5250-a724-dcb5537b9b2d",
+          "cursor": 17691,
+          "jobId": "8ca23d60-5726-4245-b751-afc8a31f04ed",
+          "runId": "run_7f8b3ade50084a088628a65863d0f310",
+          "sessionId": "record-f66e7c2f-1a98-4d7c-856a-e95f706549fc",
+          "turnId": null,
+          "eventKind": "tool.started",
+          "state": "started",
+          "componentId": "milvus.retrieval",
+          "invocationId": "hermes-tool:call-3a358034-f021-4688-9bc2-4d63cb6c5db9",
+          "parentInvocationId": "hermes-run:aa8d88b0b8582469a9fcfa91:0",
+          "toolServer": "retrieval",
+          "toolName": "retrieve_evidence",
+          "capabilityId": "unstructured_retrieval",
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:20:18.836016Z",
+          "display": {
+            "label": "Unstructured Retrieval started",
+            "summary": null,
+            "attributes": {},
+            "inspectable": true
+          },
+          "provenance": {
+            "sourceSystem": "hermes.runs",
+            "sourceEventId": "hermes-event:6ebf74ef85438772cc98c13852389325be33b22e3c71492233d22e3922461329",
+            "sourceEventKind": "tool.started",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "f279798c-d615-5af1-a008-c5c0e584c2c2",
+          "cursor": 17692,
+          "jobId": "8ca23d60-5726-4245-b751-afc8a31f04ed",
+          "runId": "run_7f8b3ade50084a088628a65863d0f310",
+          "sessionId": "record-f66e7c2f-1a98-4d7c-856a-e95f706549fc",
+          "turnId": "8ca23d60-5726-4245-b751-afc8a31f04ed:8ca23d60-5726-4245-b751-afc8a31f04ed:0e81d19a",
+          "eventKind": "artifact.available",
+          "state": "completed",
+          "componentId": "milvus.retrieval",
+          "invocationId": "hermes-tool:call-3a358034-f021-4688-9bc2-4d63cb6c5db9",
+          "parentInvocationId": null,
+          "toolServer": "retrieval",
+          "toolName": "retrieve_evidence",
+          "capabilityId": "unstructured_retrieval",
+          "artifactRefs": [
+            "hermes-receipt:2ba90c299692de2e82aa5d9f811e3bc1307449380f8c356d942097e4972a18b5"
+          ],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:20:20.195602Z",
+          "display": {
+            "label": "Unstructured retrieval evidence available",
+            "summary": null,
+            "attributes": {
+              "duration_ms": 1357,
+              "tool_status": "completed"
+            },
+            "inspectable": true
+          },
+          "provenance": {
+            "sourceSystem": "hermes.plugin",
+            "sourceEventId": "hermes-receipt:2ba90c299692de2e82aa5d9f811e3bc1307449380f8c356d942097e4972a18b5",
+            "sourceEventKind": "post_tool_call",
+            "normalizationVersion": "hermes-plugin-receipt.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "8b2a8145-802d-5229-a5ec-3d8c14e6f9aa",
+          "cursor": 17693,
+          "jobId": "8ca23d60-5726-4245-b751-afc8a31f04ed",
+          "runId": "run_7f8b3ade50084a088628a65863d0f310",
+          "sessionId": "record-f66e7c2f-1a98-4d7c-856a-e95f706549fc",
+          "turnId": null,
+          "eventKind": "tool.completed",
+          "state": "completed",
+          "componentId": "milvus.retrieval",
+          "invocationId": "hermes-tool:call-3a358034-f021-4688-9bc2-4d63cb6c5db9",
+          "parentInvocationId": "hermes-run:aa8d88b0b8582469a9fcfa91:0",
+          "toolServer": "retrieval",
+          "toolName": "retrieve_evidence",
+          "capabilityId": "unstructured_retrieval",
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:20:20.247622Z",
+          "display": {
+            "label": "Unstructured Retrieval completed",
+            "summary": null,
+            "attributes": {
+              "reported_error": false,
+              "duration_seconds": 1.382
+            },
+            "inspectable": true
+          },
+          "provenance": {
+            "sourceSystem": "hermes.runs",
+            "sourceEventId": "hermes-event:d4e586b69162111122a7e755b1e80df45a6dd497c27d9cca6cbccc932bff6696",
+            "sourceEventKind": "tool.completed",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "d344f1be-90c0-51e2-9ed5-da16d3e6513e",
+          "cursor": 17694,
+          "jobId": "8ca23d60-5726-4245-b751-afc8a31f04ed",
+          "runId": "run_7f8b3ade50084a088628a65863d0f310",
+          "sessionId": "record-f66e7c2f-1a98-4d7c-856a-e95f706549fc",
+          "turnId": null,
+          "eventKind": "run.heartbeat",
+          "state": "progress",
+          "componentId": "hermes.agent",
+          "invocationId": "hermes-run:aa8d88b0b8582469a9fcfa91:0",
+          "parentInvocationId": null,
+          "toolServer": null,
+          "toolName": null,
+          "capabilityId": null,
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:20:24.231989Z",
+          "display": {
+            "label": "Working on the answer",
+            "summary": null,
+            "attributes": {},
+            "inspectable": false
+          },
+          "provenance": {
+            "sourceSystem": "hermes.runs",
+            "sourceEventId": "hermes-event:bed9712a87ba9e262836e221ba4250422c27c559519a71a9faa009425a82e5ae",
+            "sourceEventKind": "run.heartbeat",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "65cd7fbd-77c5-5890-822e-02f0420f004e",
+          "cursor": 17695,
+          "jobId": "8ca23d60-5726-4245-b751-afc8a31f04ed",
+          "runId": "run_7f8b3ade50084a088628a65863d0f310",
+          "sessionId": "record-f66e7c2f-1a98-4d7c-856a-e95f706549fc",
+          "turnId": null,
+          "eventKind": "run.heartbeat",
+          "state": "progress",
+          "componentId": "hermes.agent",
+          "invocationId": "hermes-run:aa8d88b0b8582469a9fcfa91:0",
+          "parentInvocationId": null,
+          "toolServer": null,
+          "toolName": null,
+          "capabilityId": null,
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:20:39.239345Z",
+          "display": {
+            "label": "Working on the answer",
+            "summary": null,
+            "attributes": {},
+            "inspectable": false
+          },
+          "provenance": {
+            "sourceSystem": "hermes.runs",
+            "sourceEventId": "hermes-event:f300a494f85f2df73778fe3db1375a6dc5f6536b927c3dbfe82485f1bae12b20",
+            "sourceEventKind": "run.heartbeat",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "f4c17c44-fef4-571f-a621-1e7a78fccd1f",
+          "cursor": 17696,
+          "jobId": "8ca23d60-5726-4245-b751-afc8a31f04ed",
+          "runId": "run_7f8b3ade50084a088628a65863d0f310",
+          "sessionId": "record-f66e7c2f-1a98-4d7c-856a-e95f706549fc",
+          "turnId": null,
+          "eventKind": "run.heartbeat",
+          "state": "progress",
+          "componentId": "hermes.agent",
+          "invocationId": "hermes-run:aa8d88b0b8582469a9fcfa91:0",
+          "parentInvocationId": null,
+          "toolServer": null,
+          "toolName": null,
+          "capabilityId": null,
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:20:54.246037Z",
+          "display": {
+            "label": "Working on the answer",
+            "summary": null,
+            "attributes": {},
+            "inspectable": false
+          },
+          "provenance": {
+            "sourceSystem": "hermes.runs",
+            "sourceEventId": "hermes-event:22a209a6f72a97cb3a61233cfc88731efa1aeb57d8bbb6d06c87363f86dd1e8f",
+            "sourceEventKind": "run.heartbeat",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "b5af1869-d59a-5502-99ad-3905f48ba85c",
+          "cursor": 17697,
+          "jobId": "8ca23d60-5726-4245-b751-afc8a31f04ed",
+          "runId": "run_7f8b3ade50084a088628a65863d0f310",
+          "sessionId": "record-f66e7c2f-1a98-4d7c-856a-e95f706549fc",
+          "turnId": null,
+          "eventKind": "run.heartbeat",
+          "state": "progress",
+          "componentId": "hermes.agent",
+          "invocationId": "hermes-run:aa8d88b0b8582469a9fcfa91:0",
+          "parentInvocationId": null,
+          "toolServer": null,
+          "toolName": null,
+          "capabilityId": null,
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:21:09.256231Z",
+          "display": {
+            "label": "Working on the answer",
+            "summary": null,
+            "attributes": {},
+            "inspectable": false
+          },
+          "provenance": {
+            "sourceSystem": "hermes.runs",
+            "sourceEventId": "hermes-event:7aaf63a80a2296bc84fc10664b5d3e0ce8c32692bc89653529e2c2ebba976524",
+            "sourceEventKind": "run.heartbeat",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "484bae7c-94b1-5d1e-84ac-19bdd6c346bb",
+          "cursor": 17698,
+          "jobId": "8ca23d60-5726-4245-b751-afc8a31f04ed",
+          "runId": "run_7f8b3ade50084a088628a65863d0f310",
+          "sessionId": "record-f66e7c2f-1a98-4d7c-856a-e95f706549fc",
+          "turnId": "8ca23d60-5726-4245-b751-afc8a31f04ed:8ca23d60-5726-4245-b751-afc8a31f04ed:0e81d19a",
+          "eventKind": "llm.call",
+          "state": "completed",
+          "componentId": "switchyard.router",
+          "invocationId": "hermes-llm:8ca23d60-5726-4245-b751-afc8a31f04ed:8ca23d60-5726-4245-b751-afc8a31f04ed:0e81d19a:api:4",
+          "parentInvocationId": "hermes-run:aa8d88b0b8582469a9fcfa91:0",
+          "toolServer": null,
+          "toolName": null,
+          "capabilityId": null,
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:21:16.777626Z",
+          "display": {
+            "label": "Model call completed",
+            "summary": null,
+            "attributes": {
+              "served_model": "nvidia/nemotron-3-ultra-550b-a55b",
+              "tier": "efficient",
+              "input_tokens": 29758,
+              "output_tokens": 1398
+            },
+            "inspectable": false
+          },
+          "provenance": {
+            "sourceSystem": "hermes.plugin",
+            "sourceEventId": "hermes-llm:8ca23d60-5726-4245-b751-afc8a31f04ed:8ca23d60-5726-4245-b751-afc8a31f04ed:0e81d19a:api:4",
+            "sourceEventKind": "post_api_request",
+            "normalizationVersion": "hermes-plugin.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "2d19af40-195b-5912-ab84-de1cf8b9e5c3",
+          "cursor": 17699,
+          "jobId": "8ca23d60-5726-4245-b751-afc8a31f04ed",
+          "runId": "run_7f8b3ade50084a088628a65863d0f310",
+          "sessionId": "record-f66e7c2f-1a98-4d7c-856a-e95f706549fc",
+          "turnId": null,
+          "eventKind": "reasoning.available",
+          "state": "progress",
+          "componentId": "hermes.agent",
+          "invocationId": "hermes-run:aa8d88b0b8582469a9fcfa91:0",
+          "parentInvocationId": null,
+          "toolServer": null,
+          "toolName": null,
+          "capabilityId": null,
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:21:16.802662Z",
+          "display": {
+            "label": "Reasoning in progress",
+            "summary": null,
+            "attributes": {},
+            "inspectable": false
+          },
+          "provenance": {
+            "sourceSystem": "hermes.runs",
+            "sourceEventId": "hermes-event:6987d064e0e69548390c34b8b592f57d7d86337f2fd2bdbb8010a1188c6a028e",
+            "sourceEventKind": "reasoning.available",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "a8009878-3e4c-5b1f-bd3d-255722873243",
+          "cursor": 17700,
+          "jobId": "8ca23d60-5726-4245-b751-afc8a31f04ed",
+          "runId": "run_7f8b3ade50084a088628a65863d0f310",
+          "sessionId": "record-f66e7c2f-1a98-4d7c-856a-e95f706549fc",
+          "turnId": null,
+          "eventKind": "run.completed",
+          "state": "completed",
+          "componentId": "hermes.agent",
+          "invocationId": "hermes-run:aa8d88b0b8582469a9fcfa91:0",
+          "parentInvocationId": null,
+          "toolServer": null,
+          "toolName": null,
+          "capabilityId": null,
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:21:16.824837Z",
+          "display": {
+            "label": "Run completed",
+            "summary": null,
+            "attributes": {
+              "input_tokens": 69224,
+              "output_tokens": 2082,
+              "total_tokens": 71306,
+              "output_characters": 2724
+            },
+            "inspectable": false
+          },
+          "provenance": {
+            "sourceSystem": "hermes.runs",
+            "sourceEventId": "hermes-event:93ae38dc9159d39eccba6c6d7b7d0ebb9593855d788c5fd92215068795e97059",
+            "sourceEventKind": "run.completed",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "7ccc81bc-183a-5812-825a-a00c46871f29",
+          "cursor": 17701,
+          "jobId": "8ca23d60-5726-4245-b751-afc8a31f04ed",
+          "runId": "run_7f8b3ade50084a088628a65863d0f310",
+          "sessionId": "record-f66e7c2f-1a98-4d7c-856a-e95f706549fc",
+          "turnId": null,
+          "eventKind": "report.completed",
+          "state": "completed",
+          "componentId": "hermes.agent",
+          "invocationId": "hermes-run:aa8d88b0b8582469a9fcfa91:0",
+          "parentInvocationId": null,
+          "toolServer": null,
+          "toolName": null,
+          "capabilityId": null,
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:21:16.846421Z",
+          "display": {
+            "label": "Response formatted",
+            "summary": null,
+            "attributes": {},
+            "inspectable": false
+          },
+          "provenance": {
+            "sourceSystem": "demo-api",
+            "sourceEventId": "publication:8ca23d60-5726-4245-b751-afc8a31f04ed:report.completed",
+            "sourceEventKind": "report.completed",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "0adc91b4-d307-5274-b0a8-d0a0d6182b4c",
+          "cursor": 17702,
+          "jobId": "8ca23d60-5726-4245-b751-afc8a31f04ed",
+          "runId": "run_7f8b3ade50084a088628a65863d0f310",
+          "sessionId": "record-f66e7c2f-1a98-4d7c-856a-e95f706549fc",
+          "turnId": null,
+          "eventKind": "report.reference_resolution",
+          "state": "completed",
+          "componentId": "hermes.agent",
+          "invocationId": "hermes-run:aa8d88b0b8582469a9fcfa91:0",
+          "parentInvocationId": null,
+          "toolServer": null,
+          "toolName": null,
+          "capabilityId": null,
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:21:16.846529Z",
+          "display": {
+            "label": "Citations resolved",
+            "summary": null,
+            "attributes": {
+              "status": "reference_ids_resolved",
+              "total_citations": 2,
+              "uncited_evidence_count": 1,
+              "invalid_evidence_count": 0
+            },
+            "inspectable": false
+          },
+          "provenance": {
+            "sourceSystem": "demo-api",
+            "sourceEventId": "publication:8ca23d60-5726-4245-b751-afc8a31f04ed:report.reference_resolution",
+            "sourceEventKind": "report.reference_resolution",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "eventId": "87901406-539d-56de-a27d-0972fda18ae1",
+          "cursor": 17703,
+          "jobId": "8ca23d60-5726-4245-b751-afc8a31f04ed",
+          "runId": "run_7f8b3ade50084a088628a65863d0f310",
+          "sessionId": "record-f66e7c2f-1a98-4d7c-856a-e95f706549fc",
+          "turnId": null,
+          "eventKind": "report.metrics",
+          "state": "completed",
+          "componentId": "hermes.agent",
+          "invocationId": "hermes-run:aa8d88b0b8582469a9fcfa91:0",
+          "parentInvocationId": null,
+          "toolServer": null,
+          "toolName": null,
+          "capabilityId": null,
+          "artifactRefs": [],
+          "metricsRef": null,
+          "occurredAt": "2026-10-02T18:21:16.846642Z",
+          "display": {
+            "label": "Run metrics available",
+            "summary": null,
+            "attributes": {
+              "runtime_profile": "enterprise-research",
+              "wall_duration_ms": 98484,
+              "tool_call_count": 3,
+              "known_tool_duration_ms": 4277,
+              "input_tokens": 69224,
+              "output_tokens": 2082,
+              "total_tokens": 71306
+            },
+            "inspectable": false
+          },
+          "provenance": {
+            "sourceSystem": "demo-api",
+            "sourceEventId": "publication:8ca23d60-5726-4245-b751-afc8a31f04ed:report.metrics",
+            "sourceEventKind": "report.metrics",
+            "normalizationVersion": "hermes-runs.v1",
+            "observation": "observed",
+            "configDigest": null
+          }
+        }
+      ],
+      "receipts": [
+        {
+          "schemaVersion": "2",
+          "artifactKind": "retrieval_evidence",
+          "receiptId": "hermes-receipt:92dc8ba691b16572678adba54bbd54529677c8d6a963fa2f0d3b18a64af7be75",
+          "jobId": "8ca23d60-5726-4245-b751-afc8a31f04ed",
+          "invocationId": "hermes-tool:call-eaec48e2-db2b-44c0-b227-93684e93634c",
+          "turnId": "8ca23d60-5726-4245-b751-afc8a31f04ed:8ca23d60-5726-4245-b751-afc8a31f04ed:0e81d19a",
+          "toolName": "mcp__retrieval__retrieve_evidence",
+          "status": "completed",
+          "errorType": null,
+          "errorSummary": null,
+          "durationMs": 1524,
+          "traceId": null,
+          "spanId": null,
+          "occurredAt": "2026-10-02T18:19:50.172207Z",
+          "content": {
+            "query": "Form 8-K Item 1.05 requires disclosure of material cybersecurity incident and filing deadline",
+            "sourceIds": [
+              "market_regulations",
+              "sec_filings"
+            ],
+            "collection": "synthetic_market_documents",
+            "collectionVersion": "synthetic_market_documents__0e83262712b7",
+            "hits": [
+              {
+                "rank": 1,
+                "score": 4.64453125,
+                "vectorScore": 0.719202995300293,
+                "sourceId": "market_regulations",
+                "documentId": "fr-2023-16194:appendix-c-form-8-k",
+                "chunkId": "fr-2023-16194:appendix-c-form-8-k:0004",
+                "title": "Cybersecurity Risk Management, Strategy, Governance, and Incident Disclosure: Appendix C—Form 8-K",
+                "url": "https://www.federalregister.gov/documents/2023/08/04/2023-16194/cybersecurity-risk-management-strategy-governance-and-incident-disclosure",
+                "publishedAt": "2023-08-04T00:00:00Z",
+                "snippet": "Instructions to Item 1.05\n\n1. A registrant's materiality determination regarding a cybersecurity incident must be made without unreasonable delay after discovery of the incident.\n\n2. To the extent that the information called for in Item 1.05(a) is not determined or is unavailable at the time of the required filing, the registrant shall include a statement to this effect in the filing and then must file an amendment to its Form 8-K filing under this Item 1.05 containing such information within four business days after the registrant, without unreasonable delay, determines such information or within four business days after such information becomes available.\n\n3. The definition of the term “cybersecurity incident” in 229.106(a) [Item 106(a) of Regulation S-K] applies to this Item.\n\n4. A registrant need not disclose specific or technical information about its planned response to the incident or its cybersecurity systems, related networks and devices, or potential system vulnerabilities in such detail as would impede the registrant's response or remediation of the incident.\n\n* * *",
+                "metadata": {
+                  "citation": "88 FR 51896 (August 4, 2023), Appendix C—Form 8-K",
+                  "document_number": "2023-16194",
+                  "release": "Release Nos. 33-11216; 34-97989",
+                  "part": "Appendix C—Form 8-K",
+                  "published_on": "2023-08-04",
+                  "snapshot_url": "https://www.federalregister.gov/documents/full_text/xml/2023/08/04/2023-16194.xml"
+                }
+              },
+              {
+                "rank": 2,
+                "score": 4.34375,
+                "vectorScore": 0.6754794716835022,
+                "sourceId": "market_regulations",
+                "documentId": "fr-2023-16194:appendix-c-form-8-k",
+                "chunkId": "fr-2023-16194:appendix-c-form-8-k:0001",
+                "title": "Cybersecurity Risk Management, Strategy, Governance, and Incident Disclosure: Appendix C—Form 8-K",
+                "url": "https://www.federalregister.gov/documents/2023/08/04/2023-16194/cybersecurity-risk-management-strategy-governance-and-incident-disclosure",
+                "publishedAt": "2023-08-04T00:00:00Z",
+                "snippet": "Cybersecurity Risk Management, Strategy, Governance, and Incident Disclosure. Final rule, Release Nos. 33-11216; 34-97989, 88 FR 51896 (August 4, 2023). Appendix C—Form 8-K.\n\nFORM 8-K\n\n* * *\n\nGENERAL INSTRUCTIONS\n\n* * *\n\nB. Events To Be Reported and Time for Filing of Reports\n\n1. A report on this form is required to be filed or furnished, as applicable, upon the occurrence of any one or more of the events specified in the items in Sections 1 through 6 and 9 of this form. Unless otherwise specified, a report is to be filed or furnished within four business days after occurrence of the event. If the event occurs on a Saturday, Sunday or holiday on which the Commission is not open for business, then the four business day period shall begin to run on, and include, the first business day thereafter. A registrant either furnishing a report on this form under Item 7.01 (Regulation FD Disclosure) or electing to file a report on this form under Item 8.01 (Other Events) solely to satisfy its obligations under Regulation FD (17 CFR 243.100 and 243.101) must furnish such report or make such filing, as applicable, in accordance with the requirements of Rule 100(a) of Regulation FD (17 CFR 243.100(a)), including the deadline for furnishing or filing such report. A report pursuant to Item 5.08 is to be filed within four business days after the registrant determines the anticipated meeting date. A report pursuant to Item 1.05 is to be filed within four business days after the registrant dete",
+                "metadata": {
+                  "citation": "88 FR 51896 (August 4, 2023), Appendix C—Form 8-K",
+                  "document_number": "2023-16194",
+                  "release": "Release Nos. 33-11216; 34-97989",
+                  "part": "Appendix C—Form 8-K",
+                  "published_on": "2023-08-04",
+                  "snapshot_url": "https://www.federalregister.gov/documents/full_text/xml/2023/08/04/2023-16194.xml"
+                }
+              },
+              {
+                "rank": 3,
+                "score": 0.9228515625,
+                "vectorScore": 0.5646119713783264,
+                "sourceId": "market_regulations",
+                "documentId": "fr-2023-16194:appendix-c-form-8-k",
+                "chunkId": "fr-2023-16194:appendix-c-form-8-k:0003",
+                "title": "Cybersecurity Risk Management, Strategy, Governance, and Incident Disclosure: Appendix C—Form 8-K",
+                "url": "https://www.federalregister.gov/documents/2023/08/04/2023-16194/cybersecurity-risk-management-strategy-governance-and-incident-disclosure",
+                "publishedAt": "2023-08-04T00:00:00Z",
+                "snippet": "(b) A registrant shall provide the information required by this Item in an Interactive Data File in accordance with Rule 405 of Regulation S-T and the EDGAR Filer Manual.\n\n(c) Notwithstanding General Instruction B.1. to Form 8-K, if the United States Attorney General determines that disclosure required by paragraph (a) of this Item 1.05 poses a substantial risk to national security or public safety, and notifies the Commission of such determination in writing, the registrant may delay providing the disclosure required by this Item 1.05 for a time period specified by the Attorney General, up to 30 days following the date when the disclosure required by this Item 1.05 was otherwise required to be provided. Disclosure may be delayed for an additional period of up to 30 days if the Attorney General determines that disclosure continues to pose a substantial risk to national security or public safety and notifies the Commission of such determination in writing. In extraordinary circumstances, disclosure may be delayed for a final additional period of up to 60 days if the Attorney General determines that disclosure continues to pose a substantial risk to national security and notifies the Commission of such determination in writing. Beyond the final 60-day delay under this paragraph, if the Attorney General indicates that further delay is necessary, the Commission will consider additional requests for delay and may grant such relief through Commission exemptive order.\n\n(d) Notwithst",
+                "metadata": {
+                  "citation": "88 FR 51896 (August 4, 2023), Appendix C—Form 8-K",
+                  "document_number": "2023-16194",
+                  "release": "Release Nos. 33-11216; 34-97989",
+                  "part": "Appendix C—Form 8-K",
+                  "published_on": "2023-08-04",
+                  "snapshot_url": "https://www.federalregister.gov/documents/full_text/xml/2023/08/04/2023-16194.xml"
+                }
+              },
+              {
+                "rank": 4,
+                "score": -2.400390625,
+                "vectorScore": 0.6284167170524597,
+                "sourceId": "market_regulations",
+                "documentId": "fr-2023-16194:appendix-c-form-8-k",
+                "chunkId": "fr-2023-16194:appendix-c-form-8-k:0002",
+                "title": "Cybersecurity Risk Management, Strategy, Governance, and Incident Disclosure: Appendix C—Form 8-K",
+                "url": "https://www.federalregister.gov/documents/2023/08/04/2023-16194/cybersecurity-risk-management-strategy-governance-and-incident-disclosure",
+                "publishedAt": "2023-08-04T00:00:00Z",
+                "snippet": "(g) Item 3.01, Notice of Delisting or Failure to Satisfy a Continued Listing Rule or Standard; Transfer of Listing;\n\n(h) Item 3.02, Unregistered Sales of Equity Securities;\n\n(i) Item 4.01, Changes in Registrant's Certifying Accountant;\n\n(j) Item 4.02, Non-Reliance on Previously Issued Financial Statements or a Related Audit Report or Completed Interim Review;\n\n(k) Item 5.01, Changes in Control of Registrant;\n\n( l ) Item 5.02, Departure of Directors or Principal Officers; Election of Directors; Appointment of Principal Officers;\n\n(m) Item 5.04, Temporary Suspension of Trading Under Registrant's Employee Benefit Plans; and\n\n(n) Item 5.05, Amendments to the Registrant's Code of Ethics, or Waiver of a Provision of the Code of Ethics.\n\n* * *\n\nINFORMATION TO BE INCLUDED IN THE REPORT\n\nSection 1—Registrant's Business and Operations\n\n* * *\n\nItem 1.05 Material Cybersecurity Incidents\n\n(a) If the registrant experiences a cybersecurity incident that is determined by the registrant to be material, describe the material aspects of the nature, scope, and timing of the incident, and the material impact or reasonably likely material impact on the registrant, including its financial condition and results of operations.\n\n(b) A registrant shall provide the information required by this Item in an Interactive Data File in accordance with Rule 405 of Regulation S-T and the EDGAR Filer Manual.",
+                "metadata": {
+                  "citation": "88 FR 51896 (August 4, 2023), Appendix C—Form 8-K",
+                  "document_number": "2023-16194",
+                  "release": "Release Nos. 33-11216; 34-97989",
+                  "part": "Appendix C—Form 8-K",
+                  "published_on": "2023-08-04",
+                  "snapshot_url": "https://www.federalregister.gov/documents/full_text/xml/2023/08/04/2023-16194.xml"
+                }
+              },
+              {
+                "rank": 5,
+                "score": -3.634765625,
+                "vectorScore": 0.47846031188964844,
+                "sourceId": "market_regulations",
+                "documentId": "fr-2023-16194:summary",
+                "chunkId": "fr-2023-16194:summary:0001",
+                "title": "Cybersecurity Risk Management, Strategy, Governance, and Incident Disclosure: Summary and dates",
+                "url": "https://www.federalregister.gov/documents/2023/08/04/2023-16194/cybersecurity-risk-management-strategy-governance-and-incident-disclosure",
+                "publishedAt": "2023-08-04T00:00:00Z",
+                "snippet": "Cybersecurity Risk Management, Strategy, Governance, and Incident Disclosure. Final rule, Release Nos. 33-11216; 34-97989, 88 FR 51896 (August 4, 2023). Summary and dates.\n\nSUMMARY:\n\nThe Securities and Exchange Commission (“Commission”) is adopting new rules to enhance and standardize disclosures regarding cybersecurity risk management, strategy, governance, and incidents by public companies that are subject to the reporting requirements of the Securities Exchange Act of 1934. Specifically, we are adopting amendments to require current disclosure about material cybersecurity incidents. We are also adopting rules requiring periodic disclosures about a registrant's processes to assess, identify, and manage material cybersecurity risks, management's role in assessing and managing material cybersecurity risks, and the board of directors' oversight of cybersecurity risks. Lastly, the final rules require the cybersecurity disclosures to be presented in Inline eXtensible Business Reporting Language (“Inline XBRL”).\n\nDATES:\n\nEffective date: The amendments are effective September 5, 2023.\n\nCompliance dates: See Section II.I (Compliance Dates).",
+                "metadata": {
+                  "citation": "88 FR 51896 (August 4, 2023), Summary and dates",
+                  "document_number": "2023-16194",
+                  "release": "Release Nos. 33-11216; 34-97989",
+                  "part": "Summary and dates",
+                  "published_on": "2023-08-04",
+                  "snapshot_url": "https://www.federalregister.gov/documents/full_text/xml/2023/08/04/2023-16194.xml"
+                }
+              },
+              {
+                "rank": 6,
+                "score": -3.9921875,
+                "vectorScore": 0.49102357029914856,
+                "sourceId": "market_regulations",
+                "documentId": "fr-2023-16194:appendix-a-form-s-3",
+                "chunkId": "fr-2023-16194:appendix-a-form-s-3:0001",
+                "title": "Cybersecurity Risk Management, Strategy, Governance, and Incident Disclosure: Appendix A—Form S-3",
+                "url": "https://www.federalregister.gov/documents/2023/08/04/2023-16194/cybersecurity-risk-management-strategy-governance-and-incident-disclosure",
+                "publishedAt": "2023-08-04T00:00:00Z",
+                "snippet": "Cybersecurity Risk Management, Strategy, Governance, and Incident Disclosure. Final rule, Release Nos. 33-11216; 34-97989, 88 FR 51896 (August 4, 2023). Appendix A—Form S-3.\n\nFORM S-3\n\n* * *\n\nINFORMATION TO BE INCLUDED IN THE REPORT\n\n* * *\n\nGeneral Instructions\n\nI. Eligibility Requirements for Use of Form S-3\n\n* * *\n\nA. Registrant Requirements\n\n* * *\n\n3. * * *\n\n(b) has filed in a timely manner all reports required to be filed during the twelve calendar months and any portion of a month immediately preceding the filing of the registration statement, other than a report that is required solely pursuant to Item 1.01, 1.02, 1.04, 1.05, 2.03, 2.04, 2.05, 2.06, 4.02(a) or 5.02(e) of Form 8-K (§ 249.308 of this chapter). If the registrant has used (during the twelve calendar months and any portion of a month immediately preceding the filing of the registration statement) Rule 12b-25(b) (§ 240.12b-25(b) of this chapter) under the Exchange Act with respect to a report or a portion of a report, that report or portion thereof has actually been filed within the time period prescribed by that rule.\n\n* * *",
+                "metadata": {
+                  "citation": "88 FR 51896 (August 4, 2023), Appendix A—Form S-3",
+                  "document_number": "2023-16194",
+                  "release": "Release Nos. 33-11216; 34-97989",
+                  "part": "Appendix A—Form S-3",
+                  "published_on": "2023-08-04",
+                  "snapshot_url": "https://www.federalregister.gov/documents/full_text/xml/2023/08/04/2023-16194.xml"
+                }
+              },
+              {
+                "rank": 7,
+                "score": -5.14453125,
+                "vectorScore": 0.4992218017578125,
+                "sourceId": "market_regulations",
+                "documentId": "ecfr-title17:229.106:24c220ed7a14",
+                "chunkId": "ecfr-title17:229.106:24c220ed7a14:0002",
+                "title": "§ 229.106 (Item 106) Cybersecurity.",
+                "url": "https://www.ecfr.gov/on/2026-08-17/title-17/section-229.106",
+                "publishedAt": null,
+                "snippet": "§ 229.106 (Item 106) Cybersecurity. (a) Definitions. For purposes of this section: Cybersecurity incident means an unauthorized occurrence, or a series of related unauthorized occurrences, on or conducted through a registrant's information systems that jeopardizes the confidentiality, integrity, or availability of a registrant's information systems or any information residing therein. Cybersecurity threat means any potential unauthorized occurrence on or conducted through a registrant's information systems that may result in adverse effects on the confidentiality, integrity, or availability of a registrant's information systems or any information residing therein. Information systems means electronic information resources, owned or used by the registrant, including physical or virtual infrastructure controlled by such information resources, or components thereof, organized for the collection, processing, maintenance, use, sharing, dissemination, or disposition of the registrant's information to maintain or support the registrant's operations. (b) Risk management and strategy. (1) Describe the registrant's processes, if any, for assessing, identifying, and managing material risks from cybersecurity threats in sufficient detail for a reasonable investor to understand those processes. In providing such disclosure, a registrant should address, as applicable, the following non-exclusive list of disclosure items: (i) Whether and how any such processes have been integrated into the ",
+                "metadata": {
+                  "citation": "17 CFR § 229.106",
+                  "title_number": "17",
+                  "chapter": "II",
+                  "chapter_heading": "CHAPTER II—SECURITIES AND EXCHANGE COMMISSION",
+                  "part": "229",
+                  "part_heading": "PART 229—STANDARD INSTRUCTIONS FOR FILING FORMS UNDER SECURITIES ACT OF 1933, SECURITIES EXCHANGE ACT OF 1934 AND ENERGY POLICY AND CONSERVATION ACT OF 1975—REGULATION S-K",
+                  "subpart_heading": "Subpart 229.100—Business",
+                  "section": "229.106",
+                  "as_of": "2026-08-17",
+                  "snapshot_url": "https://www.ecfr.gov/api/versioner/v1/full/2026-08-17/title-17.xml"
+                }
+              },
+              {
+                "rank": 8,
+                "score": -5.2109375,
+                "vectorScore": 0.3957761824131012,
+                "sourceId": "market_regulations",
+                "documentId": "ecfr-title17:240.13a-11:7ec2d8559702",
+                "chunkId": "ecfr-title17:240.13a-11:7ec2d8559702:0001",
+                "title": "§ 240.13a-11 Current reports on Form 8-K (§ 249.308 of this chapter).",
+                "url": "https://www.ecfr.gov/on/2026-08-17/title-17/section-240.13a-11",
+                "publishedAt": null,
+                "snippet": "Title 17—Commodity and Securities Exchanges\n\nCHAPTER II—SECURITIES AND EXCHANGE COMMISSION\n\nPART 240—GENERAL RULES AND REGULATIONS, SECURITIES EXCHANGE ACT OF 1934\n\nOther Reports\n\n§ 240.13a-11 Current reports on Form 8-K (§ 249.308 of this chapter).\n\n§ 240.13a-11 Current reports on Form 8-K (§ 249.308 of this chapter). (a) Except as provided in paragraph (b) of this section, every registrant subject to § 240.13a-1 shall file a current report on Form 8-K within the period specified in that form unless substantially the same information as that required by Form 8-K has been previously reported by the registrant. (b) This section shall not apply to foreign governments, foreign private issuers required to make reports on Form 6-K (§ 249.306 of this chapter) pursuant to § 240.13a-16, issuers of American Depositary Receipts for securities of any foreign issuer, or investment companies required to file reports pursuant to § 270.30a-1 of this chapter under the Investment Company Act of 1940, except where such an investment company is required to file notice of a blackout period pursuant to § 245.104 of this chapter. (c) No failure to file a report on Form 8-K that is required solely pursuant to Item 1.01, 1.02, 1.05, 2.03, 2.04, 2.05, 2.06, 4.02(a), 5.02(e), or 6.03 of Form 8-K shall be deemed to be a violation of 15 U.S.C. 78j(b) and § 240.10b-5. [42 FR 4428, Jan. 25, 1977, as amended at 50 FR 27939, July 9, 1985; 68 FR 4355, Jan. 28, 2003; 69 FR 15618, Mar. 25, 2004; 70 FR 1621, Ja",
+                "metadata": {
+                  "citation": "17 CFR § 240.13a-11",
+                  "title_number": "17",
+                  "chapter": "II",
+                  "chapter_heading": "CHAPTER II—SECURITIES AND EXCHANGE COMMISSION",
+                  "part": "240",
+                  "part_heading": "PART 240—GENERAL RULES AND REGULATIONS, SECURITIES EXCHANGE ACT OF 1934",
+                  "subpart_heading": "Other Reports",
+                  "section": "240.13a-11",
+                  "as_of": "2026-08-17",
+                  "snapshot_url": "https://www.ecfr.gov/api/versioner/v1/full/2026-08-17/title-17.xml"
+                }
+              }
+            ],
+            "candidateCounts": {
+              "market_regulations": 32,
+              "sec_filings": 32
+            },
+            "models": {
+              "embed": "nvidia/nemotron-3-embed-1b",
+              "rerank": "nvidia/llama-nemotron-rerank-vl-1b-v2"
+            },
+            "index": {
+              "type": "HNSW",
+              "metric": "COSINE",
+              "params": {
+                "M": 16,
+                "efConstruction": 200
+              },
+              "searchParams": {
+                "ef": 128
+              }
+            },
+            "timings": {
+              "embedMs": 299.4,
+              "searchMs": 54.5,
+              "rerankMs": 1063.9,
+              "totalMs": 1417.8
+            }
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "artifactKind": "retrieval_evidence",
+          "receiptId": "hermes-receipt:8dc340a42a6086944d9008dc6d08b74d9cb79988cc94912c9a2435d24c7e7484",
+          "jobId": "8ca23d60-5726-4245-b751-afc8a31f04ed",
+          "invocationId": "hermes-tool:call-c04d64b3-bdd7-4c8d-afca-4876cd5e55fc",
+          "turnId": "8ca23d60-5726-4245-b751-afc8a31f04ed:8ca23d60-5726-4245-b751-afc8a31f04ed:0e81d19a",
+          "toolName": "mcp__retrieval__retrieve_evidence",
+          "status": "completed",
+          "errorType": null,
+          "errorSummary": null,
+          "durationMs": 1303,
+          "traceId": null,
+          "spanId": null,
+          "occurredAt": "2026-10-02T18:20:01.314672Z",
+          "content": {
+            "query": "material cybersecurity incident 8-K Item 1.05 second quarter 2026",
+            "sourceIds": [
+              "market_regulations",
+              "sec_filings"
+            ],
+            "collection": "synthetic_market_documents",
+            "collectionVersion": "synthetic_market_documents__0e83262712b7",
+            "hits": [
+              {
+                "rank": 1,
+                "score": -1.7255859375,
+                "vectorScore": 0.4716668725013733,
+                "sourceId": "market_regulations",
+                "documentId": "fr-2023-16194:appendix-c-form-8-k",
+                "chunkId": "fr-2023-16194:appendix-c-form-8-k:0004",
+                "title": "Cybersecurity Risk Management, Strategy, Governance, and Incident Disclosure: Appendix C—Form 8-K",
+                "url": "https://www.federalregister.gov/documents/2023/08/04/2023-16194/cybersecurity-risk-management-strategy-governance-and-incident-disclosure",
+                "publishedAt": "2023-08-04T00:00:00Z",
+                "snippet": "Instructions to Item 1.05\n\n1. A registrant's materiality determination regarding a cybersecurity incident must be made without unreasonable delay after discovery of the incident.\n\n2. To the extent that the information called for in Item 1.05(a) is not determined or is unavailable at the time of the required filing, the registrant shall include a statement to this effect in the filing and then must file an amendment to its Form 8-K filing under this Item 1.05 containing such information within four business days after the registrant, without unreasonable delay, determines such information or within four business days after such information becomes available.\n\n3. The definition of the term “cybersecurity incident” in 229.106(a) [Item 106(a) of Regulation S-K] applies to this Item.\n\n4. A registrant need not disclose specific or technical information about its planned response to the incident or its cybersecurity systems, related networks and devices, or potential system vulnerabilities in such detail as would impede the registrant's response or remediation of the incident.\n\n* * *",
+                "metadata": {
+                  "citation": "88 FR 51896 (August 4, 2023), Appendix C—Form 8-K",
+                  "document_number": "2023-16194",
+                  "release": "Release Nos. 33-11216; 34-97989",
+                  "part": "Appendix C—Form 8-K",
+                  "published_on": "2023-08-04",
+                  "snapshot_url": "https://www.federalregister.gov/documents/full_text/xml/2023/08/04/2023-16194.xml"
+                }
+              },
+              {
+                "rank": 2,
+                "score": -2.802734375,
+                "vectorScore": 0.42948707938194275,
+                "sourceId": "market_regulations",
+                "documentId": "fr-2023-16194:appendix-c-form-8-k",
+                "chunkId": "fr-2023-16194:appendix-c-form-8-k:0001",
+                "title": "Cybersecurity Risk Management, Strategy, Governance, and Incident Disclosure: Appendix C—Form 8-K",
+                "url": "https://www.federalregister.gov/documents/2023/08/04/2023-16194/cybersecurity-risk-management-strategy-governance-and-incident-disclosure",
+                "publishedAt": "2023-08-04T00:00:00Z",
+                "snippet": "Cybersecurity Risk Management, Strategy, Governance, and Incident Disclosure. Final rule, Release Nos. 33-11216; 34-97989, 88 FR 51896 (August 4, 2023). Appendix C—Form 8-K.\n\nFORM 8-K\n\n* * *\n\nGENERAL INSTRUCTIONS\n\n* * *\n\nB. Events To Be Reported and Time for Filing of Reports\n\n1. A report on this form is required to be filed or furnished, as applicable, upon the occurrence of any one or more of the events specified in the items in Sections 1 through 6 and 9 of this form. Unless otherwise specified, a report is to be filed or furnished within four business days after occurrence of the event. If the event occurs on a Saturday, Sunday or holiday on which the Commission is not open for business, then the four business day period shall begin to run on, and include, the first business day thereafter. A registrant either furnishing a report on this form under Item 7.01 (Regulation FD Disclosure) or electing to file a report on this form under Item 8.01 (Other Events) solely to satisfy its obligations under Regulation FD (17 CFR 243.100 and 243.101) must furnish such report or make such filing, as applicable, in accordance with the requirements of Rule 100(a) of Regulation FD (17 CFR 243.100(a)), including the deadline for furnishing or filing such report. A report pursuant to Item 5.08 is to be filed within four business days after the registrant determines the anticipated meeting date. A report pursuant to Item 1.05 is to be filed within four business days after the registrant dete",
+                "metadata": {
+                  "citation": "88 FR 51896 (August 4, 2023), Appendix C—Form 8-K",
+                  "document_number": "2023-16194",
+                  "release": "Release Nos. 33-11216; 34-97989",
+                  "part": "Appendix C—Form 8-K",
+                  "published_on": "2023-08-04",
+                  "snapshot_url": "https://www.federalregister.gov/documents/full_text/xml/2023/08/04/2023-16194.xml"
+                }
+              },
+              {
+                "rank": 3,
+                "score": -3.322265625,
+                "vectorScore": 0.4838206171989441,
+                "sourceId": "market_regulations",
+                "documentId": "fr-2023-16194:appendix-c-form-8-k",
+                "chunkId": "fr-2023-16194:appendix-c-form-8-k:0002",
+                "title": "Cybersecurity Risk Management, Strategy, Governance, and Incident Disclosure: Appendix C—Form 8-K",
+                "url": "https://www.federalregister.gov/documents/2023/08/04/2023-16194/cybersecurity-risk-management-strategy-governance-and-incident-disclosure",
+                "publishedAt": "2023-08-04T00:00:00Z",
+                "snippet": "(g) Item 3.01, Notice of Delisting or Failure to Satisfy a Continued Listing Rule or Standard; Transfer of Listing;\n\n(h) Item 3.02, Unregistered Sales of Equity Securities;\n\n(i) Item 4.01, Changes in Registrant's Certifying Accountant;\n\n(j) Item 4.02, Non-Reliance on Previously Issued Financial Statements or a Related Audit Report or Completed Interim Review;\n\n(k) Item 5.01, Changes in Control of Registrant;\n\n( l ) Item 5.02, Departure of Directors or Principal Officers; Election of Directors; Appointment of Principal Officers;\n\n(m) Item 5.04, Temporary Suspension of Trading Under Registrant's Employee Benefit Plans; and\n\n(n) Item 5.05, Amendments to the Registrant's Code of Ethics, or Waiver of a Provision of the Code of Ethics.\n\n* * *\n\nINFORMATION TO BE INCLUDED IN THE REPORT\n\nSection 1—Registrant's Business and Operations\n\n* * *\n\nItem 1.05 Material Cybersecurity Incidents\n\n(a) If the registrant experiences a cybersecurity incident that is determined by the registrant to be material, describe the material aspects of the nature, scope, and timing of the incident, and the material impact or reasonably likely material impact on the registrant, including its financial condition and results of operations.\n\n(b) A registrant shall provide the information required by this Item in an Interactive Data File in accordance with Rule 405 of Regulation S-T and the EDGAR Filer Manual.",
+                "metadata": {
+                  "citation": "88 FR 51896 (August 4, 2023), Appendix C—Form 8-K",
+                  "document_number": "2023-16194",
+                  "release": "Release Nos. 33-11216; 34-97989",
+                  "part": "Appendix C—Form 8-K",
+                  "published_on": "2023-08-04",
+                  "snapshot_url": "https://www.federalregister.gov/documents/full_text/xml/2023/08/04/2023-16194.xml"
+                }
+              },
+              {
+                "rank": 4,
+                "score": -3.984375,
+                "vectorScore": 0.351813942193985,
+                "sourceId": "market_regulations",
+                "documentId": "fr-2023-16194:appendix-c-form-8-k",
+                "chunkId": "fr-2023-16194:appendix-c-form-8-k:0003",
+                "title": "Cybersecurity Risk Management, Strategy, Governance, and Incident Disclosure: Appendix C—Form 8-K",
+                "url": "https://www.federalregister.gov/documents/2023/08/04/2023-16194/cybersecurity-risk-management-strategy-governance-and-incident-disclosure",
+                "publishedAt": "2023-08-04T00:00:00Z",
+                "snippet": "(b) A registrant shall provide the information required by this Item in an Interactive Data File in accordance with Rule 405 of Regulation S-T and the EDGAR Filer Manual.\n\n(c) Notwithstanding General Instruction B.1. to Form 8-K, if the United States Attorney General determines that disclosure required by paragraph (a) of this Item 1.05 poses a substantial risk to national security or public safety, and notifies the Commission of such determination in writing, the registrant may delay providing the disclosure required by this Item 1.05 for a time period specified by the Attorney General, up to 30 days following the date when the disclosure required by this Item 1.05 was otherwise required to be provided. Disclosure may be delayed for an additional period of up to 30 days if the Attorney General determines that disclosure continues to pose a substantial risk to national security or public safety and notifies the Commission of such determination in writing. In extraordinary circumstances, disclosure may be delayed for a final additional period of up to 60 days if the Attorney General determines that disclosure continues to pose a substantial risk to national security and notifies the Commission of such determination in writing. Beyond the final 60-day delay under this paragraph, if the Attorney General indicates that further delay is necessary, the Commission will consider additional requests for delay and may grant such relief through Commission exemptive order.\n\n(d) Notwithst",
+                "metadata": {
+                  "citation": "88 FR 51896 (August 4, 2023), Appendix C—Form 8-K",
+                  "document_number": "2023-16194",
+                  "release": "Release Nos. 33-11216; 34-97989",
+                  "part": "Appendix C—Form 8-K",
+                  "published_on": "2023-08-04",
+                  "snapshot_url": "https://www.federalregister.gov/documents/full_text/xml/2023/08/04/2023-16194.xml"
+                }
+              },
+              {
+                "rank": 5,
+                "score": -4.609375,
+                "vectorScore": 0.3933960199356079,
+                "sourceId": "sec_filings",
+                "documentId": "edgar:0000720500:0001193125-26-211838:asys-20260507.htm",
+                "chunkId": "edgar:0000720500:0001193125-26-211838:asys-20260507.htm:0001",
+                "title": "AMTECH SYSTEMS INC 8-K: 8-K",
+                "url": "https://www.sec.gov/Archives/edgar/data/720500/0001193125-26-211838.txt",
+                "publishedAt": "2026-05-07T00:00:00Z",
+                "snippet": "8-K 0000720500falseAMTECH SYSTEMS INC00007205002026-05-072026-05-07 UNITED STATESSECURITIES AND EXCHANGE COMMISSIONWASHINGTON, D.C. 20549 FORM 8-K CURRENT REPORTPursuant to Section 13 or 15(d) of the Securities Exchange Act of 1934 Date of Report (Date of earliest event reported): May 07, 2026 Amtech Systems, Inc.(Exact name of Registrant as Specified in Its Charter) Arizona 000-11412 86-0411215 (State or other jurisdictionof incorporation) (Commission File Number) (IRS EmployerIdentification No.) 58 S. River Drive, Suite 370 Tempe, Arizona 85288 (Address of principal executive offices) (Zip Code) Registrant’s Telephone Number, Including Area Code: (480) 967-5146 Not Applicable (Former name or former address, if changed since last report) Check the appropriate box below if the Form 8-K filing is intended to simultaneously satisfy the filing obligation of the registrant under any of the following provisions: ☐Written communications pursuant to Rule 425 under the Securities Act (17 CFR 230.425)☐Soliciting material pursuant to Rule 14a-12 under the Exchange Act (17 CFR 240.14a-12)☐Pre-commencement communications pursuant to Rule 14d-2(b) under the Exchange Act (17 CFR 240.14d-2(b))☐Pre-commencement communications pursuant to Rule 13e-4(c) under the Exchange Act (17 CFR 240.13e-4(c))Securities registered pursuant to Section 12(b) of the Act: Title of each class TradingSymbol(s) Name of each exchange on which registered Common Stock, par value $0.01 per share ASYS Nasdaq Global Se",
+                "metadata": {
+                  "citation": "SEC 8-K, AMTECH SYSTEMS INC, filed 2026-05-07, accession 0001193125-26-211838",
+                  "cik": "0000720500",
+                  "company_name": "AMTECH SYSTEMS INC",
+                  "form": "8-K",
+                  "filed_on": "2026-05-07",
+                  "accession": "0001193125-26-211838",
+                  "document_type": "8-K",
+                  "filename": "asys-20260507.htm"
+                }
+              },
+              {
+                "rank": 6,
+                "score": -4.90625,
+                "vectorScore": 0.38524964451789856,
+                "sourceId": "sec_filings",
+                "documentId": "edgar:0000866706:0001104659-26-057162:tm2613615d1_8k.htm",
+                "chunkId": "edgar:0000866706:0001104659-26-057162:tm2613615d1_8k.htm:0001",
+                "title": "ESCO TECHNOLOGIES INC 8-K: FORM 8-K",
+                "url": "https://www.sec.gov/Archives/edgar/data/866706/0001104659-26-057162.txt",
+                "publishedAt": "2026-05-07T00:00:00Z",
+                "snippet": "false 0000866706 0000866706 2026-05-07 2026-05-07 iso4217:USD xbrli:shares iso4217:USD xbrli:shares UNITED STATES SECURITIES AND EXCHANGE COMMISSION WASHINGTON, D.C. 20549 FORM 8-K CURRENT REPORT PURSUANT TO SECTION 13 OR 15(d) OF THE SECURITIES EXCHANGE ACT OF 1934 Date of Report (Date of earliest event reported): May 7, 2026 ESCO TECHNOLOGIES INC. (Exact Name of Registrant as Specified in Charter) Missouri 1-10596 43-1554045 (State or Other (Commission (I.R.S. Employer Jurisdiction of Incorporation) File Number) Identification No.) 645 Maryville Centre Drive, Suite 300, St. Louis, Missouri 63141-5855 (Address of Principal Executive Offices) (Zip Code) Registrant’s telephone number, including area code: 314-213-7200 Securities registered pursuant to section 12(b) of the Act: Name of each exchange Title of each class Trading Symbol(s) on which registered Common Stock, par value $0.01 per share ESE New York Stock Exchange Check the appropriate box below if the Form 8-K filing is intended to simultaneously satisfy the filing obligation of the registrant under any of the following provisions: ¨ Written communications pursuant to Rule 425 under the Securities Act (17 CFR 230.425) ¨ Soliciting material pursuant to Rule 14a-12 under the Exchange Act (17 CFR 240.14a-12) ¨ Pre-commencement communications pursuant to Rule 14d-2 (b) under the Exchange Act (17 CFR 240.14d-2 (b)) ¨ Pre-commencement communications pursuant to Rule 13e-4 (c) under the Exchange Act (17 CFR 240.113d-4 (c)) I",
+                "metadata": {
+                  "citation": "SEC 8-K, ESCO TECHNOLOGIES INC, filed 2026-05-07, accession 0001104659-26-057162",
+                  "cik": "0000866706",
+                  "company_name": "ESCO TECHNOLOGIES INC",
+                  "form": "8-K",
+                  "filed_on": "2026-05-07",
+                  "accession": "0001104659-26-057162",
+                  "document_type": "8-K",
+                  "filename": "tm2613615d1_8k.htm"
+                }
+              },
+              {
+                "rank": 7,
+                "score": -5.05859375,
+                "vectorScore": 0.3823804259300232,
+                "sourceId": "sec_filings",
+                "documentId": "edgar:0001803599:0001803599-26-000133:cnxc-20260629.htm",
+                "chunkId": "edgar:0001803599:0001803599-26-000133:cnxc-20260629.htm:0001",
+                "title": "Concentrix Corp 8-K: 8-K",
+                "url": "https://www.sec.gov/Archives/edgar/data/1803599/0001803599-26-000133.txt",
+                "publishedAt": "2026-06-29T00:00:00Z",
+                "snippet": "cnxc-202606290001803599FALSE00018035992026-06-292026-06-29UNITED STATESSECURITIES AND EXCHANGE COMMISSIONWashington, D.C. 20549FORM 8-KCURRENT REPORTPursuant to Section 13 or 15(d) of theSecurities Exchange Act of 1934Date of Report (Date of Earliest Event Reported): June 29, 2026CONCENTRIX CORPORATION(Exact name of registrant as specified in its charter)Delaware001-3949427-1605762(State or Other Jurisdiction of Incorporation)(Commission File Number)(I.R.S. Employer Identification Number)39899 Balentine Drive, Suite 235, Newark, California94560(Address of principal executive offices)(Zip Code)(800) 747-0583 (Registrant’s telephone number, including area code)N/A(Former name or former address, if changed since last report.)Check the appropriate box below if the Form 8-K filing is intended to simultaneously satisfy the filing obligation of the registrant under any of the following provisions:☐Written communications pursuant to Rule 425 under the Securities Act (17 CFR 230.425)☐Soliciting material pursuant to Rule 14a-12 under the Exchange Act (17 CFR 240.14a-12)☐Pre-commencement communications pursuant to Rule 14d-2(b) under the Exchange Act (17 CFR 240.14d-2(b))☐Pre-commencement communications pursuant to Rule 13e-4(c) under the Exchange Act (17 CFR 240-13e-4(c))Securities registered pursuant to Section 12(b) of the Act:Title of each classTrading Symbol(s)Name of each exchange on which registeredCommon Stock, par value $0.0001 per shareCNXCThe Nasdaq Stock Market LLCIndicate b",
+                "metadata": {
+                  "citation": "SEC 8-K, Concentrix Corp, filed 2026-06-29, accession 0001803599-26-000133",
+                  "cik": "0001803599",
+                  "company_name": "Concentrix Corp",
+                  "form": "8-K",
+                  "filed_on": "2026-06-29",
+                  "accession": "0001803599-26-000133",
+                  "document_type": "8-K",
+                  "filename": "cnxc-20260629.htm"
+                }
+              },
+              {
+                "rank": 8,
+                "score": -5.06640625,
+                "vectorScore": 0.40537792444229126,
+                "sourceId": "sec_filings",
+                "documentId": "edgar:0000807863:0000807863-26-000025:mitk-20260507.htm",
+                "chunkId": "edgar:0000807863:0000807863-26-000025:mitk-20260507.htm:0001",
+                "title": "MITEK SYSTEMS INC 8-K: 8-K",
+                "url": "https://www.sec.gov/Archives/edgar/data/807863/0000807863-26-000025.txt",
+                "publishedAt": "2026-05-07T00:00:00Z",
+                "snippet": "mitk-202605070000807863FALSE00008078632026-05-072026-05-07UNITED STATESSECURITIES AND EXCHANGE COMMISSIONWASHINGTON, D.C. 20549 FORM 8-K CURRENT REPORTPursuant to Section 13 or 15(d) of the Securities Exchange Act of 1934Date of Report (Date of earliest event reported): May 7, 2026 MITEK SYSTEMS, INC. (Exact name of registrant as specified in its charter) Delaware001-3523187-0418827(State or other jurisdictionof incorporation)(Commission File Number)(IRS EmployerIdentification No.) 770 First Avenue, Suite 425San Diego,California 92101(Address of principal executive offices) (Zip Code)Registrant’s telephone number, including area code: (619) 269-6800Not Applicable(Former name or former address, if changed since last report.) Check the appropriate box below if the Form 8-K filing is intended to simultaneously satisfy the filing obligation of the registrant under any of the following provisions (see General Instructions A.2. below):☐Written communications pursuant to Rule 425 under the Securities Act (17 CFR 230.425)☐Soliciting material pursuant to Rule 14a-12 under the Exchange Act (17 CFR 240.14a-12)☐Pre-commencement communications pursuant to Rule 14d-2(b) under the Exchange Act (17 CFR 240.14d-2(b))☐Pre-commencement communications pursuant to Rule 13e-4(c) under the Exchange Act (17 CFR 240.13e-4(c))Securities registered pursuant to Section 12(b) of the Act:Title of each classTrading Symbol(s)Name of each exchange on which registeredCommon Stock, par value $0.001 per shareMI",
+                "metadata": {
+                  "citation": "SEC 8-K, MITEK SYSTEMS INC, filed 2026-05-07, accession 0000807863-26-000025",
+                  "cik": "0000807863",
+                  "company_name": "MITEK SYSTEMS INC",
+                  "form": "8-K",
+                  "filed_on": "2026-05-07",
+                  "accession": "0000807863-26-000025",
+                  "document_type": "8-K",
+                  "filename": "mitk-20260507.htm"
+                }
+              }
+            ],
+            "candidateCounts": {
+              "market_regulations": 32,
+              "sec_filings": 32
+            },
+            "models": {
+              "embed": "nvidia/nemotron-3-embed-1b",
+              "rerank": "nvidia/llama-nemotron-rerank-vl-1b-v2"
+            },
+            "index": {
+              "type": "HNSW",
+              "metric": "COSINE",
+              "params": {
+                "M": 16,
+                "efConstruction": 200
+              },
+              "searchParams": {
+                "ef": 128
+              }
+            },
+            "timings": {
+              "embedMs": 304.3,
+              "searchMs": 16.0,
+              "rerankMs": 962.0,
+              "totalMs": 1282.3
+            }
+          }
+        },
+        {
+          "schemaVersion": "2",
+          "artifactKind": "retrieval_evidence",
+          "receiptId": "hermes-receipt:2ba90c299692de2e82aa5d9f811e3bc1307449380f8c356d942097e4972a18b5",
+          "jobId": "8ca23d60-5726-4245-b751-afc8a31f04ed",
+          "invocationId": "hermes-tool:call-3a358034-f021-4688-9bc2-4d63cb6c5db9",
+          "turnId": "8ca23d60-5726-4245-b751-afc8a31f04ed:8ca23d60-5726-4245-b751-afc8a31f04ed:0e81d19a",
+          "toolName": "mcp__retrieval__retrieve_evidence",
+          "status": "completed",
+          "errorType": null,
+          "errorSummary": null,
+          "durationMs": 1357,
+          "traceId": null,
+          "spanId": null,
+          "occurredAt": "2026-10-02T18:20:20.195602Z",
+          "content": {
+            "query": "Item 1.05 material cybersecurity incident",
+            "sourceIds": [
+              "market_regulations",
+              "sec_filings"
+            ],
+            "collection": "synthetic_market_documents",
+            "collectionVersion": "synthetic_market_documents__0e83262712b7",
+            "hits": [
+              {
+                "rank": 1,
+                "score": 5.11328125,
+                "vectorScore": 0.6083394289016724,
+                "sourceId": "market_regulations",
+                "documentId": "fr-2023-16194:appendix-c-form-8-k",
+                "chunkId": "fr-2023-16194:appendix-c-form-8-k:0004",
+                "title": "Cybersecurity Risk Management, Strategy, Governance, and Incident Disclosure: Appendix C—Form 8-K",
+                "url": "https://www.federalregister.gov/documents/2023/08/04/2023-16194/cybersecurity-risk-management-strategy-governance-and-incident-disclosure",
+                "publishedAt": "2023-08-04T00:00:00Z",
+                "snippet": "Instructions to Item 1.05\n\n1. A registrant's materiality determination regarding a cybersecurity incident must be made without unreasonable delay after discovery of the incident.\n\n2. To the extent that the information called for in Item 1.05(a) is not determined or is unavailable at the time of the required filing, the registrant shall include a statement to this effect in the filing and then must file an amendment to its Form 8-K filing under this Item 1.05 containing such information within four business days after the registrant, without unreasonable delay, determines such information or within four business days after such information becomes available.\n\n3. The definition of the term “cybersecurity incident” in 229.106(a) [Item 106(a) of Regulation S-K] applies to this Item.\n\n4. A registrant need not disclose specific or technical information about its planned response to the incident or its cybersecurity systems, related networks and devices, or potential system vulnerabilities in such detail as would impede the registrant's response or remediation of the incident.\n\n* * *",
+                "metadata": {
+                  "citation": "88 FR 51896 (August 4, 2023), Appendix C—Form 8-K",
+                  "document_number": "2023-16194",
+                  "release": "Release Nos. 33-11216; 34-97989",
+                  "part": "Appendix C—Form 8-K",
+                  "published_on": "2023-08-04",
+                  "snapshot_url": "https://www.federalregister.gov/documents/full_text/xml/2023/08/04/2023-16194.xml"
+                }
+              },
+              {
+                "rank": 2,
+                "score": 0.68603515625,
+                "vectorScore": 0.4904206097126007,
+                "sourceId": "market_regulations",
+                "documentId": "fr-2023-16194:appendix-c-form-8-k",
+                "chunkId": "fr-2023-16194:appendix-c-form-8-k:0001",
+                "title": "Cybersecurity Risk Management, Strategy, Governance, and Incident Disclosure: Appendix C—Form 8-K",
+                "url": "https://www.federalregister.gov/documents/2023/08/04/2023-16194/cybersecurity-risk-management-strategy-governance-and-incident-disclosure",
+                "publishedAt": "2023-08-04T00:00:00Z",
+                "snippet": "Cybersecurity Risk Management, Strategy, Governance, and Incident Disclosure. Final rule, Release Nos. 33-11216; 34-97989, 88 FR 51896 (August 4, 2023). Appendix C—Form 8-K.\n\nFORM 8-K\n\n* * *\n\nGENERAL INSTRUCTIONS\n\n* * *\n\nB. Events To Be Reported and Time for Filing of Reports\n\n1. A report on this form is required to be filed or furnished, as applicable, upon the occurrence of any one or more of the events specified in the items in Sections 1 through 6 and 9 of this form. Unless otherwise specified, a report is to be filed or furnished within four business days after occurrence of the event. If the event occurs on a Saturday, Sunday or holiday on which the Commission is not open for business, then the four business day period shall begin to run on, and include, the first business day thereafter. A registrant either furnishing a report on this form under Item 7.01 (Regulation FD Disclosure) or electing to file a report on this form under Item 8.01 (Other Events) solely to satisfy its obligations under Regulation FD (17 CFR 243.100 and 243.101) must furnish such report or make such filing, as applicable, in accordance with the requirements of Rule 100(a) of Regulation FD (17 CFR 243.100(a)), including the deadline for furnishing or filing such report. A report pursuant to Item 5.08 is to be filed within four business days after the registrant determines the anticipated meeting date. A report pursuant to Item 1.05 is to be filed within four business days after the registrant dete",
+                "metadata": {
+                  "citation": "88 FR 51896 (August 4, 2023), Appendix C—Form 8-K",
+                  "document_number": "2023-16194",
+                  "release": "Release Nos. 33-11216; 34-97989",
+                  "part": "Appendix C—Form 8-K",
+                  "published_on": "2023-08-04",
+                  "snapshot_url": "https://www.federalregister.gov/documents/full_text/xml/2023/08/04/2023-16194.xml"
+                }
+              },
+              {
+                "rank": 3,
+                "score": 0.36083984375,
+                "vectorScore": 0.6518593430519104,
+                "sourceId": "market_regulations",
+                "documentId": "fr-2023-16194:appendix-c-form-8-k",
+                "chunkId": "fr-2023-16194:appendix-c-form-8-k:0002",
+                "title": "Cybersecurity Risk Management, Strategy, Governance, and Incident Disclosure: Appendix C—Form 8-K",
+                "url": "https://www.federalregister.gov/documents/2023/08/04/2023-16194/cybersecurity-risk-management-strategy-governance-and-incident-disclosure",
+                "publishedAt": "2023-08-04T00:00:00Z",
+                "snippet": "(g) Item 3.01, Notice of Delisting or Failure to Satisfy a Continued Listing Rule or Standard; Transfer of Listing;\n\n(h) Item 3.02, Unregistered Sales of Equity Securities;\n\n(i) Item 4.01, Changes in Registrant's Certifying Accountant;\n\n(j) Item 4.02, Non-Reliance on Previously Issued Financial Statements or a Related Audit Report or Completed Interim Review;\n\n(k) Item 5.01, Changes in Control of Registrant;\n\n( l ) Item 5.02, Departure of Directors or Principal Officers; Election of Directors; Appointment of Principal Officers;\n\n(m) Item 5.04, Temporary Suspension of Trading Under Registrant's Employee Benefit Plans; and\n\n(n) Item 5.05, Amendments to the Registrant's Code of Ethics, or Waiver of a Provision of the Code of Ethics.\n\n* * *\n\nINFORMATION TO BE INCLUDED IN THE REPORT\n\nSection 1—Registrant's Business and Operations\n\n* * *\n\nItem 1.05 Material Cybersecurity Incidents\n\n(a) If the registrant experiences a cybersecurity incident that is determined by the registrant to be material, describe the material aspects of the nature, scope, and timing of the incident, and the material impact or reasonably likely material impact on the registrant, including its financial condition and results of operations.\n\n(b) A registrant shall provide the information required by this Item in an Interactive Data File in accordance with Rule 405 of Regulation S-T and the EDGAR Filer Manual.",
+                "metadata": {
+                  "citation": "88 FR 51896 (August 4, 2023), Appendix C—Form 8-K",
+                  "document_number": "2023-16194",
+                  "release": "Release Nos. 33-11216; 34-97989",
+                  "part": "Appendix C—Form 8-K",
+                  "published_on": "2023-08-04",
+                  "snapshot_url": "https://www.federalregister.gov/documents/full_text/xml/2023/08/04/2023-16194.xml"
+                }
+              },
+              {
+                "rank": 4,
+                "score": -0.58935546875,
+                "vectorScore": 0.43286022543907166,
+                "sourceId": "market_regulations",
+                "documentId": "fr-2023-16194:appendix-c-form-8-k",
+                "chunkId": "fr-2023-16194:appendix-c-form-8-k:0003",
+                "title": "Cybersecurity Risk Management, Strategy, Governance, and Incident Disclosure: Appendix C—Form 8-K",
+                "url": "https://www.federalregister.gov/documents/2023/08/04/2023-16194/cybersecurity-risk-management-strategy-governance-and-incident-disclosure",
+                "publishedAt": "2023-08-04T00:00:00Z",
+                "snippet": "(b) A registrant shall provide the information required by this Item in an Interactive Data File in accordance with Rule 405 of Regulation S-T and the EDGAR Filer Manual.\n\n(c) Notwithstanding General Instruction B.1. to Form 8-K, if the United States Attorney General determines that disclosure required by paragraph (a) of this Item 1.05 poses a substantial risk to national security or public safety, and notifies the Commission of such determination in writing, the registrant may delay providing the disclosure required by this Item 1.05 for a time period specified by the Attorney General, up to 30 days following the date when the disclosure required by this Item 1.05 was otherwise required to be provided. Disclosure may be delayed for an additional period of up to 30 days if the Attorney General determines that disclosure continues to pose a substantial risk to national security or public safety and notifies the Commission of such determination in writing. In extraordinary circumstances, disclosure may be delayed for a final additional period of up to 60 days if the Attorney General determines that disclosure continues to pose a substantial risk to national security and notifies the Commission of such determination in writing. Beyond the final 60-day delay under this paragraph, if the Attorney General indicates that further delay is necessary, the Commission will consider additional requests for delay and may grant such relief through Commission exemptive order.\n\n(d) Notwithst",
+                "metadata": {
+                  "citation": "88 FR 51896 (August 4, 2023), Appendix C—Form 8-K",
+                  "document_number": "2023-16194",
+                  "release": "Release Nos. 33-11216; 34-97989",
+                  "part": "Appendix C—Form 8-K",
+                  "published_on": "2023-08-04",
+                  "snapshot_url": "https://www.federalregister.gov/documents/full_text/xml/2023/08/04/2023-16194.xml"
+                }
+              },
+              {
+                "rank": 5,
+                "score": -1.51171875,
+                "vectorScore": 0.39784982800483704,
+                "sourceId": "sec_filings",
+                "documentId": "edgar:0001605301:0001605301-26-000021:cbfv-20260507.htm",
+                "chunkId": "edgar:0001605301:0001605301-26-000021:cbfv-20260507.htm:0001",
+                "title": "CB Financial Services, Inc. 8-K: 8-K",
+                "url": "https://www.sec.gov/Archives/edgar/data/1605301/0001605301-26-000021.txt",
+                "publishedAt": "2026-05-11T00:00:00Z",
+                "snippet": "cbfv-202605070001605301FALSEMay 7, 2026May 7, 2026May 7, 2026May 7, 2026May 7, 2026May 7, 202600016053012026-05-072026-05-07UNITED STATESSECURITIES AND EXCHANGE COMMISSIONWashington, D.C. 20549FORM 8-KCURRENT REPORTPursuant to Section 13 or 15(d) of the Securities Exchange Act of 1934Date of Report (Date of earliest event reported): May 7, 2026CB FINANCIAL SERVICES, INC.(Exact name of registrant as specified in its charter)Commission file number: 001-36706Pennsylvania51-0534721(State or other jurisdiction of incorporation or organization)(I.R.S. Employer Identification No.)100 N. Market Street,Carmichaels,PA15320(Address of principal executive offices)(Zip code)(724)966-5041(Registrant’s telephone number, including area code)Not Applicable(Former name or former address, if changed since last report)Check the appropriate box below if the Form 8-K filing is intended to simultaneously satisfy the filing obligation of the registrant under any of the following provisions:☐ Written communications pursuant to Rule 425 under the Securities Act (17 CFR 230.425)☐ Soliciting material pursuant to Rule 14a-12 under the Exchange Act (17 CFR 240.14a-12)☐ Pre-commencement communications pursuant to Rule 14d-2(b) under the Exchange Act (17 CFR 240.14d-2(b))☐ Pre-commencement communications pursuant to Rule 13e-4(c) under the Exchange Act (17 CFR 240.13e-4(c))Securities registered pursuant to Section 12(b) of the Act:Common stock, par value $0.4167 per shareCBFVThe Nasdaq Stock Market, LLC(Tit",
+                "metadata": {
+                  "citation": "SEC 8-K, CB Financial Services, Inc., filed 2026-05-11, accession 0001605301-26-000021",
+                  "cik": "0001605301",
+                  "company_name": "CB Financial Services, Inc.",
+                  "form": "8-K",
+                  "filed_on": "2026-05-11",
+                  "accession": "0001605301-26-000021",
+                  "document_type": "8-K",
+                  "filename": "cbfv-20260507.htm"
+                }
+              },
+              {
+                "rank": 6,
+                "score": -2.611328125,
+                "vectorScore": 0.34700191020965576,
+                "sourceId": "market_regulations",
+                "documentId": "fr-2023-16194:summary",
+                "chunkId": "fr-2023-16194:summary:0001",
+                "title": "Cybersecurity Risk Management, Strategy, Governance, and Incident Disclosure: Summary and dates",
+                "url": "https://www.federalregister.gov/documents/2023/08/04/2023-16194/cybersecurity-risk-management-strategy-governance-and-incident-disclosure",
+                "publishedAt": "2023-08-04T00:00:00Z",
+                "snippet": "Cybersecurity Risk Management, Strategy, Governance, and Incident Disclosure. Final rule, Release Nos. 33-11216; 34-97989, 88 FR 51896 (August 4, 2023). Summary and dates.\n\nSUMMARY:\n\nThe Securities and Exchange Commission (“Commission”) is adopting new rules to enhance and standardize disclosures regarding cybersecurity risk management, strategy, governance, and incidents by public companies that are subject to the reporting requirements of the Securities Exchange Act of 1934. Specifically, we are adopting amendments to require current disclosure about material cybersecurity incidents. We are also adopting rules requiring periodic disclosures about a registrant's processes to assess, identify, and manage material cybersecurity risks, management's role in assessing and managing material cybersecurity risks, and the board of directors' oversight of cybersecurity risks. Lastly, the final rules require the cybersecurity disclosures to be presented in Inline eXtensible Business Reporting Language (“Inline XBRL”).\n\nDATES:\n\nEffective date: The amendments are effective September 5, 2023.\n\nCompliance dates: See Section II.I (Compliance Dates).",
+                "metadata": {
+                  "citation": "88 FR 51896 (August 4, 2023), Summary and dates",
+                  "document_number": "2023-16194",
+                  "release": "Release Nos. 33-11216; 34-97989",
+                  "part": "Summary and dates",
+                  "published_on": "2023-08-04",
+                  "snapshot_url": "https://www.federalregister.gov/documents/full_text/xml/2023/08/04/2023-16194.xml"
+                }
+              },
+              {
+                "rank": 7,
+                "score": -3.390625,
+                "vectorScore": 0.4711274802684784,
+                "sourceId": "market_regulations",
+                "documentId": "ecfr-title17:229.106:24c220ed7a14",
+                "chunkId": "ecfr-title17:229.106:24c220ed7a14:0002",
+                "title": "§ 229.106 (Item 106) Cybersecurity.",
+                "url": "https://www.ecfr.gov/on/2026-08-17/title-17/section-229.106",
+                "publishedAt": null,
+                "snippet": "§ 229.106 (Item 106) Cybersecurity. (a) Definitions. For purposes of this section: Cybersecurity incident means an unauthorized occurrence, or a series of related unauthorized occurrences, on or conducted through a registrant's information systems that jeopardizes the confidentiality, integrity, or availability of a registrant's information systems or any information residing therein. Cybersecurity threat means any potential unauthorized occurrence on or conducted through a registrant's information systems that may result in adverse effects on the confidentiality, integrity, or availability of a registrant's information systems or any information residing therein. Information systems means electronic information resources, owned or used by the registrant, including physical or virtual infrastructure controlled by such information resources, or components thereof, organized for the collection, processing, maintenance, use, sharing, dissemination, or disposition of the registrant's information to maintain or support the registrant's operations. (b) Risk management and strategy. (1) Describe the registrant's processes, if any, for assessing, identifying, and managing material risks from cybersecurity threats in sufficient detail for a reasonable investor to understand those processes. In providing such disclosure, a registrant should address, as applicable, the following non-exclusive list of disclosure items: (i) Whether and how any such processes have been integrated into the ",
+                "metadata": {
+                  "citation": "17 CFR § 229.106",
+                  "title_number": "17",
+                  "chapter": "II",
+                  "chapter_heading": "CHAPTER II—SECURITIES AND EXCHANGE COMMISSION",
+                  "part": "229",
+                  "part_heading": "PART 229—STANDARD INSTRUCTIONS FOR FILING FORMS UNDER SECURITIES ACT OF 1933, SECURITIES EXCHANGE ACT OF 1934 AND ENERGY POLICY AND CONSERVATION ACT OF 1975—REGULATION S-K",
+                  "subpart_heading": "Subpart 229.100—Business",
+                  "section": "229.106",
+                  "as_of": "2026-08-17",
+                  "snapshot_url": "https://www.ecfr.gov/api/versioner/v1/full/2026-08-17/title-17.xml"
+                }
+              },
+              {
+                "rank": 8,
+                "score": -3.66015625,
+                "vectorScore": 0.45053544640541077,
+                "sourceId": "market_regulations",
+                "documentId": "fr-2023-16194:appendix-b-form-20-f",
+                "chunkId": "fr-2023-16194:appendix-b-form-20-f:0001",
+                "title": "Cybersecurity Risk Management, Strategy, Governance, and Incident Disclosure: Appendix B—Form 20-F",
+                "url": "https://www.federalregister.gov/documents/2023/08/04/2023-16194/cybersecurity-risk-management-strategy-governance-and-incident-disclosure",
+                "publishedAt": "2023-08-04T00:00:00Z",
+                "snippet": "Cybersecurity Risk Management, Strategy, Governance, and Incident Disclosure. Final rule, Release Nos. 33-11216; 34-97989, 88 FR 51896 (August 4, 2023). Appendix B—Form 20-F.\n\nFORM 20-F\n\n* * *\n\nPART II\n\n* * *\n\nItem 16K. Cybersecurity\n\n(a) Definitions. For purposes of this section:\n\n(1) Cybersecurity incident means an unauthorized occurrence, or a series of related unauthorized occurrences, on or conducted through a registrant's information systems that jeopardizes the confidentiality, integrity, or availability of a registrant's information systems or any information residing therein.\n\n(2) Cybersecurity threat means any potential unauthorized occurrence on or conducted through a registrant's information systems that may result in adverse effects on the confidentiality, integrity, or availability of a registrant's information systems or any information residing therein.\n\n(3) Information systems means electronic information resources, owned or used by the registrant, including physical or virtual infrastructure controlled by such information resources, or components thereof, organized for the collection, processing, maintenance, use, sharing, dissemination, or disposition of the registrant's information to maintain or support the registrant's operations.\n\n(b) Risk management and strategy. (1) Describe the registrant's processes, if any, for assessing, identifying, and managing material risks from cybersecurity threats in sufficient detail for a reasonable investor to understand",
+                "metadata": {
+                  "citation": "88 FR 51896 (August 4, 2023), Appendix B—Form 20-F",
+                  "document_number": "2023-16194",
+                  "release": "Release Nos. 33-11216; 34-97989",
+                  "part": "Appendix B—Form 20-F",
+                  "published_on": "2023-08-04",
+                  "snapshot_url": "https://www.federalregister.gov/documents/full_text/xml/2023/08/04/2023-16194.xml"
+                }
+              }
+            ],
+            "candidateCounts": {
+              "market_regulations": 32,
+              "sec_filings": 32
+            },
+            "models": {
+              "embed": "nvidia/nemotron-3-embed-1b",
+              "rerank": "nvidia/llama-nemotron-rerank-vl-1b-v2"
+            },
+            "index": {
+              "type": "HNSW",
+              "metric": "COSINE",
+              "params": {
+                "M": 16,
+                "efConstruction": 200
+              },
+              "searchParams": {
+                "ef": 128
+              }
+            },
+            "timings": {
+              "embedMs": 280.9,
+              "searchMs": 14.8,
+              "rerankMs": 1042.9,
+              "totalMs": 1338.5
+            }
+          }
+        }
+      ],
+      "sourceIds": [
+        "sec_filings",
+        "market_regulations"
+      ],
+      "benchmark": null,
+      "retrievalBenchmark": {
+        "schemaVersion": "1",
+        "collection": "synthetic_market_documents",
+        "collectionVersion": "synthetic_market_documents__0e83262712b7",
+        "embedModel": "nvidia/nemotron-3-embed-1b",
+        "sourceIds": [
+          "market_regulations",
+          "sec_filings"
+        ],
+        "queryCount": 15,
+        "measuredAt": "2026-10-02T18:10:52.347207Z",
+        "profiles": [
+          {
+            "profileId": "vector-single",
+            "executionMode": "single",
+            "batchSize": 1,
+            "concurrency": 1,
+            "repetitions": 3,
+            "topK": 10,
+            "cpu": {
+              "role": "cpu",
+              "indexType": "HNSW",
+              "status": "completed",
+              "requestCount": 45,
+              "vectorCount": 45,
+              "p50Ms": 5.049,
+              "p95Ms": 6.937,
+              "vectorSearchMs": 234.29,
+              "vectorQps": 192.07
+            },
+            "gpu": {
+              "role": "gpu",
+              "indexType": "GPU_IVF_FLAT",
+              "status": "completed",
+              "requestCount": 45,
+              "vectorCount": 45,
+              "p50Ms": 4.446,
+              "p95Ms": 5.631,
+              "vectorSearchMs": 202.009,
+              "vectorQps": 222.76
+            },
+            "quality": {
+              "passed": true,
+              "cpuRecallAtK": 0.96,
+              "gpuRecallAtK": 0.96,
+              "cpuGpuOverlapAtK": 1.0,
+              "failureReasons": []
+            },
+            "claim": {
+              "decision": "gpu_speedup",
+              "observedCpuOverGpuRatio": 1.1598,
+              "gpuSpeedupFactor": 1.1598
+            }
+          },
+          {
+            "profileId": "vector-batch",
+            "executionMode": "batch",
+            "batchSize": 5,
+            "concurrency": 1,
+            "repetitions": 3,
+            "topK": 10,
+            "cpu": {
+              "role": "cpu",
+              "indexType": "HNSW",
+              "status": "completed",
+              "requestCount": 15,
+              "vectorCount": 45,
+              "p50Ms": 6.835,
+              "p95Ms": 8.52,
+              "vectorSearchMs": 101.259,
+              "vectorQps": 444.41
+            },
+            "gpu": {
+              "role": "gpu",
+              "indexType": "GPU_IVF_FLAT",
+              "status": "completed",
+              "requestCount": 15,
+              "vectorCount": 45,
+              "p50Ms": 5.453,
+              "p95Ms": 6.742,
+              "vectorSearchMs": 80.178,
+              "vectorQps": 561.25
+            },
+            "quality": {
+              "passed": true,
+              "cpuRecallAtK": 0.96,
+              "gpuRecallAtK": 0.96,
+              "cpuGpuOverlapAtK": 1.0,
+              "failureReasons": []
+            },
+            "claim": {
+              "decision": "gpu_speedup",
+              "observedCpuOverGpuRatio": 1.2629,
+              "gpuSpeedupFactor": 1.2629
+            }
+          },
+          {
+            "profileId": "vector-concurrency",
+            "executionMode": "concurrency",
+            "batchSize": 1,
+            "concurrency": 5,
+            "repetitions": 3,
+            "topK": 10,
+            "cpu": {
+              "role": "cpu",
+              "indexType": "HNSW",
+              "status": "completed",
+              "requestCount": 45,
+              "vectorCount": 45,
+              "p50Ms": 6.969,
+              "p95Ms": 9.334,
+              "vectorSearchMs": 87.514,
+              "vectorQps": 514.2
+            },
+            "gpu": {
+              "role": "gpu",
+              "indexType": "GPU_IVF_FLAT",
+              "status": "completed",
+              "requestCount": 45,
+              "vectorCount": 45,
+              "p50Ms": 6.218,
+              "p95Ms": 7.841,
+              "vectorSearchMs": 79.595,
+              "vectorQps": 565.36
+            },
+            "quality": {
+              "passed": true,
+              "cpuRecallAtK": 0.96,
+              "gpuRecallAtK": 0.96,
+              "cpuGpuOverlapAtK": 1.0,
+              "failureReasons": []
+            },
+            "claim": {
+              "decision": "cpu_faster_or_equal",
+              "observedCpuOverGpuRatio": 1.0995,
+              "gpuSpeedupFactor": null
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "profile": "standard",
+  "issuers": 2000,
+  "seed": 20260929,
+  "model": "nvidia/nemotron-3-super-120b-a12b",
+  "data_designer": "0.9.3",
+  "generated_at": "2026-09-30T03:21:40+00:00",
+  "seconds": 49.8,
+  "sec": {
+    "fetched_at": "2026-09-30T03:20:48+00:00",
+    "files": [
+      {
+        "url": "https://www.sec.gov/files/company_tickers.json",
+        "sha256": "a1d4b030a746f83f68852c2d081aad7e9468529d9e5b1eda9c93489e967ed405",
+        "bytes": 798399
+      },
+      {
+        "url": "https://www.sec.gov/files/company_tickers_exchange.json",
+        "sha256": "ec78fbd272ecb158e65b60d774e2ee5715b454eaadc3c9a670214fa0c2bcce13",
+        "bytes": 523357
+      },
+      {
+        "url": "https://www.sec.gov/files/company_tickers_mf.json",
+        "sha256": "770be34a453d16fb2996fc9c915f3a10fcb03a92ccec56c77b1795f0d458113f",
+        "bytes": 1234428
+      }
+    ],
+    "tickers": 39024,
+    "titles": 7995
+  },
+  "counts": {
+    "companies": 2000,
+    "headline_templates": 360,
+    "stories": 12
+  },
+  "rounds": {
+    "companies": [
+      {
+        "requested": 39,
+        "unanswered": 0,
+        "refused": {},
+        "seconds": 49.6
+      }
+    ],
+    "headlines": [],
+    "stories": []
+  },
+  "usage": {
+    "calls": 39,
+    "input_tokens": 10688,
+    "output_tokens": 1832,
+    "by_job": {
+      "companies": 39
+    }
+  },
+  "files": {
+    "companies.jsonl": "4445681d5302aad1c367faa0bd0e13fa7159c304f70e34b218b523ed288690b8",
+    "headlines.jsonl": "0a9f4870987cffef53aa32eec561cb79bcc10ae1b5dfd116766a64336ae8314e",
+    "stories.jsonl": "72a53bb8dc7abcb86eb1d32ac34cd4854a5c664d021077f31625578b16184d3d"
+  }
+}

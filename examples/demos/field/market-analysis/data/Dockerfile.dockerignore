@@ -1,0 +1,16 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# The build context is the repository root; send only what the image needs.
+*
+!data/pyproject.toml
+!data/uv.lock
+!data/README.md
+!data/schemas
+!data/src
+!data/packs
+!tools/*/contract/*.json
+**/__pycache__
+data/packs/*/eval
+data/packs/*/recordings
+data/packs/**/.work

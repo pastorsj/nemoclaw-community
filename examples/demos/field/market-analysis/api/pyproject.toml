@@ -1,0 +1,32 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+[project]
+name = "demo-api"
+version = "0.1.0"
+description = "Job API: submits questions to Hermes and serves execution.v2 events, receipts and reports."
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    # Read-only data viewer. Bump together with data/, the DuckDB that writes the pack.
+    "duckdb==1.5.5",
+    "fastapi>=0.141,<1",
+    "httpx>=0.28.1,<0.29",
+    # Voice input: NVIDIA Nemotron ASR on build.nvidia.com, over gRPC (demo_api/speech)
+    "nvidia-riva-client>=2.27.0,<3",
+    "pydantic>=2.13,<3",
+    "pydantic-settings>=2.15,<3",
+    "pytz==2026.4", # DuckDB needs it to return TIMESTAMP WITH TIME ZONE values to Python
+    "pyyaml>=6.0.3,<7",
+    "sqlglot>=30.20,<31",
+    "typing-extensions>=4.14.1",
+    "uvicorn>=0.54,<1",
+]
+
+[project.scripts]
+demo-api = "demo_api.cli:main"
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"

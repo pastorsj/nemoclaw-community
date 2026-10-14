@@ -1,0 +1,8 @@
+# Normalize text to LF everywhere; Git detects binary files itself. No Git LFS.
+* text=auto eol=lf
+# Patches must apply byte for byte to upstream sources, blank context lines included.
+*.patch -text whitespace=-trailing-space
+
+# Generated from the Pydantic models by scripts/gen-contracts.sh; collapsed in GitHub diffs.
+contracts/schemas/** linguist-generated=true
+ui/src/generated/** linguist-generated=true

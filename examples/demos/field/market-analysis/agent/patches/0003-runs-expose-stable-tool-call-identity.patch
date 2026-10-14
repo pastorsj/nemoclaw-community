@@ -1,0 +1,147 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Sam Pastoriza <pastorsj@users.noreply.github.com>
+Date: Fri, 18 Sep 2026 10:04:24 -0400
+Subject: [PATCH 3/5] feat(runs): expose stable tool-call identity
+
+Signed-off-by: Sam Pastoriza <pastorsj@users.noreply.github.com>
+---
+ agent/tool_executor.py                        | 13 ++++-
+ gateway/platforms/api_server_runs.py          |  7 +++
+ .../agent/test_tool_call_guardrail_runtime.py |  3 +-
+ tests/gateway/test_api_server.py              | 49 +++++++++++++++++++
+ 4 files changed, 69 insertions(+), 3 deletions(-)
+
+diff --git a/agent/tool_executor.py b/agent/tool_executor.py
+index 7265d18a24..b11f4d0783 100644
+--- a/agent/tool_executor.py
++++ b/agent/tool_executor.py
+@@ -987,7 +987,15 @@ def _begin_tool_execution(agent, ref: _ToolCallRef, display_index: int | None) -
+         except Exception as callback_error:
+             logging.debug("Tool progress callback error: %s", callback_error)
+         else:
+-            _safe_callback(agent.tool_progress_callback, "Tool progress", "tool.started", function_name, preview, display_args)
++            _safe_callback(
++                agent.tool_progress_callback,
++                "Tool progress",
++                "tool.started",
++                function_name,
++                preview,
++                display_args,
++                tool_call_id=tool_call_id,
++            )
+     _safe_callback(agent.tool_start_callback, "Tool start", tool_call_id, function_name, display_args)
+ 
+     if not agent._checkpoint_mgr.enabled:
+@@ -1118,7 +1126,8 @@ def _commit_tool_result(
+         # reconstruct the result even if the UI bridge dies mid-projection.
+         _safe_callback(
+             agent.tool_progress_callback, "Tool progress",
+-            "tool.completed", function_name, None, None, duration=tool_duration, is_error=is_error, result=function_result,
++            "tool.completed", function_name, None, None, duration=tool_duration, is_error=is_error,
++            result=function_result, tool_call_id=tool_call_id,
+         )
+     if isinstance(function_result, str) and len(function_result) >= _LARGE_TOOL_RESULT_TRIM_CHARS:
+         agent._trim_after_tool_batch = True
+diff --git a/gateway/platforms/api_server_runs.py b/gateway/platforms/api_server_runs.py
+index 5c3892e971..6971b5b9dc 100644
+--- a/gateway/platforms/api_server_runs.py
++++ b/gateway/platforms/api_server_runs.py
+@@ -106,8 +106,11 @@ def _tool_completed_preview(result: Any, redact_sensitive_text: Callable[..., st
+     preview = redact_sensitive_text(text, force=True)
+     limit = _TOOL_COMPLETED_PREVIEW_MAX_CHARS
+     return preview if len(preview) <= limit else preview[: limit - 3] + "..."
++
++
+ _MAX_REQUEST_TOOLSETS = 32
+ _MAX_TOOLSET_NAME_LENGTH = 128
++_MAX_TOOL_CALL_ID_LENGTH = 256
+ 
+ 
+ def _bounded_control_free_string(value: Any, *, max_length: int) -> str | None:
+@@ -340,6 +343,10 @@ def _make_run_event_callback(self, run_id: str, loop: "asyncio.AbstractEventLoop
+             if event_type == "tool.completed":
+                 event_fields["preview"] = _tool_completed_preview(
+                     kwargs.get("result"), redact_sensitive_text)
++            tool_call_id = _bounded_control_free_string(
++                kwargs.get("tool_call_id"), max_length=_MAX_TOOL_CALL_ID_LENGTH)
++            if tool_call_id is not None and event_type in {"tool.started", "tool.completed"}:
++                event_fields["tool_call_id"] = tool_call_id
+             _push(_run_event(run_id, event_type, **event_fields))
+         elif event_type in {"subagent.start", "subagent.complete"}:
+             event = _run_event(run_id, event_type)
+diff --git a/tests/agent/test_tool_call_guardrail_runtime.py b/tests/agent/test_tool_call_guardrail_runtime.py
+index 52a67f7403..db406cb59e 100644
+--- a/tests/agent/test_tool_call_guardrail_runtime.py
++++ b/tests/agent/test_tool_call_guardrail_runtime.py
+@@ -240,9 +240,10 @@ def test_config_enabled_hard_stop_concurrent_path_does_not_submit_blocked_calls_
+     assert starts == [("c-allow", "web_search", allowed_args)]
+     started_events = [event for event in progress_events if event[0] == "tool.started"]
+     completed_events = [event for event in progress_events if event[0] == "tool.completed"]
+-    assert started_events == [("tool.started", "web_search", allowed_args, {})]
++    assert started_events == [("tool.started", "web_search", allowed_args, {"tool_call_id": "c-allow"})]
+     assert len(completed_events) == 1
+     assert completed_events[0][1] == "web_search"
++    assert completed_events[0][3]["tool_call_id"] == "c-allow"
+ 
+ 
+ def test_relay_rewrite_precedes_sequential_policy_approval_checkpoint_and_dispatch():
+diff --git a/tests/gateway/test_api_server.py b/tests/gateway/test_api_server.py
+index 7064fd17d4..99df889c87 100644
+--- a/tests/gateway/test_api_server.py
++++ b/tests/gateway/test_api_server.py
+@@ -701,6 +701,55 @@ class TestDisconnectedAgentReap:
+ 
+ class TestRunEventCallback:
+ 
++    @pytest.mark.asyncio
++    async def test_tool_events_forward_only_safe_identity_and_summary_fields(self, adapter):
++        """Runs SSE correlates tool lifecycles without leaking arguments."""
++        run_id = "run_tool_identity"
++        loop = asyncio.get_running_loop()
++        queue = asyncio.Queue()
++        adapter._run_streams[run_id] = queue
++        adapter._run_statuses.pop(run_id, None)
++
++        callback = adapter._make_run_event_callback(run_id, loop)
++        callback(
++            "tool.started",
++            "mcp__auto_ontology__ask_question",
++            "Ontology query",
++            {"secret": "must-not-leak"},
++            tool_call_id="call-42",
++            result="must-not-leak",
++        )
++        started = await asyncio.wait_for(queue.get(), timeout=1.0)
++        assert started == {
++            "event": "tool.started",
++            "run_id": run_id,
++            "timestamp": started["timestamp"],
++            "tool": "mcp__auto_ontology__ask_question",
++            "preview": "Ontology query",
++            "tool_call_id": "call-42",
++        }
++
++        callback(
++            "tool.completed",
++            "mcp__auto_ontology__ask_question",
++            None,
++            {"secret": "must-not-leak"},
++            tool_call_id="bad\nidentity",
++            duration=1.23456,
++            is_error=False,
++            result="display-safe result",
++        )
++        completed = await asyncio.wait_for(queue.get(), timeout=1.0)
++        assert completed == {
++            "event": "tool.completed",
++            "run_id": run_id,
++            "timestamp": completed["timestamp"],
++            "tool": "mcp__auto_ontology__ask_question",
++            "duration": 1.235,
++            "error": False,
++            "preview": "display-safe result",
++        }
++
+     @pytest.mark.asyncio
+     async def test_subagent_events_redact_secrets_and_carry_child_session(self, adapter):
+         """Free-text fields (goal/summary/output_tail/preview) must pass the

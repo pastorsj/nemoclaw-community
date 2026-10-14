@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Overrides for milvus-gpu (analytics-gpu profile), mounted there at /milvus/configs/user.yaml. It holds only the
+# GPU_IVF_FLAT copy of one build for retrieval-benchmark (about 0.2 GB of vectors per 24,000 chunks of 2048 dimensions).
+# Milvus allocates a GPU memory pool of initMemSize MiB at start and grows it up to maxMemSize (its defaults are
+# 2048 and 4096). It shares the GPU with the RAPIDS market tools: lower both if memory is tight
+# (docs/operations.md, Brev VM mode).
+gpu:
+  initMemSize: 1024
+  maxMemSize: 4096

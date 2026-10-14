@@ -1,0 +1,34 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# NeMo Relay (bundled with Hermes) exports OpenInference traces straight to the
+# loopback-only Phoenix. HERMES_NEMO_RELAY_PLUGINS_TOML selects this file, and
+# the sandbox policy allows only POST /v1/traces on host.openshell.internal:6006.
+version = 1
+
+[[components]]
+kind = "observability"
+enabled = true
+
+[components.config]
+version = 4
+# true also sends full LLM request payloads (prompts and tool results) to Phoenix.
+enable_full_payloads = false
+
+[components.config.opentelemetry]
+enabled = true
+
+[[components.config.opentelemetry.endpoints]]
+type = "openinference"
+endpoint = "http://host.openshell.internal:6006/v1/traces"
+transport = "http_binary"
+service_name = "market-analysis-agent"
+instrumentation_scope = "nemo-relay"
+timeout_millis = 10000
+# Bounded export: a full queue drops new spans rather than growing (about 150 MB worst case).
+max_queue_size = 512
+max_export_batch_size = 32
+scheduled_delay_millis = 1000
+resource_attributes = { "openinference.project.name" = "market-analysis-agent" }
+# Job correlation metadata sent on each run (patch 0001) becomes span attributes.
+promote_metadata_prefixes = ["aiq.", "hermes."]

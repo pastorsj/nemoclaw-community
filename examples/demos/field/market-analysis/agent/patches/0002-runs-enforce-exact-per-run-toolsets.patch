@@ -1,0 +1,231 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Sam Pastoriza <pastorsj@users.noreply.github.com>
+Date: Fri, 18 Sep 2026 10:04:24 -0400
+Subject: [PATCH 2/5] feat(runs): enforce exact per-run toolsets
+
+Signed-off-by: Sam Pastoriza <pastorsj@users.noreply.github.com>
+---
+ gateway/platforms/api_server.py          | 10 +++-
+ gateway/platforms/api_server_runs.py     | 67 ++++++++++++++++++++++++
+ tests/gateway/test_api_server_runs.py    | 40 ++++++++++++++
+ tests/gateway/test_api_server_toolset.py | 33 ++++++++++++
+ 4 files changed, 149 insertions(+), 1 deletion(-)
+
+diff --git a/gateway/platforms/api_server.py b/gateway/platforms/api_server.py
+index a418ee5625..3db7e3a53f 100644
+--- a/gateway/platforms/api_server.py
++++ b/gateway/platforms/api_server.py
+@@ -2201,7 +2201,8 @@ class APIServerAdapter(OpenAICompatRoutesMixin, BasePlatformAdapter):
+         model_options: Optional[Dict[str, Any]] = None, route: Optional[Dict[str, Any]] = None,
+         session_model: Optional[str] = None, confirmed_runtime_lock: bool = False,
+         room_dispatch: Optional[Dict[str, Any]] = None,
+-        room_execution_policy: Optional[Dict[str, Any]] = None) -> Any:
++        room_execution_policy: Optional[Dict[str, Any]] = None,
++        enabled_toolsets_override: Optional[List[str]] = None) -> Any:
+         """Create an AIAgent from the gateway runtime config + platform toolsets.
+         ``gateway_session_key`` persists across transcripts (memory scope), unlike ``session_id``;
+         ``route`` / ``session_model`` are mutually exclusive; ``confirmed_runtime_lock`` beats the
+@@ -2240,6 +2241,13 @@ class APIServerAdapter(OpenAICompatRoutesMixin, BasePlatformAdapter):
+             policy = RoomExecutionPolicy.from_mapping(room_execution_policy or {})
+             enabled_toolsets = list(policy.enabled_toolsets)
+             max_iterations = policy.max_iterations
++        if enabled_toolsets_override is not None:
++            unavailable = sorted(set(enabled_toolsets_override) - set(enabled_toolsets))
++            if unavailable:
++                raise ValueError(
++                    "Per-run toolsets cannot widen the active profile: " + ", ".join(unavailable))
++            # Preserve an explicit empty allowlist: it means this run receives zero tools.
++            enabled_toolsets = list(enabled_toolsets_override)
+         # Reasoning resolves against the model that actually runs (per-model overrides), so only
+         # after the precedence chain settles; an explicit request wins.
+         if request_reasoning_config is None:
+diff --git a/gateway/platforms/api_server_runs.py b/gateway/platforms/api_server_runs.py
+index 9a2092bb69..5c3892e971 100644
+--- a/gateway/platforms/api_server_runs.py
++++ b/gateway/platforms/api_server_runs.py
+@@ -106,6 +106,61 @@ def _tool_completed_preview(result: Any, redact_sensitive_text: Callable[..., st
+     preview = redact_sensitive_text(text, force=True)
+     limit = _TOOL_COMPLETED_PREVIEW_MAX_CHARS
+     return preview if len(preview) <= limit else preview[: limit - 3] + "..."
++_MAX_REQUEST_TOOLSETS = 32
++_MAX_TOOLSET_NAME_LENGTH = 128
++
++
++def _bounded_control_free_string(value: Any, *, max_length: int) -> str | None:
++    """Return a stripped bounded string without control characters, else ``None``."""
++    if not isinstance(value, str):
++        return None
++    value = value.strip()
++    if not value or len(value) > max_length:
++        return None
++    if any(ord(character) < 32 or ord(character) == 127 for character in value):
++        return None
++    return value
++
++
++def _parse_enabled_toolsets(body: dict[str, Any], *, allowed: set[str], _openai_error):
++    """Validate an optional exact, non-widening per-run toolset allowlist."""
++    if "enabled_toolsets" not in body:
++        return None, None
++    raw = body["enabled_toolsets"]
++    if not isinstance(raw, list) or len(raw) > _MAX_REQUEST_TOOLSETS:
++        return None, _json_error(
++            _openai_error,
++            f"'enabled_toolsets' must be an array of at most {_MAX_REQUEST_TOOLSETS} names",
++            code="invalid_toolsets",
++            status=400,
++        )
++    requested: list[str] = []
++    for item in raw:
++        name = _bounded_control_free_string(item, max_length=_MAX_TOOLSET_NAME_LENGTH)
++        if name is None:
++            return None, _json_error(
++                _openai_error,
++                "Each enabled toolset must be a non-empty bounded string without control characters",
++                code="invalid_toolsets",
++                status=400,
++            )
++        if name in requested:
++            return None, _json_error(
++                _openai_error,
++                f"Duplicate enabled toolset: {name}",
++                code="invalid_toolsets",
++                status=400,
++            )
++        requested.append(name)
++    unavailable = sorted(set(requested) - allowed)
++    if unavailable:
++        return None, _json_error(
++            _openai_error,
++            f"Requested toolsets are not enabled by this profile: {', '.join(unavailable)}",
++            code="invalid_toolsets",
++            status=400,
++        )
++    return requested, None
+ 
+ 
+ def _remember_room_retention(request: "web.Request", claims: dict[str, Any]) -> None:
+@@ -583,6 +638,17 @@ async def _handle_runs(self, request: "web.Request", *, _api_server) -> "web.Res
+         v if isinstance(v, dict) else None for v in (
+             (body.get("hosted_room_dispatch"), body.get("_room_execution_policy"))
+             if isinstance(body, dict) else (None, None)))
++    if room_dispatch is not None:
++        from gateway.hosted_room_execution_policy import RoomExecutionPolicy
++        allowed_toolsets = set(RoomExecutionPolicy.from_mapping(room_execution_policy or {}).enabled_toolsets)
++    else:
++        from gateway.run import _load_gateway_config
++        from hermes_cli.tools_config import _get_platform_tools
++        allowed_toolsets = set(_get_platform_tools(_load_gateway_config(), "api_server"))
++    enabled_toolsets, toolsets_error = _parse_enabled_toolsets(
++        body, allowed=allowed_toolsets, _openai_error=_openai_error)
++    if toolsets_error is not None:
++        return toolsets_error
+     idempotency_key = request.headers.get("Idempotency-Key", "").strip()
+     if len(idempotency_key) > 255 or any(ord(ch) < 33 or ord(ch) > 126 for ch in idempotency_key):
+         return _json_error(
+@@ -683,6 +749,7 @@ async def _handle_runs(self, request: "web.Request", *, _api_server) -> "web.Res
+         agent_kwargs=dict(
+             ephemeral_system_prompt=instructions, session_id=session_id, gateway_session_key=gateway_session_key,
+             route=route, room_dispatch=room_dispatch, room_execution_policy=room_execution_policy,
++            enabled_toolsets_override=enabled_toolsets,
+             **{k: agent_overrides.get(k) for k in ("requested_model", "requested_provider", "model_options")}),
+         request_profile=_api_server._api_request_profile.get(),
+         browser_control_principal=_api_server._api_request_browser_control_principal.get(),
+diff --git a/tests/gateway/test_api_server_runs.py b/tests/gateway/test_api_server_runs.py
+index 1194373477..4ff63cc889 100644
+--- a/tests/gateway/test_api_server_runs.py
++++ b/tests/gateway/test_api_server_runs.py
+@@ -154,6 +154,46 @@ def auth_adapter():
+ 
+ 
+ class TestStartRun:
++    @pytest.mark.asyncio
++    async def test_start_passes_exact_empty_toolset_allowlist(self, adapter):
++        app = _create_runs_app(adapter)
++        async with TestClient(TestServer(app)) as cli:
++            with patch("gateway.run._load_gateway_config", return_value={}), \
++                 patch.object(adapter, "_create_agent") as mock_create:
++                mock_agent = MagicMock()
++                mock_agent.run_conversation.return_value = {"final_response": "done"}
++                mock_agent.session_prompt_tokens = 0
++                mock_agent.session_completion_tokens = 0
++                mock_agent.session_total_tokens = 0
++                mock_create.return_value = mock_agent
++
++                response = await cli.post(
++                    "/v1/runs", json={"input": "closed-book edit", "enabled_toolsets": []})
++                assert response.status == 202
++                for _ in range(20):
++                    if mock_create.call_args is not None:
++                        break
++                    await asyncio.sleep(0.05)
++
++        assert mock_create.call_args.kwargs["enabled_toolsets_override"] == []
++
++    @pytest.mark.asyncio
++    async def test_start_rejects_toolset_widening_before_admission(self, adapter):
++        app = _create_runs_app(adapter)
++        async with TestClient(TestServer(app)) as cli:
++            with patch(
++                "gateway.run._load_gateway_config",
++                return_value={"platform_toolsets": {"api_server": ["skills_readonly"]}},
++            ), patch.object(adapter, "_create_agent") as mock_create:
++                response = await cli.post(
++                    "/v1/runs", json={"input": "question", "enabled_toolsets": ["skills"]})
++                payload = await response.json()
++
++        assert response.status == 400
++        assert payload["error"]["code"] == "invalid_toolsets"
++        assert adapter._run_statuses == {}
++        mock_create.assert_not_called()
++
+     @pytest.mark.asyncio
+     async def test_room_auth_is_validated_before_body_parse_or_work_reservation(
+         self, auth_adapter
+diff --git a/tests/gateway/test_api_server_toolset.py b/tests/gateway/test_api_server_toolset.py
+index f554595e6d..30c5e003fc 100644
+--- a/tests/gateway/test_api_server_toolset.py
++++ b/tests/gateway/test_api_server_toolset.py
+@@ -1,5 +1,7 @@
+ """Tests for hermes-api-server toolset and API server tool availability."""
+ 
++from unittest.mock import MagicMock, patch
++
+ 
+ 
+ 
+@@ -21,3 +23,34 @@ class TestApiServerPlatformConfig:
+ 
+ 
+ 
++    @patch("gateway.platforms.api_server.AIOHTTP_AVAILABLE", True)
++    def test_create_agent_honors_explicit_empty_run_allowlist(self):
++        """An explicit empty per-run allowlist must create an agent with zero tools."""
++        from gateway.platforms.api_server import APIServerAdapter
++        from gateway.config import PlatformConfig
++
++        adapter = APIServerAdapter(PlatformConfig())
++        with patch("gateway.run._resolve_runtime_agent_kwargs", return_value={"api_key": "test-key"}), \
++             patch("gateway.run._resolve_gateway_model", return_value="test/model"), \
++             patch("gateway.run._load_gateway_config", return_value={}), \
++             patch("run_agent.AIAgent", return_value=MagicMock()) as mock_agent_cls:
++            adapter._create_agent(enabled_toolsets_override=[])
++
++        assert mock_agent_cls.call_args.kwargs["enabled_toolsets"] == []
++
++    @patch("gateway.platforms.api_server.AIOHTTP_AVAILABLE", True)
++    def test_create_agent_rejects_run_allowlist_widening(self):
++        """A run cannot enable a toolset absent from its active profile."""
++        from gateway.platforms.api_server import APIServerAdapter
++        from gateway.config import PlatformConfig
++
++        adapter = APIServerAdapter(PlatformConfig())
++        with patch("gateway.run._resolve_runtime_agent_kwargs", return_value={"api_key": "test-key"}), \
++             patch("gateway.run._resolve_gateway_model", return_value="test/model"), \
++             patch("gateway.run._load_gateway_config", return_value={"platform_toolsets": {"api_server": ["web"]}}), \
++             patch("run_agent.AIAgent") as mock_agent_cls:
++            import pytest
++            with pytest.raises(ValueError, match="cannot widen"):
++                adapter._create_agent(enabled_toolsets_override=["terminal"])
++
++        mock_agent_cls.assert_not_called()

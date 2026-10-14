@@ -1,0 +1,29 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# Receipt API key as an OpenShell placeholder. Inside the sandbox
+# HERMES_RECEIPT_API_KEY holds an opaque placeholder; the supervisor swaps in
+# the real key only on requests to these API routes, so Hermes never sees it.
+# The execution-receipts plugin sends it as the X-Receipt-Key header.
+id: receipts
+display_name: Job API receipts
+description: Execution scope, tool receipts and model calls on the job API's internal routes
+category: other
+credentials:
+  - name: receipt_key
+    description: Shared key for the job API's /internal/hermes routes
+    env_vars: [HERMES_RECEIPT_API_KEY]
+    required: true
+    auth_style: header
+    header_name: x-receipt-key
+endpoints:
+  - host: host.openshell.internal
+    port: 8000
+    path: /internal/hermes/**
+    protocol: rest
+    enforcement: enforce
+    rules:
+      - allow: { method: GET, path: /internal/hermes/jobs/*/execution-scope }
+      - allow: { method: POST, path: /internal/hermes/jobs/*/tool-receipts }
+      - allow: { method: POST, path: /internal/hermes/jobs/*/llm-calls }
+binaries: [/usr/bin/python3.13]

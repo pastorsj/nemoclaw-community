@@ -1,0 +1,19 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# Hermes profile distribution manifest. agent/Dockerfile bakes this profile into
+# HERMES_HOME (/opt/data) and its skills into /opt/agent/skills.
+name: market-analysis-agent
+version: 0.1.0
+description: Market research agent that answers with cited evidence from MCP data tools
+hermes_requires: ">=0.21.5"
+author: NVIDIA
+license: Apache-2.0
+env_requires:
+  - name: API_SERVER_KEY
+    description: Runs API bearer key, at least 16 characters (sandbox create --env, from .env HERMES_API_SERVER_KEY)
+  - name: HERMES_RECEIPT_API_KEY
+    description: Receipt API key; inside the sandbox an OpenShell placeholder from the receipts provider
+# SOUL.md is deliberately not listed. Hermes treats a distribution-owned SOUL.md
+# as third-party text: one injection-scanner match drops the whole answer policy.
+distribution_owned: [config.yaml, relay-plugins.toml, plugins, distribution.yaml]

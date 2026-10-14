@@ -1,0 +1,59 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Kumo Relational service that demo deployments share, on a GPU host of its own (docs/kumo-service.md):
+#   kumo-relational  the Kumo Relational NIM on the GPU, with no host port
+#   proxy            nginx: requires X-API-Key on every route but /healthz, then streams the request to the NIM.
+#                    Published on KUMO_SERVICE_BIND:KUMO_SERVICE_PORT (0.0.0.0:8080), for an HTTPS link to reach
+#
+# Run it from this directory, with its own .env (copied from .env.example, mode 600):
+#   docker compose up -d
+# A demo deployment then sets KUMO_RELATIONAL_URL to the link's https:// URL and KUMO_API_KEY to the key.
+# The keys reach the proxy as Compose secrets, never through the image or its environment.
+name: kumo-service
+
+x-logging: &logging
+  logging:
+    driver: json-file
+    options: { max-size: 10m, max-file: "3" }
+
+secrets:
+  api_key: { environment: KUMO_SERVICE_API_KEY }
+  # Accepted beside api_key while set, so a key can be rotated without a gap (docs/kumo-service.md).
+  previous_api_key: { environment: KUMO_SERVICE_PREVIOUS_API_KEY }
+
+services:
+  # amd64 only; about 14 GB to download and 44 GB on disk. It pulled and ran without an NGC login;
+  # if nvcr.io denies the pull, log in first (docs/kumo-service.md).
+  kumo-relational:
+    <<: *logging
+    image: nvcr.io/nim/nvidia/kumo-relational:1.0.1@sha256:d2fedf5583d01932efdb7d91d0bcc31b7ff951fcd516f069c4cd900adb87908f
+    restart: unless-stopped
+    gpus: all
+    shm_size: 16gb
+    stop_grace_period: 30s
+    environment:
+      - NGC_API_KEY # passed only when .env sets it
+    healthcheck:
+      test: [CMD, python3, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/v1/health/ready', timeout=5)"]
+      interval: 10s
+      timeout: 6s
+      retries: 60
+      start_period: 180s
+
+  # Looks the NIM up per request (nginx.conf), so it starts on its own and follows a recreated NIM.
+  proxy:
+    <<: *logging
+    image: nginxinc/nginx-unprivileged:1.30.5-alpine@sha256:ed04ec1ff34502c339ee5c3ae3f855442398edc1d05591e2b98981dcbbd20b1e
+    restart: unless-stopped
+    ports: ["${KUMO_SERVICE_BIND:-0.0.0.0}:${KUMO_SERVICE_PORT:-8080}:8080"]
+    secrets: [api_key, previous_api_key]
+    environment:
+      KUMO_SERVICE_REAL_IP_FROM: ${KUMO_SERVICE_REAL_IP_FROM:-}
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./keys.sh:/docker-entrypoint.d/40-kumo-keys.sh:ro
+    # nginx runs as uid 101 on port 8080 and needs no capability. The root filesystem stays writable: Compose
+    # writes environment-sourced secrets into the container.
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]

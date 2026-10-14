@@ -1,0 +1,136 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# yaml-language-server: $schema=../../schemas/questions.schema.json
+#
+# The synthetic-market questions: the UI scenario list, the README quickstart and the replay recording set
+# (featured). Featured questions need only the default profiles. The 12 most liquid
+# issuers are the story issuers, each with one planted news story between August 17 and 28, 2026. The fictional
+# issuers are never SEC filers, so questions that use both keep them apart. Only the 1-minute profiles (ci,
+# intraday) have minute bars for intraday_scan.
+schema_version: "1"
+# The composer's example picker, in order: every question. Its first five rows show all six tools.
+examples:
+- unusual-sessions
+- outcome-prediction
+- peer-network
+- sector-sql
+- cyber-disclosure-rules
+- market-leaders
+- news-and-filings
+- news-sentiment-reaction
+- story-event-context
+- large-universe-scan
+- intraday-ranges
+questions:
+- id: market-leaders
+  label: Market Leaders
+  tag: ANALYTICS
+  description: Scan the 12 most liquid issuers for their strongest and weakest recent returns.
+  question: >-
+    Among the 12 most liquid issuers, which had the strongest and weakest returns over the 20 trading sessions
+    ending August 31, 2026, and how did their daily volatility compare?
+  sources: [market_data]
+  tools: [cudf]
+  featured: true
+- id: news-sentiment-reaction
+  label: News & Price Reaction
+  tag: ANALYTICS
+  description: Line up ticker-linked company news sentiment with the returns that followed.
+  question: >-
+    For company news about the 12 most liquid issuers published from August 17 through August 24, 2026, how did
+    the sentiment labels line up with the issuers' returns over the following five sessions? Describe the
+    relationship without claiming causation.
+  sources: [market_data]
+  tools: [cudf]
+  featured: true
+- id: unusual-sessions
+  label: Unusual Sessions
+  tag: ANOMALY
+  description: Rank unusual return, volatility and volume combinations across every issuer in the pack.
+  question: >-
+    Treat January 2 through June 30, 2026 as the baseline for every issuer. Which 10 issuer sessions from July 1
+    through August 31, 2026 were the most unusual in return, volatility and volume, and which features made each
+    one unusual? Anomaly scores are neither forecasts nor explanations.
+  sources: [market_data]
+  tools: [cudf, cuml]
+  featured: true
+- id: peer-network
+  label: Peer Network
+  tag: GRAPH
+  description: Find the most central issuers in the return-correlation network of same-industry peers.
+  question: >-
+    In the return-correlation network from June through August 2026, which issuers are the most central, and
+    which pairs moved together most closely?
+  sources: [market_data]
+  tools: [cudf, cugraph]
+  featured: true
+- id: cyber-disclosure-rules
+  label: Cybersecurity Disclosures
+  tag: RETRIEVAL
+  description: Pair the Form 8-K Item 1.05 rule with real filings that report an incident.
+  question: >-
+    What does Form 8-K Item 1.05 require a company to disclose about a material cybersecurity incident, and by
+    when? Cite the regulation, and any second-quarter 2026 filings in the corpus that report an incident.
+  sources: [sec_filings, market_regulations]
+  tools: [retrieval]
+  featured: true
+- id: news-and-filings
+  label: News & Filings
+  tag: HYBRID
+  description: Fictional company news and real SEC filings as two separate sources.
+  question: >-
+    Which of the 12 most liquid issuers had the most negative company news in July and August 2026, and how did
+    their prices react? Separately, which real second-quarter 2026 SEC filings describe operational disruptions?
+    The issuers are fictional and are not the filers: keep the two apart.
+  sources: [market_data, sec_filings]
+  tools: [cudf, retrieval]
+  featured: true
+- id: story-event-context
+  label: Story Price Context
+  tag: ANALYTICS
+  description: Price context around each planted news story.
+  question: >-
+    For each company news story about the 12 most liquid issuers published from August 17 through August 28,
+    2026, what was the issuer's return on the publication session and over the two sessions after it?
+  sources: [market_data]
+  tools: [cudf]
+- id: outcome-prediction
+  label: Five-Session Outlook
+  tag: PREDICTION
+  description: Rank the 12 most liquid issuers with a five-session prediction anchored before the outcomes.
+  question: >-
+    At the August 24, 2026 market-close anchor, rank the 12 most liquid issuers by the likelihood of a positive
+    return over the next five trading sessions.
+  sources: [market_data]
+  tools: [kumo]
+- id: sector-sql
+  label: Sector Breakdown
+  tag: SQL
+  description: Count issuers and summarize returns by SIC division with SQL.
+  question: >-
+    How many issuers are in each sector, and what was each sector's median return over the 20 trading sessions
+    ending August 31, 2026?
+  sources: [market_data]
+  tools: [ontology]
+- id: large-universe-scan
+  label: Whole-Market Scan
+  tag: ANALYTICS
+  description: Scan every issuer at once (2,000 issuers and 1.34 million daily bars in the standard profile).
+  question: >-
+    Across every issuer in the pack, which 20 had the strongest and the weakest returns from January 2, 2024
+    through August 31, 2026, and how did their volatility compare?
+  sources: [market_data]
+  tools: [cudf]
+  profiles: [standard, large]
+- id: intraday-ranges
+  label: Intraday Swings
+  tag: INTRADAY
+  description: Scan one-minute bars for the story issuers' widest intraday swings.
+  question: >-
+    Among the 12 most liquid issuers, which sessions from August 17 through August 28, 2026 had the widest
+    intraday price ranges? For each, how did it trade from open to close, and how much of its volume came in the
+    last 30 minutes?
+  sources: [market_data]
+  tools: [cudf]
+  profiles: [ci, intraday]

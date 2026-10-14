@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "source_id": "market_regulations",
+  "snapshot_id": "ecfr-title17-2026-08-17-v1",
+  "as_of": "2026-08-17",
+  "document": {
+    "url": "https://www.ecfr.gov/api/versioner/v1/full/2026-08-17/title-17.xml",
+    "sha256": "cc97dba6a531344ea1c64e7d10d5580f55f34c6daef1e7c5ba9e137d941d10ef",
+    "title_number": "17",
+    "title": "Title 17—Commodity and Securities Exchanges",
+    "section_count": 3525
+  },
+  "transform_version": "ecfr-title17-section-chunker-v1"
+}

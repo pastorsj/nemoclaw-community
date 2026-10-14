@@ -1,0 +1,557 @@
+{
+  "schema_version": "1",
+  "build": "synthetic-market@1.0.0+standard+c842e1c3ab65",
+  "id": "synthetic-market",
+  "version": "1.0.0",
+  "title": "Synthetic US Equities",
+  "description": "Fictional US-listed issuers with seeded prices and ticker-linked company news written by Nemotron through NeMo Data Designer, beside real SEC EDGAR 8-K/6-K filings (2026 Q2) and eCFR Title 17 as separate document sources.",
+  "as_of": "2026-08-31",
+  "disclaimer": "Synthetic market data for a software demonstration: every issuer, price and news item is fictional. Not investment advice.",
+  "profile": "standard",
+  "licenses": [
+    {
+      "name": "Apache-2.0",
+      "path": "https://www.apache.org/licenses/LICENSE-2.0",
+      "redistribution": "allowed",
+      "notes": "The generated market data and its Nemotron-written text are synthetic demonstration assets."
+    },
+    {
+      "name": "US-Government-Public-Information",
+      "title": "United States government public information",
+      "path": "https://www.govinfo.gov/about/policies",
+      "redistribution": "allowed",
+      "notes": "The eCFR is authoritative current regulatory information but is not the official legal edition of the CFR."
+    },
+    {
+      "name": "SEC-EDGAR-Reuse",
+      "title": "SEC website information reuse terms",
+      "path": "https://www.sec.gov/about/webmaster-frequently-asked-questions",
+      "redistribution": "unknown",
+      "notes": "Filings are fetched from EDGAR at prepare time and never committed. Issuer-authored content may carry separate rights."
+    }
+  ],
+  "provenance": [
+    {
+      "id": "synthetic-market-generator",
+      "title": "Synthetic market (seeded numbers; Nemotron text written with NeMo Data Designer)",
+      "kind": "generated",
+      "synthetic": true,
+      "license": "Apache-2.0",
+      "as_of": "2026-08-31",
+      "notes": "Prices, volumes and news timing come from seeded samplers (generator/build.py, generator/model.yaml). Company names, profiles and headlines come from text/, written by `demo.sh data generate`. No name or ticker matches an issuer in SEC's ticker lists (text/checks.json)."
+    },
+    {
+      "id": "ecfr-title-17",
+      "title": "Electronic Code of Federal Regulations, Title 17 (versioned API snapshot)",
+      "kind": "download",
+      "synthetic": false,
+      "license": "US-Government-Public-Information",
+      "url": "https://www.ecfr.gov/api/versioner/v1/full/2026-08-17/title-17.xml",
+      "as_of": "2026-08-17",
+      "retrieved_on": "2026-09-22"
+    },
+    {
+      "id": "federal-register-2023-16194",
+      "title": "SEC final rule, Cybersecurity Risk Management, Strategy, Governance, and Incident Disclosure (88 FR 51896), Federal Register XML",
+      "kind": "download",
+      "synthetic": false,
+      "license": "US-Government-Public-Information",
+      "url": "https://www.federalregister.gov/documents/full_text/xml/2023/08/04/2023-16194.xml",
+      "as_of": "2023-08-04",
+      "retrieved_on": "2026-10-01",
+      "notes": "The rule's summary and its appendices of amended form text: Form 8-K General Instruction B.1 and Item 1.05, Form 10-K Item 1C, Form 20-F Item 16K and Form S-3. The preamble's discussion is left out."
+    },
+    {
+      "id": "sec-edgar-2026-q2",
+      "title": "SEC EDGAR 2026 Q2 master index and 1,000 sampled 8-K/6-K filings",
+      "kind": "download",
+      "synthetic": false,
+      "license": "SEC-EDGAR-Reuse",
+      "url": "https://www.sec.gov/Archives/edgar/full-index/2026/QTR2/master.idx",
+      "as_of": "2026-06-30",
+      "retrieved_on": "2026-09-22",
+      "requires_env": [
+        "SEC_USER_AGENT"
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "id": "market_data",
+      "name": "Market Prices & Company News",
+      "description": "Synthetic prices, volumes, peers and ticker-linked company news for fictional US-listed issuers, in DuckDB.",
+      "agent_description": "Analyze synthetic market history and ticker-linked company news through native market analytics, Auto Ontology and prediction. Every issuer, price and news item is fictional.",
+      "kind": "structured",
+      "capabilities": [
+        "structured_retrieval",
+        "structured_prediction",
+        "market_analytics"
+      ],
+      "synthetic": true,
+      "example_questions": [
+        "Which of the 12 most liquid issuers led returns over the latest 20 trading sessions?",
+        "How did company news sentiment line up with the following sessions' returns?",
+        "Which sessions were most unusual in return, volatility and volume?"
+      ]
+    },
+    {
+      "id": "sec_filings",
+      "name": "SEC Filings",
+      "description": "Real SEC EDGAR 8-K and 6-K filings from 2026 Q2, retrieved from Milvus with NVIDIA Nemotron Embed and Rerank.",
+      "agent_description": "Retrieve citation-ready public-company current reports from the reviewed SEC EDGAR 2026 Q2 snapshot. These are real filers, not the fictional issuers in market_data.",
+      "kind": "documents",
+      "capabilities": [
+        "unstructured_retrieval"
+      ],
+      "synthetic": false,
+      "example_questions": [
+        "Which second-quarter 2026 current reports describe a material cybersecurity incident?"
+      ]
+    },
+    {
+      "id": "market_regulations",
+      "name": "Market Regulations",
+      "description": "Current public eCFR Title 17 sections and the SEC's 2023 cybersecurity disclosure rule, retrieved from Milvus with NVIDIA Nemotron Embed and Rerank.",
+      "agent_description": "Retrieve citation-ready sections from the reviewed eCFR Title 17 snapshot for securities and commodities regulation research, and the form text the SEC's 2023 cybersecurity disclosure rule adopted (Form 8-K Item 1.05 and its filing deadline, Form 10-K Item 1C), which the CFR does not hold.",
+      "kind": "documents",
+      "capabilities": [
+        "unstructured_retrieval"
+      ],
+      "synthetic": false,
+      "example_questions": [
+        "What must a company disclose about a material cybersecurity incident, and when?"
+      ]
+    }
+  ],
+  "questions": [
+    {
+      "id": "market-leaders",
+      "label": "Market Leaders",
+      "tag": "ANALYTICS",
+      "description": "Scan the 12 most liquid issuers for their strongest and weakest recent returns.",
+      "question": "Among the 12 most liquid issuers, which had the strongest and weakest returns over the 20 trading sessions ending August 31, 2026, and how did their daily volatility compare?",
+      "sources": [
+        "market_data"
+      ],
+      "tools": [
+        "cudf"
+      ],
+      "featured": true
+    },
+    {
+      "id": "news-sentiment-reaction",
+      "label": "News & Price Reaction",
+      "tag": "ANALYTICS",
+      "description": "Line up ticker-linked company news sentiment with the returns that followed.",
+      "question": "For company news about the 12 most liquid issuers published from August 17 through August 24, 2026, how did the sentiment labels line up with the issuers' returns over the following five sessions? Describe the relationship without claiming causation.",
+      "sources": [
+        "market_data"
+      ],
+      "tools": [
+        "cudf"
+      ],
+      "featured": true
+    },
+    {
+      "id": "unusual-sessions",
+      "label": "Unusual Sessions",
+      "tag": "ANOMALY",
+      "description": "Rank unusual return, volatility and volume combinations across every issuer in the pack.",
+      "question": "Treat January 2 through June 30, 2026 as the baseline for every issuer. Which 10 issuer sessions from July 1 through August 31, 2026 were the most unusual in return, volatility and volume, and which features made each one unusual? Anomaly scores are neither forecasts nor explanations.",
+      "sources": [
+        "market_data"
+      ],
+      "tools": [
+        "cudf",
+        "cuml"
+      ],
+      "featured": true
+    },
+    {
+      "id": "peer-network",
+      "label": "Peer Network",
+      "tag": "GRAPH",
+      "description": "Find the most central issuers in the return-correlation network of same-industry peers.",
+      "question": "In the return-correlation network from June through August 2026, which issuers are the most central, and which pairs moved together most closely?",
+      "sources": [
+        "market_data"
+      ],
+      "tools": [
+        "cudf",
+        "cugraph"
+      ],
+      "featured": true
+    },
+    {
+      "id": "cyber-disclosure-rules",
+      "label": "Cybersecurity Disclosures",
+      "tag": "RETRIEVAL",
+      "description": "Pair the Form 8-K Item 1.05 rule with real filings that report an incident.",
+      "question": "What does Form 8-K Item 1.05 require a company to disclose about a material cybersecurity incident, and by when? Cite the regulation, and any second-quarter 2026 filings in the corpus that report an incident.",
+      "sources": [
+        "sec_filings",
+        "market_regulations"
+      ],
+      "tools": [
+        "retrieval"
+      ],
+      "featured": true
+    },
+    {
+      "id": "news-and-filings",
+      "label": "News & Filings",
+      "tag": "HYBRID",
+      "description": "Fictional company news and real SEC filings as two separate sources.",
+      "question": "Which of the 12 most liquid issuers had the most negative company news in July and August 2026, and how did their prices react? Separately, which real second-quarter 2026 SEC filings describe operational disruptions? The issuers are fictional and are not the filers: keep the two apart.",
+      "sources": [
+        "market_data",
+        "sec_filings"
+      ],
+      "tools": [
+        "cudf",
+        "retrieval"
+      ],
+      "featured": true
+    },
+    {
+      "id": "story-event-context",
+      "label": "Story Price Context",
+      "tag": "ANALYTICS",
+      "description": "Price context around each planted news story.",
+      "question": "For each company news story about the 12 most liquid issuers published from August 17 through August 28, 2026, what was the issuer's return on the publication session and over the two sessions after it?",
+      "sources": [
+        "market_data"
+      ],
+      "tools": [
+        "cudf"
+      ]
+    },
+    {
+      "id": "outcome-prediction",
+      "label": "Five-Session Outlook",
+      "tag": "PREDICTION",
+      "description": "Rank the 12 most liquid issuers with a five-session prediction anchored before the outcomes.",
+      "question": "At the August 24, 2026 market-close anchor, rank the 12 most liquid issuers by the likelihood of a positive return over the next five trading sessions.",
+      "sources": [
+        "market_data"
+      ],
+      "tools": [
+        "kumo"
+      ]
+    },
+    {
+      "id": "sector-sql",
+      "label": "Sector Breakdown",
+      "tag": "SQL",
+      "description": "Count issuers and summarize returns by SIC division with SQL.",
+      "question": "How many issuers are in each sector, and what was each sector's median return over the 20 trading sessions ending August 31, 2026?",
+      "sources": [
+        "market_data"
+      ],
+      "tools": [
+        "ontology"
+      ]
+    },
+    {
+      "id": "large-universe-scan",
+      "label": "Whole-Market Scan",
+      "tag": "ANALYTICS",
+      "description": "Scan every issuer at once (2,000 issuers and 1.34 million daily bars in the standard profile).",
+      "question": "Across every issuer in the pack, which 20 had the strongest and the weakest returns from January 2, 2024 through August 31, 2026, and how did their volatility compare?",
+      "sources": [
+        "market_data"
+      ],
+      "tools": [
+        "cudf"
+      ],
+      "profiles": [
+        "standard",
+        "large"
+      ]
+    }
+  ],
+  "conversations": [],
+  "structured": {
+    "source": "market_data",
+    "database_name": "synthetic_market",
+    "database": "structured/synthetic_market.duckdb",
+    "tables": {
+      "assets": "tables/assets.parquet",
+      "ticker_history": "tables/ticker_history.parquet",
+      "trading_sessions": "tables/trading_sessions.parquet",
+      "daily_prices": "tables/daily_prices.parquet",
+      "asset_relationships": "tables/asset_relationships.parquet",
+      "company_news": "tables/company_news.parquet"
+    }
+  },
+  "analytics": {
+    "contract": "market-analytics/v1",
+    "news_table": "company_news",
+    "session_close_utc": "21:00",
+    "universes": {
+      "top_12": {
+        "description": "The 12 most liquid issuers by median daily dollar volume; each has one planted news story.",
+        "where": "liquidity_rank <= 12"
+      },
+      "all_assets": {
+        "description": "Every issuer in the pack.",
+        "where": "true"
+      }
+    },
+    "relationship_graph": {
+      "window_start": "2026-06-01",
+      "window_end": "2026-08-31",
+      "mode": "sparse_declared_peers"
+    }
+  },
+  "prediction": {
+    "schema": "prediction",
+    "anchor": "2026-08-24T21:00:00+00:00",
+    "horizon_sessions": 5,
+    "entity": {
+      "table": "asset_entities",
+      "key": "asset_id"
+    },
+    "population": {
+      "view": "top_12_population",
+      "ids": [
+        "CLAE",
+        "CLOS",
+        "GIOR",
+        "GIST",
+        "HARE",
+        "KASI",
+        "PEAX",
+        "PRAL",
+        "SOUS",
+        "STIO",
+        "TISL",
+        "VIAS"
+      ]
+    },
+    "tables": {
+      "asset_entities": {
+        "primary_key": "asset_id"
+      },
+      "price_events": {
+        "primary_key": "price_id",
+        "time_column": "observed_at",
+        "links_to_entity": "asset_id"
+      },
+      "news_events": {
+        "primary_key": "news_id",
+        "time_column": "published_at",
+        "links_to_entity": "asset_id"
+      },
+      "return_outcomes": {
+        "primary_key": "outcome_id",
+        "time_column": "realized_at",
+        "links_to_entity": "asset_id"
+      }
+    },
+    "forbidden_tables": [
+      "daily_prices",
+      "company_news"
+    ],
+    "templates": [
+      {
+        "id": "positive_return",
+        "name": "Positive five-session return",
+        "description": "Rank the 12 most liquid issuers by likelihood of a positive five-session adjusted-close return realized within 5 calendar days after the anchor.",
+        "pql": "PREDICT COUNT(return_outcomes.* WHERE return_outcomes.positive_return = true, 0, 5, days) > 0 FOR EACH asset_entities.asset_id"
+      },
+      {
+        "id": "material_downside",
+        "name": "Material five-session downside",
+        "description": "Rank the 12 most liquid issuers by likelihood of a five-session adjusted-close return below negative five percent realized within 5 calendar days after the anchor.",
+        "pql": "PREDICT COUNT(return_outcomes.* WHERE return_outcomes.forward_return_5d < -0.05, 0, 5, days) > 0 FOR EACH asset_entities.asset_id"
+      },
+      {
+        "id": "news_event",
+        "name": "Company news arrival",
+        "description": "Rank the 12 most liquid issuers by likelihood of new company news within 5 calendar days after the anchor.",
+        "pql": "PREDICT COUNT(news_events.*, 0, 5, days) > 0 FOR EACH asset_entities.asset_id"
+      }
+    ]
+  },
+  "market": {
+    "bars": {
+      "dataset": "synthetic-market-generator",
+      "files": "bars/*/*.parquet",
+      "symbol_column": "symbol",
+      "columns": {
+        "time": "time",
+        "open": "open",
+        "high": "high",
+        "low": "low",
+        "close": "close",
+        "volume": "volume"
+      },
+      "frequency": "1d",
+      "timezone": "America/New_York",
+      "regular_session": [
+        "09:30",
+        "16:00"
+      ],
+      "root": "/data/cache/generated/281b8ad7fbfe305b"
+    }
+  },
+  "documents": {
+    "collection": "synthetic_market_documents",
+    "sources": [
+      "sec_filings",
+      "market_regulations"
+    ],
+    "path": "corpus/documents.jsonl",
+    "benchmark_queries": [
+      {
+        "query": "departure of a chief financial officer and the appointment of a successor",
+        "sources": [
+          "sec_filings"
+        ]
+      },
+      {
+        "query": "entry into a material definitive credit agreement with a syndicate of lenders",
+        "sources": [
+          "sec_filings"
+        ]
+      },
+      {
+        "query": "results of the annual meeting of shareholders and the votes on director elections",
+        "sources": [
+          "sec_filings"
+        ]
+      },
+      {
+        "query": "completion of an acquisition or disposition of a business",
+        "sources": [
+          "sec_filings"
+        ]
+      },
+      {
+        "query": "press release announcing quarterly financial results furnished as an exhibit",
+        "sources": [
+          "sec_filings"
+        ]
+      },
+      {
+        "query": "amendments to the articles of incorporation or bylaws",
+        "sources": [
+          "sec_filings"
+        ]
+      },
+      {
+        "query": "beneficial ownership report after acquiring more than five percent of a class of equity securities",
+        "sources": [
+          "market_regulations"
+        ]
+      },
+      {
+        "query": "management's assessment of internal control over financial reporting",
+        "sources": [
+          "market_regulations"
+        ]
+      },
+      {
+        "query": "net capital requirements for brokers and dealers",
+        "sources": [
+          "market_regulations"
+        ]
+      },
+      {
+        "query": "locating securities to borrow before effecting a short sale",
+        "sources": [
+          "market_regulations"
+        ]
+      },
+      {
+        "query": "conditions for resales of restricted securities under the safe harbor",
+        "sources": [
+          "market_regulations"
+        ]
+      },
+      {
+        "query": "disclosure of executive compensation in proxy statements",
+        "sources": [
+          "market_regulations"
+        ]
+      },
+      {
+        "query": "disclosure of a material cybersecurity incident and the timing of the report",
+        "sources": [
+          "sec_filings",
+          "market_regulations"
+        ]
+      },
+      {
+        "query": "share repurchase program authorizations and the rules for issuer repurchases",
+        "sources": [
+          "sec_filings",
+          "market_regulations"
+        ]
+      },
+      {
+        "query": "changes in a registrant's certifying accountant",
+        "sources": [
+          "sec_filings",
+          "market_regulations"
+        ]
+      }
+    ]
+  },
+  "parts": {
+    "structured": {
+      "rows": {
+        "assets": 2000,
+        "ticker_history": 2000,
+        "trading_sessions": 668,
+        "daily_prices": 1336000,
+        "asset_relationships": 16000,
+        "company_news": 64630
+      },
+      "import": {
+        "dataset": "synthetic-market-generator",
+        "fingerprint": "c35b994f7ab6aba43c3455f60a4e56bd3add7c4fef181ea18f9e1bfdd01e445a",
+        "rollup": {
+          "key": "7e3fefbc3de9ebbf",
+          "files": 32,
+          "symbols": 2000,
+          "rows": 1336000,
+          "first_date": "2024-01-02",
+          "last_date": "2026-08-31",
+          "seconds": 0.6,
+          "created_at": "2026-09-30T06:29:03+00:00",
+          "cached": true
+        },
+        "symbols": 2000,
+        "sessions": 668,
+        "dropped": {
+          "not_listed": 0,
+          "min_sessions": 0
+        },
+        "assets": 2000
+      },
+      "files": {
+        "tables/asset_relationships.parquet": "5ff45ac6a6a396bd59ca5d4d49291ab08e450767d8cfe45d8bc08c5416628834",
+        "tables/assets.parquet": "82721a4187325ec7af25b784ab05488e65318e350b4eebb0453b81c2bff1a7ea",
+        "tables/company_news.parquet": "b9da64a3ac0dc7610ccae7b0f0fae06f1a04b3b01dff5f47322e9e8332303275",
+        "tables/daily_prices.parquet": "a79befea158bdbe7b462ab54237c8d76ed4a1d5f4f0c40d5ad0cc9dbfaab7846",
+        "tables/ticker_history.parquet": "8c59b071f6a75fea534523a984908a48179eb324adcdb18c3718342980366d41",
+        "tables/trading_sessions.parquet": "88c3f650eb639cf9ec4ea9640aa90c60ff22d8e12689f0851510cd6922fe724b",
+        "structured/synthetic_market.duckdb": "abe078dd814acf01f41388d763340d07504aaf402922e31b06e46a23aac37ae6",
+        "ontology/model.yaml": "4812de99d4e6be7dc28abb78b8ab4ad517e082b4509b823cad9ea157dcea0895",
+        "prediction/graph.json": "83cede57e89567148fc25a4f1cea7be439ae9560a977f8e9df7a993e271664ca",
+        "prediction/templates.json": "26f6b451f85b59ee2172ccc714b4065e2ff3edacface974aeca305d9a649689d"
+      }
+    },
+    "corpus": {
+      "documents": {
+        "market_regulations": 3530,
+        "sec_filings": 1696
+      },
+      "files": {
+        "corpus/documents.jsonl": "1a9e309e2770ab5a3f104f1f6cc4f761f8c18befa03539cf0a73245968d81373"
+      }
+    }
+  }
+}

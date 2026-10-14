@@ -1,0 +1,64 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Every agent turn goes to the capable GPT model (Responses API), with no judge. Hermes still
+# sends "market-research", so switching to this template is an .env change. The GPT model can
+# come from its own endpoint: CAPABLE_BASE_URL and CAPABLE_API_KEY, which default to the
+# inference endpoint and key (the key only on that same endpoint).
+# requires: INFERENCE_BASE_URL CAPABLE_BASE_URL AGENT_EFFICIENT_MODEL AGENT_CAPABLE_MODEL AGENT_AUX_MODEL
+schema_version = 1
+
+[llm_clients.chat]
+format = "openai_chat"
+base_url = "${INFERENCE_BASE_URL}"
+api_key_env = "INFERENCE_API_KEY"
+timeout_ms = 900000                   # whole call, stream included
+max_retries = 0                       # Hermes retries 429 and 5xx itself
+
+[llm_clients.responses]               # GPT tool calling needs the Responses API
+format = "openai_responses"
+base_url = "${CAPABLE_BASE_URL}"
+api_key_env = "CAPABLE_API_KEY"
+timeout_ms = 900000
+max_retries = 0
+
+[targets.efficient]
+id = "${AGENT_EFFICIENT_MODEL}"
+llm_client = "chat"
+extra_body = { max_tokens = 16384 }   # only when the caller sets none
+
+[targets.capable]
+id = "${AGENT_CAPABLE_MODEL}"
+llm_client = "responses"
+reasoning_effort = "medium"           # Hermes sends no effort to a custom provider
+extra_body = { store = false }
+
+[targets.aux]                         # a Nemotron model: auxiliary and fallback calls
+id = "${AGENT_AUX_MODEL}"
+llm_client = "chat"
+extra_body = { chat_template_kwargs = { enable_thinking = false } }
+
+[routes.research]
+id = "market-research"
+type = "passthrough"
+target = "capable"
+
+[routes.efficient]
+id = "market-research-efficient"
+type = "passthrough"
+target = "efficient"
+
+[routes.capable]
+id = "market-research-capable"
+type = "passthrough"
+target = "capable"
+
+[routes.aux]                          # Hermes auxiliary calls
+id = "market-research-aux"
+type = "passthrough"
+target = "aux"
+
+[routes.fallback]                     # Hermes moves a run here when its model is overloaded
+id = "market-research-fallback"
+type = "passthrough"
+target = "aux"

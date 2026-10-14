@@ -71,6 +71,35 @@ Image: ollama/ollama
 License: MIT and included component licenses
 URL: https://github.com/ollama/ollama
 
+Image: node:22-slim
+License: MIT and Debian component licenses
+URL: https://hub.docker.com/_/node
+Notes: Build and runtime base of the examples/demos/field/market-analysis UI image.
+
+Image: python:3.12.14-slim-trixie and python:3.12.15-slim-trixie
+License: Python Software Foundation License and Debian component licenses
+URL: https://hub.docker.com/_/python
+Notes: Bases of the examples/demos/field/market-analysis service images.
+
+Image: debian:13.7-slim
+License: Debian component licenses
+URL: https://hub.docker.com/_/debian
+Notes: Base of the examples/demos/field/market-analysis Switchyard and OpenShell CLI images.
+
+Image: rust:1.98.1-slim-trixie
+License: Apache-2.0 OR MIT and Debian component licenses
+URL: https://hub.docker.com/_/rust
+Notes: Build stage of the examples/demos/field/market-analysis Switchyard image.
+
+Image: ghcr.io/astral-sh/uv:0.12.22
+License: Apache-2.0 OR MIT
+URL: https://github.com/astral-sh/uv
+
+Image: nousresearch/hermes-agent:v2026.9.24 (pinned by digest)
+License: MIT
+URL: https://github.com/NousResearch/hermes-agent
+Notes: Base of the examples/demos/field/market-analysis sandbox image, which applies the four patches in agent/patches/.
+
 ================================================================================
 Docker Compose Images
 ================================================================================
@@ -90,6 +119,28 @@ URL: https://github.com/open-telemetry/opentelemetry-collector-contrib
 Image: ghcr.io/nvidia-ai-blueprints/vss/vss-rt-vlm (pinned by digest sha256:2b10ba38ac93d648d4b50c32294197ff014dfa85c79ac824a98e172dc31eba05)
 License: See the image source and included notices; model weights downloaded at runtime from NGC under their own terms
 URL: https://github.com/NVIDIA-AI-Blueprints/video-search-and-summarization
+
+Image: ghcr.io/nvidia/openshell/gateway, supervisor and sandbox 0.1.2 (pinned by digest)
+License: Apache-2.0
+URL: https://github.com/NVIDIA/OpenShell
+
+Image: arizephoenix/phoenix:version-20.16.0-nonroot
+License: Elastic License 2.0
+URL: https://github.com/Arize-ai/phoenix
+
+Image: milvusdb/milvus:v2.6.25 and v2.6.25-gpu
+License: Apache-2.0
+URL: https://github.com/milvus-io/milvus
+
+Image: pgvector/pgvector:pg17
+License: PostgreSQL License
+URL: https://github.com/pgvector/pgvector
+Notes: Database of the examples/demos/field/market-analysis ontology profile.
+
+Image: nvcr.io/nim/nvidia/kumo-relational:1.0.1
+License: NVIDIA NIM terms; see the NGC catalog entry
+URL: https://catalog.ngc.nvidia.com/
+Notes: Pulled by examples/demos/field/market-analysis/infra/kumo-service on a separate GPU host; not redistributed here.
 
 ================================================================================
 System Packages
@@ -404,6 +455,76 @@ Package: ziglang
 License: MIT
 URL: https://github.com/ziglang/zig-pypi
 
+Package: switchyard-server (Rust crate, built from crates.io)
+License: Apache-2.0
+URL: https://github.com/NVIDIA-NeMo/Switchyard
+Notes: Built into the examples/demos/field/market-analysis Switchyard image.
+
+Package: cudf-cu12, cuml-cu12, nx-cugraph-cu12, libcugraph-cu12, pylibcugraph-cu12 (RAPIDS 26.06)
+License: Apache-2.0
+URL: https://github.com/rapidsai
+Notes: The examples/demos/field/market-analysis market analytics GPU image installs them from pypi.nvidia.com.
+
+Package: kumo-relational-client
+License: Apache-2.0
+URL: https://pypi.org/project/kumo-relational-client/
+
+Package: nvidia-riva-client
+License: MIT
+URL: https://github.com/nvidia-riva/python-clients
+
+Package: langchain-text-splitters
+License: MIT
+URL: https://github.com/langchain-ai/langchain
+
+Package: pymilvus
+License: Apache-2.0
+URL: https://github.com/milvus-io/pymilvus
+
+Package: openinference-semantic-conventions
+License: Apache-2.0
+URL: https://github.com/Arize-ai/openinference
+
+Package: networkx
+License: BSD-3-Clause
+URL: https://github.com/networkx/networkx
+
+Package: pyarrow
+License: Apache-2.0
+URL: https://github.com/apache/arrow
+
+Package: fsspec, s3fs and gcsfs
+License: BSD-3-Clause
+URL: https://github.com/fsspec
+
+Package: jsonschema
+License: MIT
+URL: https://github.com/python-jsonschema/jsonschema
+
+Package: lxml
+License: BSD-3-Clause
+URL: https://github.com/lxml/lxml
+
+Package: sqlglot
+License: MIT
+URL: https://github.com/tobymao/sqlglot
+
+Package: starlette
+License: BSD-3-Clause
+URL: https://github.com/encode/starlette
+
+Package: anyio
+License: MIT
+URL: https://github.com/agronholm/anyio
+
+Package: tenacity
+License: Apache-2.0
+URL: https://github.com/jd/tenacity
+
+Package: pytz
+License: MIT
+URL: https://github.com/stub42/pytz
+
 ================================================================================
 Node.js Packages
 ================================================================================
@@ -455,6 +576,41 @@ Package: undici-types
 Version: 6.21.0
 License: MIT
 URL: https://github.com/nodejs/undici
+
+Runtime dependencies of the examples/demos/field/market-analysis UI (ui/package.json; versions locked in
+ui/package-lock.json):
+
+Package: next, react and react-dom
+License: MIT
+URL: https://github.com/vercel/next.js
+
+Package: @nvidia/foundations-react-core
+License: Apache-2.0
+URL: https://www.npmjs.com/package/@nvidia/foundations-react-core
+
+Package: react-markdown, remark-gfm, remark-math, rehype-katex and unist-util-visit
+License: MIT
+URL: https://github.com/remarkjs
+
+Package: katex
+License: MIT
+URL: https://github.com/KaTeX/KaTeX
+
+Package: mermaid
+License: MIT
+URL: https://github.com/mermaid-js/mermaid
+
+Package: motion
+License: MIT
+URL: https://github.com/motiondivision/motion
+
+Package: tailwindcss, @tailwindcss/postcss, tailwind-merge and clsx
+License: MIT
+URL: https://github.com/tailwindlabs/tailwindcss
+
+Package: zod, zustand and uuid
+License: MIT
+URL: https://github.com/colinhacks/zod
 
 ================================================================================
 GitHub Actions
@@ -615,6 +771,21 @@ Dataset: Curated fixture derived from the U.S. Treasury OFAC Specially Designate
 License: U.S. Government work, public domain
 URL: https://sanctionslistservice.ofac.treas.gov/
 
+Source: NVIDIA AI-Q blueprint UI
+License: Apache-2.0
+URL: https://github.com/NVIDIA-AI-Blueprints/aiq
+Notes: examples/demos/field/market-analysis/ui is derived from it; ui/UPSTREAM.md records the changes and ui/LICENSE carries the license.
+
+Source: NVIDIA Auto Ontology (git submodule, update = none)
+License: Apache-2.0
+URL: https://github.com/NVIDIA/auto-ontology
+Notes: Checked out on demand at examples/demos/field/market-analysis/vendor/auto-ontology for the ontology profile; tools/auto-ontology/patches/ modifies it at build time. Its images are built locally.
+
+Service: SEC EDGAR, eCFR and the Federal Register
+License: U.S. Government works, public domain; SEC fair-access policy applies
+URL: https://www.sec.gov/os/accessing-edgar-data
+Notes: examples/demos/field/market-analysis downloads its document corpus from them at build time; nothing is committed but manifests.
+
 ================================================================================
 Assets
 ================================================================================
@@ -652,3 +823,15 @@ Notes: First-party ground-truth geometry authored for this example in FreeCAD an
 Asset: NeMo Studio screenshots under examples/tools/cae-freecad-agent-harness-optimization/assets/
 Owner: NVIDIA
 Notes: Trace and Insight views of this example's own agent runs on a local platform instance. No third-party or personal content.
+
+Asset: Execution-graph screenshot under examples/demos/field/market-analysis/docs/assets/screenshots/
+Owner: NVIDIA
+Notes: A replayed run of the example's own recorded session on the fictional synthetic-market pack.
+
+Asset: synthetic-market text and recordings under examples/demos/field/market-analysis/data/packs/synthetic-market/
+Owner: NVIDIA
+Notes: Fictional companies, news and sessions written with NeMo Data Designer and Nemotron for this example; no real issuer or ticker.
+
+Asset: Product and project logos under examples/demos/field/market-analysis/docs/assets/logos/ and examples/demos/field/market-analysis/ui/public/
+Owner: Their respective trademark owners (NVIDIA, Nous Research, Kumo, LangChain, Milvus/Zilliz, Arize, DuckDB, FastAPI, Vercel/Next.js, Meta/React, OpenTelemetry, Databricks, Snowflake)
+Notes: Used only to identify the components the example runs or names; no endorsement implied.
